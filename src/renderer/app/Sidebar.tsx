@@ -8,7 +8,7 @@ import styles from './Sidebar.module.css';
 
 const modifierKey = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl';
 
-export function Sidebar() {
+export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
   const { data: appInfo } = useQuery({
     queryKey: ['app', 'info'],
     queryFn: () => getBlink().app.getInfo(),
@@ -30,8 +30,7 @@ export function Sidebar() {
       <NoteList />
 
       <div className={styles.footer}>
-        {/* 검색은 Stage 3에서 연결한다. */}
-        <button type="button" className={styles.navItem} disabled>
+        <button type="button" className={styles.navItem} onClick={onOpenSearch}>
           <Search size={16} strokeWidth={1.75} />
           검색
           <kbd className={styles.kbd}>{modifierKey} K</kbd>

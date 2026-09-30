@@ -1,0 +1,40 @@
+.wrapper {
+  display: inline;
+}
+
+.link,
+.broken {
+  padding: 1px 2px;
+  border-radius: 4px;
+}
+
+.link {
+  color: var(--blue-600);
+  text-decoration: underline;
+  text-decoration-color: var(--blue-300);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: var(--blue-700);
+  background: var(--blue-100);
+}
+
+.link::before,
+.broken::before {
+  content: '[[';
+  opacity: 0.4;
+}
+
+.link::after,
+.broken::after {
+  content: ']]';
+  opacity: 0.4;
+}
+
+.broken {
+  color: var(--ink-500);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}

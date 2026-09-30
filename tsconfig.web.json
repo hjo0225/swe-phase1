@@ -2,16 +2,27 @@
   "compilerOptions": {
     "composite": true,
     "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["vite/client", "@testing-library/jest-dom/vitest"],
+    "types": [
+      "vite/client",
+      "@testing-library/jest-dom/vitest"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/renderer/**/*", "src/shared/**/*"]
+  "include": [
+    "src/renderer/**/*",
+    "src/shared/**/*",
+    "vitest.setup.ts"
+  ]
 }

@@ -43,6 +43,22 @@ describe('notes flow', () => {
     await expect(getBlink().notes.get({ id })).resolves.toMatchObject({ title: '회의록' });
   });
 
+  it('shows the saved content when returning to a note created in this session', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('heading', { name: '첫 노트를 만들어 보세요' });
+
+    await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
+    await user.type(await screen.findByRole('textbox', { name: '노트 제목' }), '첫 번째');
+    await sidebarList().findByText('첫 번째', {}, { timeout: 3000 });
+
+    await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '노트 제목' })).toHaveValue(''));
+
+    await user.click(sidebarList().getByText('첫 번째'));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '노트 제목' })).toHaveValue('첫 번째'));
+  });
+
   it('redirects the start screen to the most recently updated note', async () => {
     await getBlink().notes.create({ title: '오래된 노트' });
     const recent = await getBlink().notes.create({ title: '최근 노트' });

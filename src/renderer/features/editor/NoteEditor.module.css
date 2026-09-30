@@ -6,6 +6,7 @@
 
 .prose {
   outline: none;
+  white-space: pre-wrap; /* ProseMirror 권장: 연속 공백·줄바꿈 보존 */
   min-height: 320px;
   font-size: 16px;
   line-height: 1.7;
@@ -96,4 +97,9 @@
   height: 0;
   color: var(--ink-300);
   pointer-events: none;
+}
+
+/* 본문 편집 영역은 입력창이 아니라 종이 자체다. 포커스 링을 그리지 않는다. */
+.prose:focus-visible {
+  box-shadow: none;
 }

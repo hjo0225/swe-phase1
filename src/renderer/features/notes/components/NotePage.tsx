@@ -5,9 +5,11 @@ import { Link, useParams } from 'react-router';
 import type { NoteDetail } from '../../../../shared/ipc/notes';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import { Dialog } from '../../../shared/ui/Dialog';
+import { useActiveEditor } from '../../editor/ActiveEditorContext';
 import { NoteEditor } from '../../editor/NoteEditor';
 import { useDeleteNote, useNoteDetail } from '../api/note-queries';
 import { getAutosave, type NotePayload } from '../autosave/autosave';
+import { BacklinksPanel } from './BacklinksPanel';
 import styles from './NotePage.module.css';
 import { SaveIndicator } from './SaveIndicator';
 
@@ -47,6 +49,7 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
   const titleRef = useRef(note.title);
   const editorRef = useRef<Editor | null>(null);
   const deleteNote = useDeleteNote();
+  const { setActive } = useActiveEditor();
 
   // 저장 시점에 최신 제목·본문을 읽는다.
   const payload = useCallback(
@@ -60,9 +63,18 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
   // 다른 노트로 이동할 때 대기 중인 저장을 바로 보낸다.
   useEffect(() => () => void queue.flush(), [queue]);
 
-  const onReady = useCallback((editor: Editor) => {
-    editorRef.current = editor;
-  }, []);
+  // 검색 팔레트가 연결·가져오기 대상으로 쓸 수 있게 현재 편집기를 등록한다.
+  const onReady = useCallback(
+    (editor: Editor) => {
+      editorRef.current = editor;
+      setActive(() => ({ noteId: note.id, editor }));
+    },
+    [note.id, setActive],
+  );
+  useEffect(
+    () => () => setActive((current) => (current?.noteId === note.id ? null : current)),
+    [note.id, setActive],
+  );
 
   return (
     <article className={`paper ${styles.page}`}>
@@ -88,6 +100,7 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
       </header>
 
       <NoteEditor initialContent={note.content} onReady={onReady} onChange={() => queue.markDirty(payload)} />
+      <BacklinksPanel noteId={note.id} />
 
       {confirmingDelete && (
         <Dialog

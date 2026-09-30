@@ -1,10 +1,39 @@
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
-import type { NoteDetail, ProseMirrorDocDto } from '../../shared/ipc/notes';
+import type { LinkedNote, NoteDetail, ProseMirrorDocDto } from '../../shared/ipc/notes';
 import type { BlinkErrorCode, IpcResult } from '../../shared/ipc/result';
+
+interface JsonNode {
+  type?: string;
+  text?: string;
+  attrs?: Record<string, unknown>;
+  content?: JsonNode[];
+}
+
+function walk(node: JsonNode, visit: (n: JsonNode) => void): void {
+  visit(node);
+  node.content?.forEach((child) => walk(child, visit));
+}
+
+const textOf = (doc: ProseMirrorDocDto) => {
+  const parts: string[] = [];
+  walk(doc as JsonNode, (n) => {
+    if (n.type === 'text' && n.text) parts.push(n.text);
+    if (n.type === 'noteLink' && typeof n.attrs?.label === 'string') parts.push(n.attrs.label);
+  });
+  return parts.join(' ');
+};
+
+const linkTargets = (doc: ProseMirrorDocDto) => {
+  const ids = new Set<string>();
+  walk(doc as JsonNode, (n) => {
+    if (n.type === 'noteLink' && typeof n.attrs?.noteId === 'string') ids.add(n.attrs.noteId);
+  });
+  return ids;
+};
 
 /**
  * 백엔드 없이 Renderer를 띄우기 위한 in-memory 구현. 실제 Preload와 같은 Envelope를 반환한다.
- * 규칙은 백엔드와 같은 것만 흉내 낸다(표시 제목, 최신순, NOT_FOUND). 파생 텍스트는 단순화한다.
+ * 규칙은 화면이 기대는 것만 흉내 낸다(표시 제목, 최신순, NOT_FOUND, 링크 파생). 검색·스니펫은 단순화했다.
  */
 export function createMockBlink(): RawBlinkApi {
   const notes = new Map<string, NoteDetail>();
@@ -15,7 +44,9 @@ export function createMockBlink(): RawBlinkApi {
   const fail = <T>(code: BlinkErrorCode, message: string): Promise<IpcResult<T>> =>
     Promise.resolve({ ok: false, error: { code, message } });
   const emptyDoc = (): ProseMirrorDocDto => ({ type: 'doc', content: [{ type: 'paragraph' }] });
-  const textOf = (doc: ProseMirrorDocDto) => JSON.stringify(doc).match(/"text":"([^"]*)"/g)?.map((m) => m.slice(8, -1)).join(' ') ?? '';
+  const displayTitle = (n: NoteDetail) => n.title || '제목 없음';
+  const linked = (n: NoteDetail): LinkedNote => ({ noteId: n.id, title: displayTitle(n) });
+  const byRecent = (a: NoteDetail, b: NoteDetail) => b.updatedAt.localeCompare(a.updatedAt);
 
   return {
     app: {
@@ -39,8 +70,8 @@ export function createMockBlink(): RawBlinkApi {
       list: () =>
         ok({
           items: [...notes.values()]
-            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-            .map((n) => ({ id: n.id, title: n.title || '제목 없음', preview: textOf(n.content).slice(0, 120), updatedAt: n.updatedAt })),
+            .sort(byRecent)
+            .map((n) => ({ id: n.id, title: displayTitle(n), preview: textOf(n.content).slice(0, 120), updatedAt: n.updatedAt })),
         }),
       get: ({ id }) => {
         const note = notes.get(id);
@@ -57,6 +88,29 @@ export function createMockBlink(): RawBlinkApi {
       delete: ({ id }) => {
         notes.delete(id);
         return ok({ deleted: true as const });
+      },
+      search: ({ query, excludeNoteId, limit = 20 }) => {
+        const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+        if (keywords.length === 0) return ok({ items: [] });
+        const items = [...notes.values()]
+          .filter((n) => n.id !== excludeNoteId)
+          .filter((n) => keywords.every((k) => `${n.title} ${textOf(n.content)}`.toLowerCase().includes(k)))
+          .sort((a, b) => Number(b.title.toLowerCase().includes(keywords[0]!)) - Number(a.title.toLowerCase().includes(keywords[0]!)) || byRecent(a, b))
+          .slice(0, limit)
+          .map((n) => ({ id: n.id, title: displayTitle(n), snippet: textOf(n.content).slice(0, 120), updatedAt: n.updatedAt }));
+        return ok({ items });
+      },
+      listLinks: ({ noteId }) => {
+        const source = notes.get(noteId);
+        if (!source) return fail('NOTE_NOT_FOUND', `Note ${noteId} not found`);
+        const outgoing = [...linkTargets(source.content)]
+          .filter((id) => id !== noteId)
+          .flatMap((id) => (notes.has(id) ? [linked(notes.get(id)!)] : []));
+        const incoming = [...notes.values()]
+          .filter((n) => n.id !== noteId && linkTargets(n.content).has(noteId))
+          .sort(byRecent)
+          .map(linked);
+        return ok({ outgoing, incoming });
       },
     },
   };

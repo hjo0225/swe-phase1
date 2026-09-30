@@ -1,35 +1,60 @@
-/** note 도메인 IPC 계약 타입 — docs/backend/note/api-contract.md */
+/** note 도메인 IPC 계약 타입 — docs/backend/note/api-contract.md (보관함 방식, D-14) */
 
 export type NoteId = string;
 
-export type ProseMirrorDocDto = { type: 'doc'; content?: unknown[] };
+export interface VaultInfo {
+  root: string;
+  /** 폴더 이름 */
+  name: string;
+}
 
 export interface NoteSummary {
   id: NoteId;
-  /** 표시 제목 (빈 제목이면 '제목 없음') */
+  /** 파일 이름(.md 제외) = 제목 */
   title: string;
+  /** 보관함 기준 경로 (프로젝트/회의록.md) */
+  path: string;
+  /** '' = 맨 위 */
+  folder: string;
   preview: string;
   updatedAt: string;
 }
 
 export interface NoteDetail {
   id: NoteId;
-  /** 저장된 원본 제목 (빈 문자열 가능) */
   title: string;
-  content: ProseMirrorDocDto;
+  path: string;
+  /** Markdown */
+  content: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface VaultTree {
+  /** 보관함 기준 폴더 경로, `/` 구분 */
+  folders: string[];
+  notes: NoteSummary[];
+}
+
 export interface CreateNoteInput {
-  title?: string;
-  content?: ProseMirrorDocDto;
+  folder?: string;
 }
 
 export interface UpdateNoteInput {
   id: NoteId;
-  title?: string;
-  content?: ProseMirrorDocDto;
+  content: string;
+}
+
+export interface UpdateNoteResult {
+  id: NoteId;
+  updatedAt: string;
+  changed: boolean;
+}
+
+/** 이름 변경·이동 결과. updatedNoteIds = 링크를 고친 다른 노트 */
+export interface RelocateNoteResult {
+  note: NoteSummary;
+  updatedNoteIds: NoteId[];
 }
 
 export interface SearchNotesInput {
@@ -42,15 +67,14 @@ export interface SearchNotesInput {
 
 export interface NoteSearchHit {
   id: NoteId;
-  /** 표시 제목 */
   title: string;
+  path: string;
   snippet: string;
   updatedAt: string;
 }
 
 export interface LinkedNote {
   noteId: NoteId;
-  /** 현재 표시 제목 */
   title: string;
 }
 
@@ -59,8 +83,9 @@ export interface NoteLinks {
   incoming: LinkedNote[];
 }
 
-export interface UpdateNoteResult {
-  id: NoteId;
-  updatedAt: string;
-  changed: boolean;
+/** Main → Renderer: 외부 변경·링크 고치기로 노트가 바뀜 */
+export interface VaultChangedEvent {
+  noteIds: NoteId[];
+  /** 노트·폴더가 생기거나 없어졌는지 */
+  structure: boolean;
 }

@@ -15,6 +15,7 @@ import type {
   TestProviderResult,
   UpdateProviderInput,
 } from './ai-provider';
+import type { AIJobView, CreateJobInput, JobId } from './assist';
 import type { IpcResult } from './result';
 
 export interface AppInfo {
@@ -37,6 +38,14 @@ export interface BlinkApi {
     delete(input: { id: NoteId }): Promise<{ deleted: true }>;
     search(input: SearchNotesInput): Promise<{ items: NoteSearchHit[] }>;
     listLinks(input: { noteId: NoteId }): Promise<NoteLinks>;
+  };
+  ai: {
+    createJob(input: CreateJobInput): Promise<AIJobView>;
+    getJob(input: { jobId: JobId }): Promise<AIJobView>;
+    listJobs(input: { noteId: NoteId }): Promise<{ items: AIJobView[] }>;
+    retryJob(input: { jobId: JobId }): Promise<AIJobView>;
+    /** Job 상태 변경 푸시. 해제 함수를 반환한다. */
+    onJobUpdated(listener: (job: AIJobView) => void): () => void;
   };
   settings: {
     getProvider(): Promise<ProviderSettingsView>;

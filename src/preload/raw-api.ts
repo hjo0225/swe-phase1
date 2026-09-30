@@ -1,3 +1,4 @@
+import type { AIJobView } from '../shared/ipc/assist';
 import type { RawBlinkApi } from '../shared/ipc/blink-api';
 import { IpcChannels, IpcEvents } from '../shared/ipc/channels';
 import type { IpcResult } from '../shared/ipc/result';
@@ -21,6 +22,13 @@ export function createRawBlinkApi(invoke: Invoke, subscribe: Subscribe): RawBlin
       delete: (input) => call(IpcChannels.noteDelete, input),
       search: (input) => call(IpcChannels.noteSearch, input),
       listLinks: (input) => call(IpcChannels.noteLinkList, input),
+    },
+    ai: {
+      createJob: (input) => call(IpcChannels.aiCreateJob, input),
+      getJob: (input) => call(IpcChannels.aiGetJob, input),
+      listJobs: (input) => call(IpcChannels.aiListJobs, input),
+      retryJob: (input) => call(IpcChannels.aiRetryJob, input),
+      onJobUpdated: (listener) => subscribe(IpcEvents.aiJobUpdated, (payload) => listener(payload as AIJobView)),
     },
     settings: {
       getProvider: () => call(IpcChannels.settingsGetProvider),

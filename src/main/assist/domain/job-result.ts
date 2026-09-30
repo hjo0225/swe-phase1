@@ -12,6 +12,10 @@ export type JobResult =
   | { kind: 'RESEARCHED_MARKDOWN'; markdown: string; sources: Source[] }
   | { kind: 'INFOGRAPHIC'; spec: unknown };
 
+export type MarkdownResult = Extract<JobResult, { kind: 'MARKDOWN' }>;
+export type ResearchedResult = Extract<JobResult, { kind: 'RESEARCHED_MARKDOWN' }>;
+export type InfographicResult = Extract<JobResult, { kind: 'INFOGRAPHIC' }>;
+
 export const RESULT_KIND_OF: Record<JobType, JobResult['kind']> = {
   ORGANIZE: 'MARKDOWN',
   EXPAND: 'RESEARCHED_MARKDOWN',
@@ -34,15 +38,15 @@ const MAX_SOURCES = 5;
 const FENCE = /^\s*```(?:markdown|md)?[ \t]*\n([\s\S]*?)\n```\s*$/;
 
 export const JobResults = {
-  markdown(raw: string): JobResult {
+  markdown(raw: string): MarkdownResult {
     const markdown = (raw.match(FENCE)?.[1] ?? raw).trim();
     if (markdown.length === 0) throw new JobOutputError('INVALID_OUTPUT', 'Result is empty');
     if (markdown.length > MAX_MARKDOWN_LENGTH) throw new JobOutputError('INVALID_OUTPUT', 'Result is too long');
     return { kind: 'MARKDOWN', markdown };
   },
 
-  researched(raw: string, rawSources: readonly Source[]): JobResult {
-    const body = (JobResults.markdown(raw) as { markdown: string }).markdown;
+  researched(raw: string, rawSources: readonly Source[]): ResearchedResult {
+    const body = JobResults.markdown(raw).markdown;
     const sources: Source[] = [];
     for (const source of rawSources) {
       if (!isHttpUrl(source.url) || sources.some((s) => s.url === source.url)) continue;
@@ -55,7 +59,7 @@ export const JobResults = {
   },
 
   /** spec은 visualization 도메인에서 이미 검증된 값이어야 한다. */
-  infographic(spec: unknown): JobResult {
+  infographic(spec: unknown): InfographicResult {
     return { kind: 'INFOGRAPHIC', spec };
   },
 };

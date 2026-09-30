@@ -1,5 +1,6 @@
-import type { Capabilities } from '../../shared/assist/capabilities';
+import { missingCapabilities, type Capabilities } from '../../shared/assist/capabilities';
 import type { ProviderId, ProviderSettingsView } from '../../shared/ipc/ai-provider';
+import type { AIJobView, JobResultDto } from '../../shared/ipc/assist';
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
 import type { LinkedNote, NoteDetail, ProseMirrorDocDto } from '../../shared/ipc/notes';
 import type { BlinkErrorCode, IpcResult } from '../../shared/ipc/result';
@@ -37,7 +38,76 @@ const linkTargets = (doc: ProseMirrorDocDto) => {
  * 백엔드 없이 Renderer를 띄우기 위한 in-memory 구현. 실제 Preload와 같은 Envelope를 반환한다.
  * 규칙은 화면이 기대는 것만 흉내 낸다(표시 제목, 최신순, NOT_FOUND, 링크 파생). 검색·스니펫은 단순화했다.
  */
-export function createMockBlink(): RawBlinkApi {
+export interface MockBlinkOptions {
+  /** AI Job의 각 상태 전이 사이 지연(ms). */
+  aiDelayMs?: number;
+}
+
+/** 입력에 `#fail:CODE`가 있으면 그 코드로 실패한다 (UI 개발·테스트용). */
+const FAIL_MARKER = /#fail:([A-Z_]+)/;
+
+function mockResult(job: AIJobView): JobResultDto {
+  switch (job.type) {
+    case 'ORGANIZE':
+      return { kind: 'MARKDOWN', markdown: `## 정리된 메모
+
+- ${job.inputText.trim()}` };
+    case 'EXPAND':
+      return {
+        kind: 'RESEARCHED_MARKDOWN',
+        markdown: `${job.inputText.trim()} (구체화됨)
+
+**출처**
+- [예시 출처](https://example.com/)`,
+        sources: [{ title: '예시 출처', url: 'https://example.com/' }],
+      };
+    case 'VISUALIZE':
+      return {
+        kind: 'INFOGRAPHIC',
+        spec: {
+          version: 1,
+          type: 'process',
+          title: '처리 과정',
+          nodes: [
+            { id: '1', title: '입력', description: job.inputText.slice(0, 40) },
+            { id: '2', title: '분석', description: '' },
+            { id: '3', title: '결과', description: '' },
+          ],
+          edges: [
+            ['1', '2'],
+            ['2', '3'],
+          ],
+        },
+      };
+  }
+}
+
+export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
+  const aiDelayMs = options.aiDelayMs ?? 400;
+  const jobs = new Map<string, AIJobView>();
+  const jobListeners = new Set<(job: AIJobView) => void>();
+  const emitJob = (job: AIJobView) => {
+    jobs.set(job.id, job);
+    for (const listener of jobListeners) listener(structuredClone(job));
+  };
+  const runJob = (id: string) => {
+    setTimeout(() => {
+      const queued = jobs.get(id);
+      if (!queued || queued.status !== 'QUEUED') return;
+      emitJob({ ...queued, status: 'RUNNING', startedAt: now() });
+      setTimeout(() => {
+        const running = jobs.get(id);
+        if (!running || running.status !== 'RUNNING') return;
+        const failCode = running.inputText.match(FAIL_MARKER)?.[1];
+        emitJob(
+          failCode
+            ? { ...running, status: 'FAILED', failure: { code: failCode as never, retryable: true }, completedAt: now() }
+            : { ...running, status: 'COMPLETED', result: mockResult(running), completedAt: now() },
+        );
+      }, aiDelayMs);
+    }, aiDelayMs);
+  };
+
   const notes = new Map<string, NoteDetail>();
   let tick = Date.UTC(2026, 8, 30);
   const now = () => new Date((tick += 1000)).toISOString();
@@ -158,6 +228,47 @@ export function createMockBlink(): RawBlinkApi {
       testProvider: ({ provider, apiKey }) => {
         if (!apiKey && !providerState[provider].hasApiKey) return fail('PROVIDER_API_KEY_REQUIRED', 'API key required');
         return ok(apiKey === 'bad-key' ? { ok: false as const, failure: { code: 'AUTH_FAILED' as const } } : { ok: true as const });
+      },
+    },
+    ai: {
+      createJob: ({ jobId, noteId, type, inputText }) => {
+        const existing = jobs.get(jobId);
+        if (existing) return ok(structuredClone(existing));
+        if (!notes.has(noteId)) return fail('NOTE_NOT_FOUND', noteId);
+        const active = settingsView().active;
+        if (!active) return fail('AI_PROVIDER_NOT_CONFIGURED', 'No active provider');
+        if (missingCapabilities(type, active.capabilities).length > 0) return fail('AI_CAPABILITY_UNSUPPORTED', type);
+        if (!inputText.trim()) return fail('AI_INPUT_EMPTY', 'empty');
+        const job: AIJobView = { id: jobId, noteId, type, status: 'QUEUED', inputText, attempt: 1, createdAt: now() };
+        jobs.set(jobId, job);
+        runJob(jobId);
+        return ok(structuredClone(job));
+      },
+      getJob: ({ jobId }) => {
+        const job = jobs.get(jobId);
+        return job ? ok(structuredClone(job)) : fail('AI_JOB_NOT_FOUND', jobId);
+      },
+      listJobs: ({ noteId }) => ok({ items: [...jobs.values()].filter((j) => j.noteId === noteId).map((j) => structuredClone(j)) }),
+      retryJob: ({ jobId }) => {
+        const job = jobs.get(jobId);
+        if (!job) return fail('AI_JOB_NOT_FOUND', jobId);
+        if (job.status !== 'FAILED') return fail('AI_JOB_NOT_RETRYABLE', job.status);
+        const retried: AIJobView = {
+          id: job.id,
+          noteId: job.noteId,
+          type: job.type,
+          status: 'QUEUED',
+          inputText: job.inputText.replace(FAIL_MARKER, ''),
+          attempt: job.attempt + 1,
+          createdAt: job.createdAt,
+        };
+        emitJob(retried);
+        runJob(jobId);
+        return ok(structuredClone(retried));
+      },
+      onJobUpdated: (listener) => {
+        jobListeners.add(listener);
+        return () => jobListeners.delete(listener);
       },
     },
   };

@@ -12,9 +12,14 @@ export const IpcChannels = {
   settingsGetProvider: 'settings:get-provider',
   settingsUpdateProvider: 'settings:update-provider',
   settingsTestProvider: 'settings:test-provider',
+  aiCreateJob: 'ai:create-job',
+  aiGetJob: 'ai:get-job',
+  aiListJobs: 'ai:list-jobs',
+  aiRetryJob: 'ai:retry-job',
 } as const;
 
 /** Main → Renderer 푸시 이벤트. */
 export const IpcEvents = {
   appWillClose: 'app:will-close',
+  aiJobUpdated: 'ai:job-updated',
 } as const;

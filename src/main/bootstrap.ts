@@ -1,8 +1,23 @@
-import { app, ipcMain, type BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
-import { IpcChannels } from '../shared/ipc/channels';
+import { IpcChannels, IpcEvents } from '../shared/ipc/channels';
 import { EmptyRequest } from '../shared/ipc/schemas';
+import { ActiveLLM } from './ai-provider/application/active-llm';
+import { ProviderSettingsService } from './ai-provider/application/provider-settings-service';
+import { DrizzleAIProviderSettingsRepository } from './ai-provider/infrastructure/drizzle-ai-provider-settings-repository';
+import { createLLMProviderFactory } from './ai-provider/infrastructure/llm-provider-factory';
+import { SafeStorageCipher } from './ai-provider/infrastructure/safe-storage-cipher';
+import { settingsIpcHandlers } from './ai-provider/presentation/settings.ipc';
 import { createCloseCoordinator } from './app/close-coordinator';
+import { AIJobQueries } from './assist/application/ai-job-queries';
+import { CreateAIJob } from './assist/application/create-ai-job';
+import { OrganizeExecutor } from './assist/application/executors/organize-executor';
+import { JobRunner } from './assist/application/job-runner';
+import type { JobEventPublisher } from './assist/application/ports';
+import { RecoverInterruptedJobs } from './assist/application/recover-interrupted-jobs';
+import { RetryAIJob } from './assist/application/retry-ai-job';
+import { DrizzleAIJobRepository } from './assist/infrastructure/drizzle-ai-job-repository';
+import { aiIpcHandlers } from './assist/presentation/ai.ipc';
 import { NoteService } from './note/application/note-service';
 import { DrizzleNoteRepository } from './note/infrastructure/drizzle-note-repository';
 import { noteIpcHandlers } from './note/presentation/note.ipc';
@@ -19,15 +34,42 @@ const CLOSE_FLUSH_TIMEOUT_MS = 3000;
 
 /** Composition Root. 순서는 docs/02-architecture.md "앱 시작 순서"를 따른다. */
 export function bootstrap(): { openWindow: () => BrowserWindow } {
+  // 1. DB 열기 → 마이그레이션
   const database = openDatabase(join(app.getPath('userData'), 'blink.db'));
   runMigrations(database.sqlite, migrations);
   app.on('will-quit', () => database.close());
 
+  // 2. 의존성 조립
   const noteService = new NoteService(new DrizzleNoteRepository(database.db), systemClock, uuid);
+
+  const providerRepo = new DrizzleAIProviderSettingsRepository(database.db);
+  const cipher = new SafeStorageCipher();
+  const llmFactory = createLLMProviderFactory();
+  const providerSettings = new ProviderSettingsService(providerRepo, cipher, llmFactory, systemClock);
+  const activeLLM = new ActiveLLM(providerRepo, cipher, llmFactory);
+
+  const jobRepo = new DrizzleAIJobRepository(database.db);
+  const publisher: JobEventPublisher = {
+    jobUpdated: (view) => {
+      for (const window of BrowserWindow.getAllWindows()) window.webContents.send(IpcEvents.aiJobUpdated, view);
+    },
+  };
+  const runner = new JobRunner({
+    repo: jobRepo,
+    activeLLM,
+    executors: { ORGANIZE: new OrganizeExecutor() },
+    publisher,
+    clock: systemClock,
+    logger: console,
+  });
+
+  // 3. 중단된 AI Job 정리 (UC-ASSIST-006) — Renderer가 중간 상태를 보기 전에
+  new RecoverInterruptedJobs(jobRepo, systemClock).execute();
 
   // 창마다 하나. 현재는 단일 창이라 가장 최근 창의 coordinator에 release를 전달한다.
   let releaseClose = () => {};
 
+  // 4. IPC 등록
   const isTrusted = createSenderValidator({
     devServerUrl: app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL,
   });
@@ -37,11 +79,17 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
       [IpcChannels.appGetInfo]: createIpcHandler(EmptyRequest, () => ({ version: app.getVersion() })),
       [IpcChannels.appReadyToClose]: createIpcHandler(EmptyRequest, () => releaseClose()),
       ...noteIpcHandlers(noteService),
+      ...settingsIpcHandlers(providerSettings),
+      ...aiIpcHandlers({
+        create: new CreateAIJob({ repo: jobRepo, notes: noteService, activeLLM, runner, clock: systemClock }),
+        retry: new RetryAIJob({ repo: jobRepo, activeLLM, runner, clock: systemClock, publisher }),
+        queries: new AIJobQueries(jobRepo),
+      }),
     },
     isTrusted,
   );
 
-  // Renderer의 첫 호출이 유실되지 않도록 IPC 등록 후에 창을 만든다.
+  // 5. 창 생성 — Renderer의 첫 호출이 유실되지 않도록 IPC 등록 후에 만든다.
   const openWindow = () => {
     const window = createMainWindow();
     const coordinator = createCloseCoordinator(window, { timeoutMs: CLOSE_FLUSH_TIMEOUT_MS });

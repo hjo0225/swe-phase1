@@ -14,12 +14,13 @@
   padding: 40px;
 }
 
-.logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--blue-400), var(--blue-600));
-  box-shadow: var(--glow-mint);
+.wordmark {
+  display: block;
+  height: 44px;
+  width: auto;
+  margin-bottom: 4px;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .title {

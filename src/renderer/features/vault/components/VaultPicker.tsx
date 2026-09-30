@@ -1,5 +1,6 @@
 import { FolderOpen } from 'lucide-react';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
+import wordmark from '../../../assets/blink-wordmark.svg';
 import { useOpenVault, useRecentVaults } from '../api/vault-queries';
 import styles from './VaultPicker.module.css';
 
@@ -19,7 +20,7 @@ export function VaultPicker() {
   return (
     <div className={`app-background ${styles.screen}`}>
       <section className={`paper ${styles.card}`} aria-labelledby="vault-picker-title">
-        <span className={styles.logo} aria-hidden />
+        <img src={wordmark} alt="Blink" className={styles.wordmark} />
         <h1 id="vault-picker-title" className={styles.title}>
           보관함 열기
         </h1>

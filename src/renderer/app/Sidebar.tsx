@@ -7,6 +7,7 @@ import { useCreateNote } from '../features/notes/api/note-queries';
 import { FolderDialog } from '../features/notes/components/FolderDialogs';
 import { NoteTree } from '../features/notes/components/NoteTree';
 import { VaultSwitcher } from '../features/vault/components/VaultSwitcher';
+import wordmark from '../assets/blink-wordmark.svg';
 import { getBlink } from '../shared/api/blink';
 import styles from './Sidebar.module.css';
 
@@ -27,8 +28,7 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
   return (
     <nav aria-label="Blink" className={`glass ${styles.sidebar}`}>
       <div className={styles.brand}>
-        <span className={styles.logo} aria-hidden />
-        Blink
+        <img src={wordmark} alt="Blink" className={styles.wordmark} />
       </div>
       <VaultSwitcher />
 

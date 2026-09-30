@@ -9,19 +9,16 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
   padding: 0 4px;
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--ink-900);
 }
 
-.logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--blue-400), var(--blue-600));
-  box-shadow: var(--glow-mint);
+/* 서비스 워드마크 (assets/blink-wordmark.svg, 1182×423) */
+.wordmark {
+  display: block;
+  height: 30px;
+  width: auto;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .footer {

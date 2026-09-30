@@ -1,5 +1,9 @@
 # Blink
 
+<p align="center">
+  <img src="src/renderer/assets/blink-wordmark.svg" alt="Blink" width="280" />
+</p>
+
 > **고르고, 깜빡이면, 완성.**
 >
 > 창을 바꾸지도, 복사해 붙여넣지도 않습니다. 쓰던 문장을 고르면 그 자리가 **깜빡이며(Blink)** 더 나은 글로 바뀌고, 잊고 있던 예전 노트가 지금 쓰는 글과 이어집니다.

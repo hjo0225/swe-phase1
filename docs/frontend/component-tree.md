@@ -23,14 +23,14 @@ App (QueryClientProvider, HashRouter)
 ## NotePage (`#/notes/:noteId`)
 
 ```text
-NotePage                                  ◆ ActiveEditorContext · LinkTitlesContext 제공
+NotePage                                  ◆ 현재 편집기를 ActiveEditorContext에 등록
 ├── NoteHeader
 │   ├── TitleInput                        → SaveQueue.markDirty
 │   ├── SaveIndicator                     ← SaveQueue.status
 │   └── NoteMenu → DeleteNoteDialog       ◆ Dialog 열림
 ├── NoteEditor                            [paper]  ◆ Tiptap 인스턴스 (key=noteId)
 │   ├── EditorContent
-│   │   ├── NoteLinkView (node view)      ← LinkTitlesContext, 클릭 → navigate / 깨진 링크 Toast
+│   │   ├── NoteLinkView (node view)      ← useNoteList (현재 제목·존재 여부), 클릭 → navigate / 깨진 링크는 취소선
 │   │   ├── InfographicView (node view)   → visualization
 │   │   └── JobFailureChip (widget deco)  재시도 / 닫기
 │   └── AIActionBubble (BubbleMenu)       [floating chip]  ← useActiveCapabilities

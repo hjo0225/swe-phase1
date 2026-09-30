@@ -69,8 +69,8 @@ note:delete handler
 note:search handler
 → NoteService.search({ query, excludeNoteId?, limit })
    → q = SearchQuery.parse(query); if q.isEmpty() → []
-   → notes = repo.search(q, { excludeNoteId, limit })   -- SQL: 후보 필터 + 정렬
-   → notes.map(n => ({ id, title: n.displayTitle(), snippet: n.snippetFor(q.keywords), updatedAt }))
+   → rows = repo.search(q, { excludeNoteId, limit })    -- SQL: 후보 필터 + 정렬, 읽기 모델
+   → rows.map(r => ({ id, title: NoteTitle.of(r.title).display(), snippet: snippetOf(r.plainText, q.keywords), updatedAt }))
 ```
 
 ## UC-NOTE-008 List Links

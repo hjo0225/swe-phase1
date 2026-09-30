@@ -23,6 +23,8 @@
 | 저장 상태 (`idle`/`dirty`/`saving`/`saved`/`error`) | `AutosaveRegistry`의 노트별 `SaveQueue` | React 밖 모듈. `useSyncExternalStore`로 구독 |
 | Job 상태 → 장식(Pulse/실패) | `jobDecorationPlugin` 플러그인 상태 | `AssistBridge`가 Job 쿼리 결과를 트랜잭션 meta로 주입 |
 
+**상세 캐시를 `setQueryData`로 미리 채우지 않는다.** 그렇게 만든 캐시는 기본 gcTime(5분)을 갖고 gcTime은 늘어나기만 해서, 노트를 다시 열 때 생성 시점의 빈 본문이 보이고 그 위 입력이 저장된 본문을 덮어쓴다(회귀 테스트: `notes.flow.test.tsx`).
+
 **Query 캐시가 편집 중인 문서를 덮어쓰면 안 된다.** 상세 쿼리는 노트를 열 때 한 번만 읽고, 이후의 진실은 편집기다. 저장 성공 후에도 상세 쿼리를 갱신하지 않는다(다시 열 때 새로 읽음 — 노트를 닫으면 캐시 제거 `gcTime: 0`).
 
 ### URL State
@@ -48,15 +50,14 @@
 | State | Provider | Consumer | 이유 |
 | --- | --- | --- | --- |
 | 현재 편집기 핸들 | `NotePage` → `ActiveEditorContext` | `SearchPalette` (연결·가져오기 대상) | 팔레트는 AppShell에 있고 편집기는 NotePage에 있다 |
-| 링크 제목 조회 | `NotePage` → `LinkTitlesContext` | `NoteLinkView` (노드 뷰) | 노드 뷰는 React 트리 밖에서 생성되어 props로 받을 수 없다 |
 
 ## 파생 값 (상태로 저장하지 않음)
 
 | 값 | 계산 |
 | --- | --- |
 | 구체화/정리/시각화 버튼 활성 | `canRunJob(type, activeCapabilities)` — 요구 표는 `src/shared/assist`에서 Main과 공유 |
-| 링크 표시 제목 | `links.outgoing`에서 `noteId`로 찾은 현재 제목, 없으면 노드의 `label` |
-| 깨진 링크 여부 | `links` 로드 완료 && `outgoing`에 `noteId` 없음 |
+| 링크 표시 제목 | 노트 목록(`['notes','list']`)에서 `noteId`로 찾은 현재 제목, 없으면 노드의 `label` |
+| 깨진 링크 여부 | 노트 목록 로드 완료 && 목록에 `noteId` 없음. (outgoing 링크는 저장 후에야 파생되므로 쓰지 않는다 — 쓰면 방금 넣은 링크가 저장 전까지 깨진 것으로 보인다) |
 | Mark별 Job 상태 | 문서의 `aiPending.jobId` × `['ai','jobs',noteId]` |
 | AI 설정 필요 안내 | `settings.active === null` |
 | 저장 표시 문구 | `SaveQueue.status` + 마지막 성공 시각 |

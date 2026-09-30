@@ -2,6 +2,8 @@
 
 SQLite (`better-sqlite3`) + Drizzle ORM. 연결 시 `PRAGMA foreign_keys = ON` 필수 (SQLite 기본값은 OFF라 cascade가 동작하지 않는다).
 
+**마이그레이션**은 `src/main/platform/db/migrations.ts`에 SQL 문자열로 둔다(파일 경로 없이 테스트·dev·패키징 모두에 번들된다). `runMigrations`가 `schema_migrations`에 기록하며 id 순서대로, 파일마다 한 트랜잭션으로 적용한다. 배포된 마이그레이션은 고치지 않고 새 항목을 추가한다. Drizzle 스키마(`schema.ts`)는 쿼리용이며 제약의 원본은 SQL이다.
+
 ## 테이블
 
 ### `notes`

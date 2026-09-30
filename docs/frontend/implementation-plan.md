@@ -8,7 +8,7 @@
 | 2 | AppShell | 배경, Sidebar, NoteList, NewNote, 빈 상태, 라우트 3개 | UC-NOTE-001·002 | 노트 생성 → 목록 최상단 |
 | 3 | 편집 · 자동 저장 | `createEditor`(StarterKit), NotePage, NoteHeader, `AutosaveRegistry`/`SaveQueue`, SaveIndicator, 삭제 Dialog, **앱 종료 flush** | UC-NOTE-003·004·005, `app:*` | 명세서 Scenario 1 (종료 → 재실행 → 유지) |
 | 4 | 검색 | SearchPalette, 단축키, 결과·스니펫 강조, 열기 | UC-NOTE-006 | Scenario 5 |
-| 5 | 연결 · 가져오기 | `noteLinkNode` + NoteLinkView, LinkTitlesContext, BacklinksPanel, 가져오기(전체·선택), `sanitizeImportedContent` | UC-NOTE-008 | Scenario 6·7, 깨진 링크 표시 |
+| 5 | 연결 · 가져오기 | `noteLinkNode` + NoteLinkView, BacklinksPanel, 가져오기(전체·선택), `sanitizeImportedContent` | UC-NOTE-008 | Scenario 6·7, 깨진 링크 표시 |
 | 6 | AI 설정 | SettingsPage, AIProviderForm, 연결 테스트, AIStatusChip, `useActiveCapabilities` | UC-AIP-001~003 | Scenario 8 |
 | 7 | AI 작업 (정리) | AIActionBubble, `aiPendingMark`, selectionLock, jobDecoration(Pulse), `useJobEvents`, AssistBridge, `planCommit`/`applyCommit`, JobFailureChip | UC-ASSIST-001~006 (ORGANIZE) | Scenario 2 — 처리 중 다른 부분 편집, 노트 전환 후 복귀 시 적용 |
 | 8 | 구체화 | 출처 목록 포함 Markdown 적용, 잠금 버튼(🔒) | EXPAND | Scenario 3 |

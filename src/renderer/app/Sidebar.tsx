@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Settings } from 'lucide-react';
 import { NavLink } from 'react-router';
+import { useCreateNote } from '../features/notes/api/note-queries';
+import { NoteList } from '../features/notes/components/NoteList';
 import { getBlink } from '../shared/api/blink';
 import styles from './Sidebar.module.css';
 
@@ -12,6 +14,7 @@ export function Sidebar() {
     queryFn: () => getBlink().app.getInfo(),
     staleTime: Infinity,
   });
+  const createNote = useCreateNote();
 
   return (
     <nav aria-label="Blink" className={`glass ${styles.sidebar}`}>
@@ -20,16 +23,14 @@ export function Sidebar() {
         Blink
       </div>
 
-      {/* 노트 생성·목록·검색은 Stage 2~3에서 연결한다. */}
-      <button type="button" className="button-primary" disabled>
+      <button type="button" className="button-primary" disabled={createNote.isPending} onClick={() => createNote.mutate()}>
         <Plus size={16} strokeWidth={1.75} />새 노트
       </button>
 
-      <section className={styles.list} aria-label="노트 목록">
-        <p className={styles.empty}>아직 노트가 없습니다</p>
-      </section>
+      <NoteList />
 
       <div className={styles.footer}>
+        {/* 검색은 Stage 3에서 연결한다. */}
         <button type="button" className={styles.navItem} disabled>
           <Search size={16} strokeWidth={1.75} />
           검색

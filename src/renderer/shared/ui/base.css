@@ -104,6 +104,60 @@ button {
   cursor: not-allowed;
 }
 
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px);
+  color: var(--ink-800);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-hover) ease-out;
+}
+
+.button-secondary:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.button-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 14px;
+  background: var(--danger-500);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-600);
+  cursor: pointer;
+  transition: background var(--dur-hover) ease-out;
+}
+
+.button-icon:hover {
+  background: var(--blue-100);
+  color: var(--ink-800);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

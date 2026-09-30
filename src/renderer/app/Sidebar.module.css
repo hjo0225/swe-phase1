@@ -24,18 +24,6 @@
   box-shadow: var(--glow-mint);
 }
 
-.list {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.empty {
-  margin: 8px 4px;
-  font-size: 13px;
-  color: var(--ink-500);
-}
-
 .footer {
   display: flex;
   flex-direction: column;

@@ -1,25 +1,7 @@
-import { blob, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // 쿼리용 스키마. 테이블 생성·제약(FK, CHECK, 인덱스)의 원본은 migrations.ts다.
-
-export const notes = sqliteTable('notes', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull().default(''),
-  contentJson: text('content_json').notNull(),
-  plainText: text('plain_text').notNull(),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
-
-export const noteLinks = sqliteTable(
-  'note_links',
-  {
-    sourceNoteId: text('source_note_id').notNull(),
-    targetNoteId: text('target_note_id').notNull(),
-    createdAt: integer('created_at').notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.sourceNoteId, t.targetNoteId] })],
-);
+// blink.db의 옛 notes·note_links 테이블(D-14 이전)은 더 쓰지 않는다. ai_jobs 모양은 보관함 색인 DB(vault-index-db.ts)에서 쓴다.
 
 export const aiProviderSettings = sqliteTable('ai_provider_settings', {
   provider: text('provider').primaryKey(),

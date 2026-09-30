@@ -1,14 +1,14 @@
 import type { Page } from 'playwright-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createUserDataDir, launchApp } from './support/app';
+import { setTitle } from './support/editor';
 
 async function writeNote(page: Page, title: string, body: string) {
   await page.getByRole('button', { name: '새 노트' }).first().click();
-  await page.getByRole('textbox', { name: '노트 제목' }).fill(title);
+  await setTitle(page, title);
   await page.getByRole('textbox', { name: '노트 본문' }).click();
   await page.keyboard.type(body);
-  // 목록에 제목이 보이면 저장까지 끝난 것이다.
-  await page.getByRole('region', { name: '노트 목록' }).getByText(title).waitFor();
+  await page.getByText('저장됨').waitFor();
 }
 
 async function searchFor(page: Page, query: string) {

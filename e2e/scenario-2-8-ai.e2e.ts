@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createUserDataDir, launchApp } from './support/app';
-import { selectText } from './support/editor';
+import { selectText, setTitle } from './support/editor';
 
 // 명세서 §41 Scenario 8(AI Provider 설정) · Scenario 2(정리: Pulse 중 다른 부분 계속 작성 → 한 번에 적용)
 describe('Scenarios 8 & 2: AI settings and organize', () => {
@@ -27,7 +27,7 @@ describe('Scenarios 8 & 2: AI settings and organize', () => {
 
       // Scenario 2: 텍스트 선택 → 정리 → Pulse → 다른 부분 작성 → 결과 한 번에 적용
       await page.getByRole('button', { name: '새 노트' }).first().click();
-      await page.getByRole('textbox', { name: '노트 제목' }).fill('회의');
+      await setTitle(page, '회의');
       const body = page.getByRole('textbox', { name: '노트 본문' });
       await body.click();
       await page.keyboard.type('회의했고 api 어떤거 쓸지도 얘기했고 electron 쓸 거 같음');

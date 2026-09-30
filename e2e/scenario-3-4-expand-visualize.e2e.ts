@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { Page } from 'playwright-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createUserDataDir, launchApp } from './support/app';
-import { selectText } from './support/editor';
+import { selectText, setTitle } from './support/editor';
 
 
 async function configureAndWrite(page: Page, body: string) {
@@ -15,7 +15,7 @@ async function configureAndWrite(page: Page, body: string) {
   await page.getByText('OpenAI · GPT-5.4 mini (권장)').waitFor();
 
   await page.getByRole('button', { name: '새 노트' }).first().click();
-  await page.getByRole('textbox', { name: '노트 제목' }).fill('Electron');
+  await setTitle(page, 'Electron');
   await page.getByRole('textbox', { name: '노트 본문' }).click();
   await page.keyboard.type(body);
 }

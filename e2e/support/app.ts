@@ -1,16 +1,27 @@
 import electronPath from 'electron';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron, type ElectronApplication, type Page } from 'playwright-core';
 
 const repoRoot = resolve(__dirname, '../..');
 
-/** 테스트마다 격리된 userData(= DB 위치)를 쓴다. 실제 사용자 데이터에 닿지 않는다. */
-export function createUserDataDir(): { dir: string; cleanup(): void } {
-  const dir = mkdtempSync(join(tmpdir(), 'blink-e2e-'));
+/**
+ * 테스트마다 격리된 userData(= 설정·색인 DB 위치)와 보관함 폴더를 쓴다. 실제 사용자 데이터에 닿지 않는다.
+ * 마지막 보관함을 app-config.json에 미리 적어 두어 앱이 선택 화면 없이 보관함을 연다.
+ */
+export function createUserDataDir(): { dir: string; vault: string; cleanup(): void } {
+  const base = mkdtempSync(join(tmpdir(), 'blink-e2e-'));
+  const dir = join(base, 'user-data');
+  const vault = join(base, 'vault');
+  mkdirSync(dir);
+  mkdirSync(vault);
+  writeFileSync(
+    join(dir, 'app-config.json'),
+    JSON.stringify({ lastVault: vault, recentVaults: [{ root: vault, openedAt: new Date().toISOString() }] }),
+  );
   // Windows는 종료 직후 SQLite 파일 잠금이 잠깐 남을 수 있어 재시도한다.
-  return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) };
+  return { dir, vault, cleanup: () => rmSync(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) };
 }
 
 /** `pnpm build` 결과(out/)를 실제 Electron으로 실행한다. */

@@ -1,5 +1,13 @@
 import type { Page } from 'playwright-core';
 
+/** 제목 = 파일 이름. 입력을 마치면(Enter) 이름이 바뀌고 사이드바 트리에 보인다. */
+export async function setTitle(page: Page, title: string): Promise<void> {
+  const input = page.getByRole('textbox', { name: '노트 제목' });
+  await input.fill(title);
+  await input.press('Enter');
+  await page.getByRole('region', { name: '노트 목록' }).getByRole('link', { name: title, exact: true }).waitFor();
+}
+
 /**
  * 실제 편집기(Tiptap) 인스턴스로 텍스트를 선택한다 — 마우스 드래그보다 안정적이다.
  * 위치는 문서를 순회해 텍스트 노드 안에서 찾는다. `textContent.indexOf`는 블록 경계를 세지 않아

@@ -1,5 +1,6 @@
 import { ProviderError, type LLMProvider, type LLMProviderFactory } from '../application/ports';
 import { ModelCatalog } from '../domain/model-catalog';
+import { KIMI_MODELS } from './kimi-provider';
 import { OPENAI_MODELS } from './openai-provider';
 
 /**
@@ -8,7 +9,7 @@ import { OPENAI_MODELS } from './openai-provider';
  * 입력에 `#fail`이 있으면 PROVIDER_UNAVAILABLE로 실패한다.
  */
 export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory {
-  const catalog = new ModelCatalog({ openai: OPENAI_MODELS, kimi: [] });
+  const catalog = new ModelCatalog({ openai: OPENAI_MODELS, kimi: KIMI_MODELS });
   const wait = (signal: AbortSignal) =>
     new Promise<void>((resolve, reject) => {
       const timer = setTimeout(resolve, delayMs);

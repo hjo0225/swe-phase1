@@ -58,6 +58,21 @@ describe('AI settings', () => {
     expect(within(form).getByLabelText('API Key')).toHaveAttribute('placeholder', '저장됨 · 바꾸려면 새 Key 입력');
   });
 
+  it('switches the active provider to Kimi', async () => {
+    const user = userEvent.setup();
+    window.location.hash = '#/settings/ai';
+    render(<App />);
+
+    const form = await screen.findByRole('form', { name: 'AI 설정' });
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Provider' }), 'kimi');
+    await user.selectOptions(within(form).getByRole('combobox', { name: '모델' }), 'kimi-k2.6');
+    expect(within(form).getByPlaceholderText(/api\.moonshot\.ai/)).toBeInTheDocument();
+    await user.type(within(form).getByLabelText('API Key'), 'sk-kimi');
+    await user.click(within(form).getByRole('button', { name: '저장' }));
+
+    expect(await screen.findByText('Kimi · Kimi K2.6 (권장)')).toBeInTheDocument();
+  });
+
   it('reports a failed connection test', async () => {
     const user = userEvent.setup();
     window.location.hash = '#/settings/ai';

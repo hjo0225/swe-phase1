@@ -130,7 +130,8 @@ function textOf(response: OpenAIResponse): string {
   return text;
 }
 
-function toProviderError(error: unknown): Error {
+/** SDK 예외 → ProviderError. OpenAI 호환 API(Kimi)도 같은 SDK를 써서 함께 쓴다. */
+export function toProviderError(error: unknown): Error {
   if (error instanceof ProviderError || error instanceof APIUserAbortError) return error as Error;
   if (error instanceof AuthenticationError || error instanceof PermissionDeniedError) {
     return new ProviderError('AUTH', `Authentication failed (${error.status})`);

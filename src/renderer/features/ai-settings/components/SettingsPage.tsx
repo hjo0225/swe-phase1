@@ -8,6 +8,12 @@ import { CONNECTION_FAILURE_MESSAGE } from '../../assist/model/messages';
 import { useProviderSettings, useTestProvider, useUpdateProvider } from '../api/settings-queries';
 import styles from './SettingsPage.module.css';
 
+/** 비워 두면 쓰는 주소. Kimi 중국 계정은 https://api.moonshot.cn/v1 을 적는다. */
+const DEFAULT_BASE_URL_HINT: Record<ProviderId, string> = {
+  openai: '기본값: https://api.openai.com/v1',
+  kimi: '기본값: https://api.moonshot.ai/v1 (중국: api.moonshot.cn)',
+};
+
 const CAPABILITY_ROWS: { key: keyof Capabilities; label: string; enables: string }[] = [
   { key: 'generate', label: '텍스트 생성', enables: '정리' },
   { key: 'structuredOutput', label: '구조화 출력', enables: '시각화' },
@@ -166,7 +172,12 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
         <summary>고급 설정</summary>
         <label className={styles.field}>
           <span>Base URL (선택)</span>
-          <input type="url" value={baseUrl} placeholder="기본값 사용" onChange={(e) => setBaseUrl(e.target.value)} />
+          <input
+            type="url"
+            value={baseUrl}
+            placeholder={DEFAULT_BASE_URL_HINT[provider]}
+            onChange={(e) => setBaseUrl(e.target.value)}
+          />
         </label>
       </details>
 

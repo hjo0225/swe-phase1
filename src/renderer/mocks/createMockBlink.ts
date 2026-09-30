@@ -178,7 +178,10 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini (권장)', capabilities: all },
       { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano (구체화 미지원)', capabilities: noSearch },
     ],
-    kimi: [],
+    kimi: [
+      { id: 'kimi-k2.6', label: 'Kimi K2.6 (권장)', capabilities: all },
+      { id: 'kimi-k3', label: 'Kimi K3', capabilities: all },
+    ],
   };
   const providerState: Record<ProviderId, { model: string | null; baseUrl: string | null; hasApiKey: boolean }> = {
     openai: { model: null, baseUrl: null, hasApiKey: false },

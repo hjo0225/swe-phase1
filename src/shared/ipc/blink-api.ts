@@ -9,6 +9,12 @@ import type {
   UpdateNoteInput,
   UpdateNoteResult,
 } from './notes';
+import type {
+  ProviderSettingsView,
+  TestProviderInput,
+  TestProviderResult,
+  UpdateProviderInput,
+} from './ai-provider';
 import type { IpcResult } from './result';
 
 export interface AppInfo {
@@ -31,6 +37,11 @@ export interface BlinkApi {
     delete(input: { id: NoteId }): Promise<{ deleted: true }>;
     search(input: SearchNotesInput): Promise<{ items: NoteSearchHit[] }>;
     listLinks(input: { noteId: NoteId }): Promise<NoteLinks>;
+  };
+  settings: {
+    getProvider(): Promise<ProviderSettingsView>;
+    updateProvider(input: UpdateProviderInput): Promise<ProviderSettingsView>;
+    testProvider(input: TestProviderInput): Promise<TestProviderResult>;
   };
 }
 

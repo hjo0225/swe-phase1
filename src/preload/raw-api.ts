@@ -22,5 +22,10 @@ export function createRawBlinkApi(invoke: Invoke, subscribe: Subscribe): RawBlin
       search: (input) => call(IpcChannels.noteSearch, input),
       listLinks: (input) => call(IpcChannels.noteLinkList, input),
     },
+    settings: {
+      getProvider: () => call(IpcChannels.settingsGetProvider),
+      updateProvider: (input) => call(IpcChannels.settingsUpdateProvider, input),
+      testProvider: (input) => call(IpcChannels.settingsTestProvider, input),
+    },
   };
 }

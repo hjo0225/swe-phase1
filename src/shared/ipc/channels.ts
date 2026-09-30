@@ -9,6 +9,9 @@ export const IpcChannels = {
   noteDelete: 'note:delete',
   noteSearch: 'note:search',
   noteLinkList: 'note-link:list',
+  settingsGetProvider: 'settings:get-provider',
+  settingsUpdateProvider: 'settings:update-provider',
+  settingsTestProvider: 'settings:test-provider',
 } as const;
 
 /** Main → Renderer 푸시 이벤트. */

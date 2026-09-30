@@ -1,3 +1,5 @@
+import type { Capabilities } from '../../shared/assist/capabilities';
+import type { ProviderId, ProviderSettingsView } from '../../shared/ipc/ai-provider';
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
 import type { LinkedNote, NoteDetail, ProseMirrorDocDto } from '../../shared/ipc/notes';
 import type { BlinkErrorCode, IpcResult } from '../../shared/ipc/result';
@@ -47,6 +49,36 @@ export function createMockBlink(): RawBlinkApi {
   const displayTitle = (n: NoteDetail) => n.title || '제목 없음';
   const linked = (n: NoteDetail): LinkedNote => ({ noteId: n.id, title: displayTitle(n) });
   const byRecent = (a: NoteDetail, b: NoteDetail) => b.updatedAt.localeCompare(a.updatedAt);
+
+  const all: Capabilities = { generate: true, structuredOutput: true, webSearch: true };
+  const noSearch: Capabilities = { generate: true, structuredOutput: true, webSearch: false };
+  const catalog: Record<ProviderId, { id: string; label: string; capabilities: Capabilities }[]> = {
+    openai: [
+      { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini (권장)', capabilities: all },
+      { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano (구체화 미지원)', capabilities: noSearch },
+    ],
+    kimi: [],
+  };
+  const providerState: Record<ProviderId, { model: string | null; baseUrl: string | null; hasApiKey: boolean }> = {
+    openai: { model: null, baseUrl: null, hasApiKey: false },
+    kimi: { model: null, baseUrl: null, hasApiKey: false },
+  };
+  let activeProvider: ProviderId | null = null;
+  const settingsView = (): ProviderSettingsView => {
+    const active = activeProvider ? providerState[activeProvider] : null;
+    const activeModel = activeProvider && active?.model ? catalog[activeProvider].find((m) => m.id === active.model) : undefined;
+    return {
+      secureStorageAvailable: true,
+      active: activeProvider && activeModel ? { provider: activeProvider, model: activeModel.id, capabilities: activeModel.capabilities } : null,
+      providers: (['openai', 'kimi'] as const).map((provider) => ({
+        provider,
+        label: provider === 'openai' ? 'OpenAI' : 'Kimi',
+        isActive: activeProvider === provider,
+        ...providerState[provider],
+        models: catalog[provider],
+      })),
+    };
+  };
 
   return {
     app: {
@@ -111,6 +143,21 @@ export function createMockBlink(): RawBlinkApi {
           .sort(byRecent)
           .map(linked);
         return ok({ outgoing, incoming });
+      },
+    },
+    settings: {
+      getProvider: () => ok(settingsView()),
+      updateProvider: ({ provider, model, apiKey, baseUrl }) => {
+        if (!catalog[provider].some((m) => m.id === model)) return fail('PROVIDER_MODEL_NOT_SUPPORTED', model);
+        const state = providerState[provider];
+        if (!apiKey && !state.hasApiKey) return fail('PROVIDER_API_KEY_REQUIRED', 'API key required');
+        providerState[provider] = { model, baseUrl: baseUrl === undefined ? state.baseUrl : baseUrl, hasApiKey: true };
+        activeProvider = provider;
+        return ok(settingsView());
+      },
+      testProvider: ({ provider, apiKey }) => {
+        if (!apiKey && !providerState[provider].hasApiKey) return fail('PROVIDER_API_KEY_REQUIRED', 'API key required');
+        return ok(apiKey === 'bad-key' ? { ok: false as const, failure: { code: 'AUTH_FAILED' as const } } : { ok: true as const });
       },
     },
   };

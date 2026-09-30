@@ -26,3 +26,24 @@ export const SearchNotesRequest = z
   .strict();
 
 export const NoteLinksRequest = z.object({ noteId: NoteIdSchema }).strict();
+
+const ProviderIdSchema = z.enum(['openai', 'kimi']);
+const ApiKeySchema = z.string().min(1).max(500);
+
+export const UpdateProviderRequest = z
+  .object({
+    provider: ProviderIdSchema,
+    model: z.string().min(1).max(100),
+    apiKey: ApiKeySchema.optional(),
+    baseUrl: z.string().max(500).nullable().optional(),
+  })
+  .strict();
+
+export const TestProviderRequest = z
+  .object({
+    provider: ProviderIdSchema,
+    model: z.string().min(1).max(100),
+    apiKey: ApiKeySchema.optional(),
+    baseUrl: z.string().max(500).optional(),
+  })
+  .strict();

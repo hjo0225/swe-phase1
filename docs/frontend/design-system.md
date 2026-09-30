@@ -170,7 +170,7 @@ Pulse는 원본 모션 표의 Glow Pulse(3~5s)가 아니라 명세서의 **1.4s*
 | 강조 순서 팔레트 | Blue 700 → Blue 500 → Blue 400 → Blue 300 → Mint 500 (카테고리 구분 필요 시 이 순서) |
 | 연결선 | 1.5px, `rgba(66,129,231,.45)`, 곡선(cubic) · 끝점 Mint 400 원(r=3) |
 | 루트/시작 노드 | Blue 500→600 그라디언트 fill + 흰 텍스트 |
-| 폰트 | Inter/Pretendard를 `<style>@font-face</style>`로 SVG에 내장(base64) — PNG 변환 시 폰트 누락 방지 |
+| 폰트 | `'Pretendard Variable', 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif`. 화면 미리보기는 Pretendard, PNG는 SVG를 이미지로 그리므로 웹 폰트를 쓸 수 없어 OS 한글 글꼴로 그려진다. (웹 폰트 base64 내장은 크기 대비 이득이 작아 보류) |
 
 ## Blink 적용 시 조정 사항
 

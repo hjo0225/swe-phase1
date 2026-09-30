@@ -4,8 +4,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | UC-ASSIST-001 AI 작업 요청 | Done | Done | Done | Done | Done | Done |
 | UC-ASSIST-002 실행 — ORGANIZE | Done | Done | Done | N/A | Done | Done |
-| UC-ASSIST-002 실행 — EXPAND | Done | Pending | Pending | N/A | Pending | Pending |
-| UC-ASSIST-002 실행 — VISUALIZE | Done | Pending | Pending | N/A | Pending | Pending |
+| UC-ASSIST-002 실행 — EXPAND | Done | Done | Done | N/A | Done | Done |
+| UC-ASSIST-002 실행 — VISUALIZE | Done | Done | Done | N/A | Done | Done |
 | UC-ASSIST-003 Commit (Renderer) | Done | N/A | N/A | N/A (Renderer) | N/A | Done |
 | UC-ASSIST-004 재시도 | Done | Done | Done | Done | Done | Done |
 | UC-ASSIST-005 노트 열 때 복원 | Done | N/A | Done | Done | Done | Done |
@@ -21,3 +21,4 @@
 - Renderer는 IPC 응답과 `ai:job-updated` 이벤트의 도착 순서가 뒤바뀌는 것에 대비해 더 오래된 상태로 캐시를 덮어쓰지 않는다(`isNewerJob`: attempt, 상태 순위). `ai:create-job` 응답을 기다리는 jobId(`requestingJobs`)는 목록에 없어도 Mark를 지우지 않는다.
 - 실패한 Job의 범위는 잠금이 풀린다. 그 범위를 편집한 뒤 재시도하면 Renderer가 스냅샷 불일치로 거절하고 Mark를 제거한다.
 - 적용 직후 Mint glow(design-system "적용 완료")는 아직 없다.
+- Commit은 사용자의 커서를 옮기지 않는다(`insertContentAt`의 `updateSelection: false`). 다른 곳에서 쓰는 중에 결과가 도착해도 입력이 결과 쪽으로 끌려가지 않는다 (E2E Scenario 2에서 발견).

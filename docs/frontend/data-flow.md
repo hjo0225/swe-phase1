@@ -82,6 +82,8 @@ sequenceDiagram
 
 `aiPending` Mark는 `inclusive: false`로 정의해 범위 경계에서 입력한 글자가 Mark에 흡수되지 않게 한다. 실패 상태(잠금 해제)의 범위를 사용자가 편집하면 Mark를 제거한다 — 스냅샷과 달라져 재시도할 수 없기 때문이다.
 
+적용은 **사용자의 커서를 옮기지 않는다**(`updateSelection: false`) — 다른 문단을 쓰는 중에 결과가 도착해도 입력 위치가 그대로다.
+
 `planCommit`은 React·IPC 없이 테스트한다. `applyCommit`이 Plan을 트랜잭션으로 만들고 `aiCommit` meta를 붙여 Selection Lock을 통과시킨다.
 
 ### 노트를 열 때 (UC-ASSIST-005)

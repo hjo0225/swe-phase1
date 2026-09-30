@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { AIJobView } from '../../../../shared/ipc/assist';
 import { AI_COMMIT_META, findPendingRanges, removePending } from '../editor/ai-pending';
+import { glowRange } from '../editor/commit-glow';
 
 type Range = { from: number; to: number };
 
@@ -43,18 +44,25 @@ export function planCommit(
   return { kind: 'replace', jobId, range, markdown: result.markdown };
 }
 
-/** 계획을 하나의 편집기 트랜잭션으로 적용한다. 자동 저장이 이어서 본문을 저장한다. */
+/**
+ * 계획을 하나의 편집기 트랜잭션으로 적용한다. 자동 저장이 이어서 본문을 저장한다.
+ * 적용된 자리는 잠깐 Mint로 빛난다 (적용 완료 피드백).
+ */
 export function applyCommit(editor: Editor, plan: CommitPlan): void {
   switch (plan.kind) {
-    case 'replace':
+    case 'replace': {
       // 새 내용에는 aiPending Mark가 없으므로 교체와 함께 잠금이 풀린다.
       // updateSelection: false — 결과가 도착해도 사용자가 다른 곳에서 쓰던 커서를 옮기지 않는다.
-      editor
+      const sizeBefore = editor.state.doc.content.size;
+      const applied = editor
         .chain()
         .setMeta(AI_COMMIT_META, true)
         .insertContentAt(plan.range, plan.markdown, { contentType: 'markdown', updateSelection: false })
         .run();
+      // 범위 앞은 그대로이므로 새 내용은 from에서 시작해 문서가 늘어난 만큼 끝이 밀린다.
+      if (applied) glowRange(editor, { from: plan.range.from, to: plan.range.to + editor.state.doc.content.size - sizeBefore });
       return;
+    }
     case 'discard':
       removePending(editor, plan.jobId);
       return;
@@ -79,4 +87,6 @@ function insertInfographicBelow(editor: Editor, plan: Extract<CommitPlan, { kind
     })
     .insertContentAt(blockEnd, { type: 'infographic', attrs: { spec: plan.spec } }, { updateSelection: false })
     .run();
+  const inserted = editor.state.doc.nodeAt(blockEnd);
+  if (inserted?.type.name === 'infographic') glowRange(editor, { from: blockEnd, to: blockEnd + inserted.nodeSize });
 }

@@ -3,6 +3,7 @@ import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import type { Extensions } from '@tiptap/react';
 import { AiPending } from '../assist/editor/ai-pending';
+import { CommitGlow } from '../assist/editor/commit-glow';
 import { NoteLink } from '../notes/editor/note-link';
 import { Infographic } from '../visualization/editor/infographic-node';
 
@@ -18,6 +19,7 @@ export function createEditorExtensions(options: { placeholder?: string } = {}): 
     Markdown,
     NoteLink,
     AiPending,
+    CommitGlow,
     Infographic,
   ];
 }

@@ -3,6 +3,9 @@
 /* 처리 중: 선택 영역 자체가 상태 표시기다 (명세서 §9.2, 1.4s) */
 .ai-processing {
   border-radius: 3px;
+  box-shadow: inset 2px 0 0 var(--mint-400);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   animation: blink-processing 1.4s ease-in-out infinite;
 }
 
@@ -15,6 +18,28 @@
   50% {
     opacity: 0.4;
     background-color: rgba(66, 129, 231, 0.18);
+  }
+}
+
+/* 적용 완료: 새 내용이 Mint 빛으로 600ms 동안 사라진다 (design-system "Commit glow") */
+.ai-committed {
+  border-radius: 4px;
+  animation: blink-committed 600ms ease-out forwards;
+}
+
+figure.ai-committed,
+.ai-committed > figure {
+  border-radius: var(--radius-lg);
+}
+
+@keyframes blink-committed {
+  from {
+    background-color: var(--mint-50);
+    box-shadow: var(--glow-mint);
+  }
+  to {
+    background-color: transparent;
+    box-shadow: 0 0 0 rgba(80, 221, 203, 0);
   }
 }
 
@@ -60,5 +85,9 @@
   .ai-processing {
     animation: none;
     background-color: rgba(66, 129, 231, 0.14);
+  }
+
+  .ai-committed {
+    animation: none;
   }
 }

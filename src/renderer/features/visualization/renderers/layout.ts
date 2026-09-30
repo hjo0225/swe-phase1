@@ -40,26 +40,52 @@ export interface InfographicLayout {
 
 const PER_ROW = 4;
 
-/** 공백 단위로 줄을 나누고, 한 단어가 너무 길면 글자 단위로 자른다. 폭은 글자 수로 근사한다. */
-export function wrapText(text: string, maxChars: number): string[] {
+const WIDE = /[ᄀ-ᇿ⺀-鿿가-힯豈-﫿＀-￯]/;
+const SPACE_WIDTH = 0.3;
+
+/** 글자 폭 근사 (한글·한자 = 1). 실제 글꼴을 재지 않고도 영문이 일찍 잘리지 않게 한다. */
+function charWidth(ch: string): number {
+  if (WIDE.test(ch)) return 1;
+  if (/[A-Z0-9@#%&]/.test(ch)) return 0.62;
+  if (/[il.,:;'|!]/.test(ch)) return 0.3;
+  return 0.55;
+}
+
+const widthOf = (text: string) => [...text].reduce((sum, ch) => sum + charWidth(ch), 0);
+
+/**
+ * 공백 단위로 줄을 나누고, 한 단어가 너무 길면 글자 단위로 자른다.
+ * @param maxWidth 한 줄 폭 — 한글 글자 수 기준
+ */
+export function wrapText(text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let current = '';
+  let currentWidth = 0;
   for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (word.length > maxChars) {
+    const width = widthOf(word);
+    if (width > maxWidth) {
       if (current) lines.push(current);
-      let rest = word;
-      while (rest.length > maxChars) {
-        lines.push(rest.slice(0, maxChars));
-        rest = rest.slice(maxChars);
+      current = '';
+      currentWidth = 0;
+      for (const ch of word) {
+        if (currentWidth + charWidth(ch) > maxWidth) {
+          lines.push(current);
+          current = '';
+          currentWidth = 0;
+        }
+        current += ch;
+        currentWidth += charWidth(ch);
       }
-      current = rest;
     } else if (!current) {
       current = word;
-    } else if (current.length + 1 + word.length <= maxChars) {
+      currentWidth = width;
+    } else if (currentWidth + SPACE_WIDTH + width <= maxWidth) {
       current = `${current} ${word}`;
+      currentWidth += SPACE_WIDTH + width;
     } else {
       lines.push(current);
       current = word;
+      currentWidth = width;
     }
   }
   if (current) lines.push(current);
@@ -67,8 +93,8 @@ export function wrapText(text: string, maxChars: number): string[] {
 }
 
 function measure(node: InfographicNode) {
-  const titleLines = wrapText(node.title, t.nodeTitle.maxChars);
-  const descriptionLines = wrapText(node.description ?? '', t.nodeDescription.maxChars);
+  const titleLines = wrapText(node.title, t.nodeTitle.maxWidth);
+  const descriptionLines = wrapText(node.description ?? '', t.nodeDescription.maxWidth);
   const height =
     t.card.padding * 2 +
     titleLines.length * t.nodeTitle.lineHeight +

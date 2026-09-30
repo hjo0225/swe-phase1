@@ -15,9 +15,15 @@ const overlaps = (a: { x: number; y: number; width: number; height: number }, b:
 
 describe('wrapText', () => {
   it('breaks on spaces within the budget and hard-breaks long words', () => {
-    expect(wrapText('Main Process와 Renderer Process', 14)).toEqual(['Main Process와', 'Renderer', 'Process']);
     expect(wrapText('가'.repeat(30), 12)).toEqual(['가'.repeat(12), '가'.repeat(12), '가'.repeat(6)]);
     expect(wrapText('', 10)).toEqual([]);
+  });
+
+  it('measures Latin letters narrower than Hangul so English words are not split early', () => {
+    // 예산은 한글 글자 수 기준. 영문은 한글의 절반 남짓 폭이다.
+    expect(wrapText('contextBridge', 12)).toEqual(['contextBridge']);
+    expect(wrapText('Main Process와 Renderer Process', 14)).toEqual(['Main Process와 Renderer', 'Process']);
+    expect(wrapText('a'.repeat(40), 12)).toEqual(['a'.repeat(21), 'a'.repeat(19)]);
   });
 });
 

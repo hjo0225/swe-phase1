@@ -17,8 +17,9 @@ export const infographicTheme = {
     shadow: 'rgba(31,87,174,0.10)',
   },
   emphasis: { from: '#4281E7', to: '#2F6DDB', text: '#FFFFFF', subText: 'rgba(255,255,255,0.85)' },
-  nodeTitle: { size: 15, weight: 700, color: '#10213D', lineHeight: 20, maxChars: 12 },
-  nodeDescription: { size: 13, weight: 400, color: '#40536E', lineHeight: 18, maxChars: 14 },
+  /** maxWidth: 한 줄 폭, 한글 글자 수 기준 (영문은 layout.wrapText가 좁게 잰다) */
+  nodeTitle: { size: 15, weight: 700, color: '#10213D', lineHeight: 20, maxWidth: 12 },
+  nodeDescription: { size: 13, weight: 400, color: '#40536E', lineHeight: 18, maxWidth: 14 },
   edge: { color: 'rgba(66,129,231,0.45)', width: 1.5, dot: '#50DDCB', dotRadius: 3 },
   spacing: {
     margin: 32,

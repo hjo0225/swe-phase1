@@ -16,3 +16,13 @@ export const UpdateNoteRequest = z
   .refine((r) => r.title !== undefined || r.content !== undefined, { message: 'title or content is required' });
 
 export const NoteIdRequest = z.object({ id: NoteIdSchema }).strict();
+
+export const SearchNotesRequest = z
+  .object({
+    query: z.string().max(1000),
+    excludeNoteId: NoteIdSchema.optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+  })
+  .strict();
+
+export const NoteLinksRequest = z.object({ noteId: NoteIdSchema }).strict();

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Note } from '../domain/note';
 import { NoteContent } from '../domain/note-content';
 import { NoteTitle } from '../domain/note-title';
+import { SearchQuery } from '../domain/search-query';
 import { createTestDatabase, linkNode, noteDoc, textNode } from '../testing';
 import { DrizzleNoteRepository } from './drizzle-note-repository';
 
@@ -66,6 +67,60 @@ describe('DrizzleNoteRepository', () => {
     expect(repo.findById(B)).toBeNull();
     expect(repo.findById(A)?.linkedNoteIds).toEqual(new Set());
     expect(() => repo.delete(B)).not.toThrow();
+  });
+
+  describe('search', () => {
+    const titled = (id: string, title: string, body: string, minute: number) =>
+      Note.create({
+        id,
+        title: NoteTitle.of(title),
+        content: NoteContent.from(noteDoc([textNode(body)])),
+        now: at(minute),
+      });
+    const search = (raw: string, opts: { excludeNoteId?: string; limit?: number } = {}) =>
+      repo.search(SearchQuery.parse(raw), { limit: 20, ...opts }).map((n) => n.id);
+
+    beforeEach(() => {
+      repo.save(titled(A, 'Electron Architecture', 'Main Process와 Renderer', 1));
+      repo.save(titled(B, '회의록', 'electron 쓸 거 같고 db sqlite', 5));
+      repo.save(titled(C, '100% 완료', 'snake_case 규칙', 3));
+    });
+
+    it('matches title or body case-insensitively, title matches first', () => {
+      expect(search('ELECTRON')).toEqual([A, B]);
+    });
+
+    it('requires every keyword', () => {
+      expect(search('electron sqlite')).toEqual([B]);
+    });
+
+    it('treats LIKE wildcards literally', () => {
+      expect(search('%')).toEqual([C]);
+      expect(search('_')).toEqual([C]);
+      expect(search('e_ectron')).toEqual([]);
+      const D = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+      repo.save(titled(D, '경로', 'C:\\Users\\blink', 0));
+      expect(search('\\')).toEqual([D]);
+    });
+
+    it('excludes the current note and applies the limit', () => {
+      expect(search('electron', { excludeNoteId: A })).toEqual([B]);
+      expect(search('e', { limit: 1 })).toHaveLength(1);
+    });
+  });
+
+  it('lists outgoing and incoming links with current titles', () => {
+    repo.save(note(B, 'B', 0));
+    repo.save(note(C, '', 0));
+    repo.save(note(A, 'A', 1, B, C));
+    expect(repo.findOutgoingLinks(A)).toEqual(
+      expect.arrayContaining([
+        { noteId: B, title: 'B' },
+        { noteId: C, title: '' },
+      ]),
+    );
+    expect(repo.findIncomingLinks(B)).toEqual([{ noteId: A, title: 'A' }]);
+    expect(repo.findIncomingLinks(A)).toEqual([]);
   });
 
   it('lists summaries by most recent update', () => {

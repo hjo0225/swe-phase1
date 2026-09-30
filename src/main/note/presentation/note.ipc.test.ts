@@ -23,7 +23,15 @@ describe('noteIpcHandlers', () => {
   };
 
   it('exposes every note channel', () => {
-    expect(Object.keys(handlers).sort()).toEqual(['note:create', 'note:delete', 'note:get', 'note:list', 'note:update']);
+    expect(Object.keys(handlers).sort()).toEqual([
+      'note-link:list',
+      'note:create',
+      'note:delete',
+      'note:get',
+      'note:list',
+      'note:search',
+      'note:update',
+    ]);
   });
 
   it('creates and fetches a note through envelopes', async () => {
@@ -41,6 +49,14 @@ describe('noteIpcHandlers', () => {
     const created = await call('note:create', {});
     const id = created.ok ? (created.data as { id: string }).id : '';
     await expect(call('note:update', { id })).resolves.toMatchObject({ ok: false, error: { code: 'VALIDATION_FAILED' } });
+  });
+
+  it('bounds the search limit', async () => {
+    await expect(call('note:search', { query: 'x', limit: 51 })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'VALIDATION_FAILED' },
+    });
+    await expect(call('note:search', { query: 'x' })).resolves.toEqual({ ok: true, data: { items: [] } });
   });
 
   it('maps domain errors to their codes', async () => {

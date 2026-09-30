@@ -32,6 +32,33 @@ export interface UpdateNoteInput {
   content?: ProseMirrorDocDto;
 }
 
+export interface SearchNotesInput {
+  query: string;
+  /** 현재 노트를 결과에서 뺀다 */
+  excludeNoteId?: NoteId;
+  /** 1~50, 기본 20 */
+  limit?: number;
+}
+
+export interface NoteSearchHit {
+  id: NoteId;
+  /** 표시 제목 */
+  title: string;
+  snippet: string;
+  updatedAt: string;
+}
+
+export interface LinkedNote {
+  noteId: NoteId;
+  /** 현재 표시 제목 */
+  title: string;
+}
+
+export interface NoteLinks {
+  outgoing: LinkedNote[];
+  incoming: LinkedNote[];
+}
+
 export interface UpdateNoteResult {
   id: NoteId;
   updatedAt: string;

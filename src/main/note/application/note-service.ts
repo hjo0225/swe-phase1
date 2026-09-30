@@ -1,16 +1,22 @@
 import type {
   CreateNoteInput,
   NoteDetail,
+  NoteLinks,
+  NoteSearchHit,
   NoteSummary,
+  SearchNotesInput,
   UpdateNoteInput,
   UpdateNoteResult,
 } from '../../../shared/ipc/notes';
 import type { Clock, IdGenerator } from '../../platform/clock';
 import { DomainError } from '../../platform/errors';
-import { Note, previewOf } from '../domain/note';
+import { Note, previewOf, snippetOf } from '../domain/note';
 import { NoteContent } from '../domain/note-content';
 import type { NoteRepository } from '../domain/note-repository';
 import { NoteTitle } from '../domain/note-title';
+import { SearchQuery } from '../domain/search-query';
+
+const DEFAULT_SEARCH_LIMIT = 20;
 
 /** note 유스케이스 (docs/backend/note/application-flows.md). 응집된 작은 도메인이라 서비스 하나로 둔다. */
 export class NoteService {
@@ -59,6 +65,32 @@ export class NoteService {
       this.repo.save(note);
     }
     return { id: note.id, updatedAt: note.updatedAt.toISOString(), changed };
+  }
+
+  search(input: SearchNotesInput): { items: NoteSearchHit[] } {
+    const query = SearchQuery.parse(input.query);
+    if (query.isEmpty()) return { items: [] };
+    const rows = this.repo.search(query, {
+      excludeNoteId: input.excludeNoteId,
+      limit: input.limit ?? DEFAULT_SEARCH_LIMIT,
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        title: NoteTitle.of(row.title).display(),
+        snippet: snippetOf(row.plainText, query.keywords),
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  listLinks(noteId: string): NoteLinks {
+    if (!this.repo.exists(noteId)) throw new DomainError('NOTE_NOT_FOUND', `Note ${noteId} not found`);
+    const display = (row: { noteId: string; title: string }) => ({ noteId: row.noteId, title: NoteTitle.of(row.title).display() });
+    return {
+      outgoing: this.repo.findOutgoingLinks(noteId).map(display),
+      incoming: this.repo.findIncomingLinks(noteId).map(display),
+    };
   }
 
   delete(id: string): { deleted: true } {

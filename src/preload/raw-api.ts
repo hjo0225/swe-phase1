@@ -19,6 +19,8 @@ export function createRawBlinkApi(invoke: Invoke, subscribe: Subscribe): RawBlin
       get: (input) => call(IpcChannels.noteGet, input),
       update: (input) => call(IpcChannels.noteUpdate, input),
       delete: (input) => call(IpcChannels.noteDelete, input),
+      search: (input) => call(IpcChannels.noteSearch, input),
+      listLinks: (input) => call(IpcChannels.noteLinkList, input),
     },
   };
 }

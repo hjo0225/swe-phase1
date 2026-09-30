@@ -7,6 +7,8 @@ export const IpcChannels = {
   noteGet: 'note:get',
   noteUpdate: 'note:update',
   noteDelete: 'note:delete',
+  noteSearch: 'note:search',
+  noteLinkList: 'note-link:list',
 } as const;
 
 /** Main → Renderer 푸시 이벤트. */

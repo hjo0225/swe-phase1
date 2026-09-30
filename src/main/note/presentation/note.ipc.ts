@@ -1,6 +1,13 @@
 import { IpcChannels } from '../../../shared/ipc/channels';
 import type { ProseMirrorDocDto } from '../../../shared/ipc/notes';
-import { CreateNoteRequest, EmptyRequest, NoteIdRequest, UpdateNoteRequest } from '../../../shared/ipc/schemas';
+import {
+  CreateNoteRequest,
+  EmptyRequest,
+  NoteIdRequest,
+  NoteLinksRequest,
+  SearchNotesRequest,
+  UpdateNoteRequest,
+} from '../../../shared/ipc/schemas';
 import { createIpcHandler } from '../../platform/ipc/handler';
 import type { IpcHandlerMap } from '../../platform/ipc/register';
 import type { NoteService } from '../application/note-service';
@@ -19,5 +26,7 @@ export function noteIpcHandlers(service: NoteService): IpcHandlerMap {
       service.update({ id: r.id, title: r.title, content: asDoc(r.content) }),
     ),
     [IpcChannels.noteDelete]: createIpcHandler(NoteIdRequest, (r) => service.delete(r.id)),
+    [IpcChannels.noteSearch]: createIpcHandler(SearchNotesRequest, (r) => service.search(r)),
+    [IpcChannels.noteLinkList]: createIpcHandler(NoteLinksRequest, (r) => service.listLinks(r.noteId)),
   };
 }

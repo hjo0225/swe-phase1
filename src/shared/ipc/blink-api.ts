@@ -2,7 +2,10 @@ import type {
   CreateNoteInput,
   NoteDetail,
   NoteId,
+  NoteLinks,
+  NoteSearchHit,
   NoteSummary,
+  SearchNotesInput,
   UpdateNoteInput,
   UpdateNoteResult,
 } from './notes';
@@ -26,6 +29,8 @@ export interface BlinkApi {
     get(input: { id: NoteId }): Promise<NoteDetail>;
     update(input: UpdateNoteInput): Promise<UpdateNoteResult>;
     delete(input: { id: NoteId }): Promise<{ deleted: true }>;
+    search(input: SearchNotesInput): Promise<{ items: NoteSearchHit[] }>;
+    listLinks(input: { noteId: NoteId }): Promise<NoteLinks>;
   };
 }
 

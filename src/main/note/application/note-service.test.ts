@@ -65,6 +65,23 @@ describe('NoteService', () => {
     expect(() => service.update({ id: MISSING, title: 'x' })).toThrow(expect.objectContaining({ code: 'NOTE_NOT_FOUND' }));
   });
 
+  it('searches with snippets and display titles', () => {
+    const hit = service.create({ title: '', content: noteDoc([textNode('Electron은 Main과 Renderer로 나뉜다')]) });
+    const current = service.create({ title: 'Electron 메모' });
+    expect(service.search({ query: 'renderer', excludeNoteId: current.id })).toEqual({
+      items: [{ id: hit.id, title: '제목 없음', snippet: 'Electron은 Main과 Renderer로 나뉜다', updatedAt: hit.updatedAt }],
+    });
+    expect(service.search({ query: '   ' })).toEqual({ items: [] });
+  });
+
+  it('lists links with display titles', () => {
+    const target = service.create({});
+    const source = service.create({ title: '출발', content: noteDoc([linkNode(target.id, '옛 라벨')]) });
+    expect(service.listLinks(source.id)).toEqual({ outgoing: [{ noteId: target.id, title: '제목 없음' }], incoming: [] });
+    expect(service.listLinks(target.id)).toEqual({ outgoing: [], incoming: [{ noteId: source.id, title: '출발' }] });
+    expect(() => service.listLinks(MISSING)).toThrow(expect.objectContaining({ code: 'NOTE_NOT_FOUND' }));
+  });
+
   it('deletes idempotently', () => {
     const { id } = service.create({});
     expect(service.delete(id)).toEqual({ deleted: true });

@@ -1,10 +1,11 @@
-import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, notInArray, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { noteLinks, notes } from '../../platform/db/schema';
 import { Note } from '../domain/note';
 import { NoteContent } from '../domain/note-content';
-import type { NoteRepository, NoteSummaryRow } from '../domain/note-repository';
+import type { LinkedNoteRow, NoteRepository, NoteSearchRow, NoteSummaryRow } from '../domain/note-repository';
 import { NoteTitle } from '../domain/note-title';
+import type { SearchQuery } from '../domain/search-query';
 
 const SUMMARY_HEAD_LENGTH = 300;
 
@@ -95,4 +96,46 @@ export class DrizzleNoteRepository implements NoteRepository {
       .all()
       .map((row) => ({ ...row, updatedAt: new Date(row.updatedAt) }));
   }
+
+  search(query: SearchQuery, options: { excludeNoteId?: string; limit: number }): NoteSearchRow[] {
+    const patterns = query.keywords.map((keyword) => `%${escapeLike(keyword)}%`);
+    if (patterns.length === 0) return [];
+    const conditions = patterns.map(
+      (p) => sql`(${notes.title} LIKE ${p} ESCAPE '\\' OR ${notes.plainText} LIKE ${p} ESCAPE '\\')`,
+    );
+    if (options.excludeNoteId) conditions.push(ne(notes.id, options.excludeNoteId));
+
+    return this.db
+      .select({ id: notes.id, title: notes.title, plainText: notes.plainText, updatedAt: notes.updatedAt })
+      .from(notes)
+      .where(and(...conditions))
+      .orderBy(sql`(${notes.title} LIKE ${patterns[0]} ESCAPE '\\') DESC`, desc(notes.updatedAt))
+      .limit(options.limit)
+      .all()
+      .map((row) => ({ ...row, updatedAt: new Date(row.updatedAt) }));
+  }
+
+  findOutgoingLinks(sourceId: string): LinkedNoteRow[] {
+    return this.db
+      .select({ noteId: notes.id, title: notes.title })
+      .from(noteLinks)
+      .innerJoin(notes, eq(notes.id, noteLinks.targetNoteId))
+      .where(eq(noteLinks.sourceNoteId, sourceId))
+      .all();
+  }
+
+  findIncomingLinks(targetId: string): LinkedNoteRow[] {
+    return this.db
+      .select({ noteId: notes.id, title: notes.title })
+      .from(noteLinks)
+      .innerJoin(notes, eq(notes.id, noteLinks.sourceNoteId))
+      .where(eq(noteLinks.targetNoteId, targetId))
+      .orderBy(desc(notes.updatedAt))
+      .all();
+  }
+}
+
+/** LIKE의 와일드카드(%, _)와 이스케이프 문자(\)를 문자 그대로 취급하게 한다 (BR-NOTE-06). */
+function escapeLike(keyword: string): string {
+  return keyword.replace(/[\\%_]/g, (c) => `\\${c}`);
 }

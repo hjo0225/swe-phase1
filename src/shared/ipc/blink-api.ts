@@ -4,10 +4,13 @@ import type {
   NoteId,
   NoteLinks,
   NoteSearchHit,
-  NoteSummary,
+  RelocateNoteResult,
   SearchNotesInput,
   UpdateNoteInput,
   UpdateNoteResult,
+  VaultChangedEvent,
+  VaultInfo,
+  VaultTree,
 } from './notes';
 import type {
   ProviderSettingsView,
@@ -30,14 +33,30 @@ export interface BlinkApi {
     onWillClose(listener: () => void): () => void;
     readyToClose(): Promise<void>;
   };
+  vault: {
+    getCurrent(): Promise<VaultInfo | null>;
+    /** 폴더 선택 Dialog. 취소하면 null */
+    choose(): Promise<VaultInfo | null>;
+    open(input: { root: string }): Promise<VaultInfo>;
+    listRecent(): Promise<{ items: (VaultInfo & { exists: boolean })[] }>;
+    /** 외부 변경 푸시. 해제 함수를 반환한다. */
+    onChanged(listener: (event: VaultChangedEvent) => void): () => void;
+  };
   notes: {
+    tree(): Promise<VaultTree>;
     create(input: CreateNoteInput): Promise<NoteDetail>;
-    list(): Promise<{ items: NoteSummary[] }>;
     get(input: { id: NoteId }): Promise<NoteDetail>;
     update(input: UpdateNoteInput): Promise<UpdateNoteResult>;
+    rename(input: { id: NoteId; title: string }): Promise<RelocateNoteResult>;
+    move(input: { id: NoteId; folder: string }): Promise<RelocateNoteResult>;
     delete(input: { id: NoteId }): Promise<{ deleted: true }>;
     search(input: SearchNotesInput): Promise<{ items: NoteSearchHit[] }>;
     listLinks(input: { noteId: NoteId }): Promise<NoteLinks>;
+  };
+  folders: {
+    create(input: { parent?: string; name: string }): Promise<{ path: string }>;
+    rename(input: { path: string; name: string }): Promise<{ path: string; updatedNoteIds: NoteId[] }>;
+    delete(input: { path: string }): Promise<{ deletedNotes: number }>;
   };
   ai: {
     createJob(input: CreateJobInput): Promise<AIJobView>;

@@ -1,6 +1,6 @@
 import type { NoteSummary } from '../../../../shared/ipc/notes';
 import type { Clock, IdGenerator } from '../../../platform/clock';
-import { previewOf } from '../../domain/note';
+import { previewOf } from '../../domain/note-text';
 import { MarkdownContent } from '../../domain/markdown-content';
 import { NotePath } from '../../domain/note-path';
 import type { VaultFileSystem } from '../../infrastructure/vault/node-vault-file-system';

@@ -2,7 +2,9 @@ import type { VaultChangedEvent, VaultInfo } from '../../../../shared/ipc/notes'
 import type { Clock } from '../../../platform/clock';
 import { DomainError } from '../../../platform/errors';
 import type { AppConfigStore } from '../../infrastructure/vault/app-config-store';
+import type { FolderService } from './folder-service';
 import type { IndexSync } from './index-sync';
+import type { VaultNoteService } from './vault-note-service';
 
 const MAX_RECENT = 10;
 
@@ -12,6 +14,12 @@ export interface VaultSession {
   readonly sync: Pick<IndexSync, 'full' | 'paths'>;
   watch(onChange: (paths: string[]) => void): () => void;
   close(): void;
+}
+
+/** note 도메인이 쓰는 보관함 세션. */
+export interface NoteVaultSession extends VaultSession {
+  readonly notes: VaultNoteService;
+  readonly folders: FolderService;
 }
 
 interface VaultManagerDeps<S extends VaultSession> {

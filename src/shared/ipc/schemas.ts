@@ -6,15 +6,25 @@ import { JOB_TYPES } from '../assist/capabilities';
 export const EmptyRequest = z.object({}).strict();
 
 const NoteIdSchema = z.uuid();
-/** root가 `doc`인지는 도메인(NOTE_CONTENT_INVALID)이 판정한다. */
-const DocSchema = z.looseObject({ type: z.string() });
+/** 보관함 기준 경로. 이름 규칙(금지 문자·숨김)은 도메인(FolderPath·NoteName)이 검사한다. */
+const RelativePathSchema = z.string().max(1000);
 
-export const CreateNoteRequest = z.object({ title: z.string().optional(), content: DocSchema.optional() }).strict();
+export const VaultOpenRequest = z.object({ root: z.string().min(1).max(1000) }).strict();
 
-export const UpdateNoteRequest = z
-  .object({ id: NoteIdSchema, title: z.string().optional(), content: DocSchema.optional() })
-  .strict()
-  .refine((r) => r.title !== undefined || r.content !== undefined, { message: 'title or content is required' });
+export const CreateNoteRequest = z.object({ folder: RelativePathSchema.optional() }).strict();
+
+// 본문 크기(2MB)는 도메인(NOTE_CONTENT_TOO_LARGE)이 판정한다. 여기서는 비정상적인 크기만 막는다.
+export const UpdateNoteRequest = z.object({ id: NoteIdSchema, content: z.string().max(10_000_000) }).strict();
+
+export const RenameNoteRequest = z.object({ id: NoteIdSchema, title: z.string().max(1000) }).strict();
+
+export const MoveNoteRequest = z.object({ id: NoteIdSchema, folder: RelativePathSchema }).strict();
+
+export const CreateFolderRequest = z.object({ parent: RelativePathSchema.optional(), name: z.string().max(1000) }).strict();
+
+export const RenameFolderRequest = z.object({ path: RelativePathSchema, name: z.string().max(1000) }).strict();
+
+export const FolderPathRequest = z.object({ path: RelativePathSchema }).strict();
 
 export const NoteIdRequest = z.object({ id: NoteIdSchema }).strict();
 

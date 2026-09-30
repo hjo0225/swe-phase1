@@ -13,7 +13,7 @@ import { resolveLinkTarget } from '../../../../shared/notes/wiki-link';
 import { DomainError } from '../../../platform/errors';
 import { MarkdownContent } from '../../domain/markdown-content';
 import { NoteName, uniqueName } from '../../domain/names';
-import { snippetOf } from '../../domain/note';
+import { snippetOf } from '../../domain/note-text';
 import { FolderPath, NotePath } from '../../domain/note-path';
 import { SearchQuery } from '../../domain/search-query';
 import type { NoteIndexRow } from '../../infrastructure/vault/sqlite-note-index';

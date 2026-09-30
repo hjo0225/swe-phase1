@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '../../ai-provider/application/ports';
-import { createTestDatabase } from '../../note/testing';
+import { createTestVaultIndex, insertIndexedNote } from '../../note/testing';
 import { AIJob } from '../domain/ai-job';
 import { JobOutputError, JobResults, type JobResult } from '../domain/job-result';
 import { InputSnapshot } from '../domain/input-snapshot';
@@ -12,7 +12,7 @@ import type { JobExecutor } from './ports';
 const NOTE = '11111111-1111-4111-8111-111111111111';
 
 describe('JobRunner', () => {
-  let database: ReturnType<typeof createTestDatabase>;
+  let database: ReturnType<typeof createTestVaultIndex>;
   let repo: DrizzleAIJobRepository;
   let active: FakeActiveLLM;
   let publisher: RecordingPublisher;
@@ -20,10 +20,8 @@ describe('JobRunner', () => {
   let runner: JobRunner;
 
   beforeEach(() => {
-    database = createTestDatabase();
-    database.sqlite
-      .prepare("INSERT INTO notes (id, title, content_json, plain_text, created_at, updated_at) VALUES (?, '', '{}', '', 0, 0)")
-      .run(NOTE);
+    database = createTestVaultIndex();
+    insertIndexedNote(database.sqlite, NOTE);
     repo = new DrizzleAIJobRepository(database.db);
     active = new FakeActiveLLM();
     publisher = new RecordingPublisher();

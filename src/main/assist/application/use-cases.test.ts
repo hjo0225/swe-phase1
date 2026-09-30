@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeProvider } from '../../ai-provider/testing';
-import { createTestDatabase } from '../../note/testing';
+import { createTestVaultIndex, insertIndexedNote } from '../../note/testing';
 import { AIJob } from '../domain/ai-job';
 import { JobFailure } from '../domain/job-failure';
 import { InputSnapshot } from '../domain/input-snapshot';
@@ -17,7 +17,7 @@ const JOB = '22222222-2222-4222-8222-222222222222';
 const DAY = 24 * 60 * 60 * 1000;
 
 describe('assist use cases', () => {
-  let database: ReturnType<typeof createTestDatabase>;
+  let database: ReturnType<typeof createTestVaultIndex>;
   let repo: DrizzleAIJobRepository;
   let active: FakeActiveLLM;
   let enqueue: ReturnType<typeof vi.fn<(id: string) => void>>;
@@ -25,10 +25,8 @@ describe('assist use cases', () => {
   const clock = { now: () => now };
 
   beforeEach(() => {
-    database = createTestDatabase();
-    database.sqlite
-      .prepare("INSERT INTO notes (id, title, content_json, plain_text, created_at, updated_at) VALUES (?, '', '{}', '', 0, 0)")
-      .run(NOTE);
+    database = createTestVaultIndex();
+    insertIndexedNote(database.sqlite, NOTE);
     repo = new DrizzleAIJobRepository(database.db);
     active = new FakeActiveLLM();
     enqueue = vi.fn<(id: string) => void>();

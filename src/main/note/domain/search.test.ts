@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Note } from './note';
-import { NoteContent } from './note-content';
-import { NoteTitle } from './note-title';
+import { previewOf, snippetOf } from './note-text';
 import { SearchQuery } from './search-query';
 
 describe('SearchQuery', () => {
@@ -20,27 +18,25 @@ describe('SearchQuery', () => {
   });
 });
 
-describe('Note.snippetFor', () => {
-  const noteWith = (text: string) =>
-    Note.create({
-      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      title: NoteTitle.of('Electron Architecture'),
-      content: NoteContent.from({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] }),
-      now: new Date(0),
-    });
-
+describe('snippetOf', () => {
   it('cuts 30 characters before and 90 after the first match with ellipses', () => {
     const text = `${'가'.repeat(50)}Renderer${'나'.repeat(200)}`;
-    const snippet = noteWith(text).snippetFor(['renderer']);
-    expect(snippet).toBe(`…${'가'.repeat(30)}Renderer${'나'.repeat(82)}…`);
+    expect(snippetOf(text, ['renderer'])).toBe(`…${'가'.repeat(30)}Renderer${'나'.repeat(82)}…`);
   });
 
   it('uses the earliest match among keywords, case-insensitively', () => {
-    expect(noteWith('Main Process와 renderer 차이').snippetFor(['RENDERER', 'main'])).toBe('Main Process와 renderer 차이');
+    expect(snippetOf('Main Process와 renderer 차이', ['RENDERER', 'main'])).toBe('Main Process와 renderer 차이');
   });
 
   it('normalizes whitespace and falls back to the preview when only the title matches', () => {
-    const note = noteWith('첫 줄\n\n둘째 줄');
-    expect(note.snippetFor(['architecture'])).toBe('첫 줄 둘째 줄');
+    expect(snippetOf('첫 줄\n\n둘째 줄', ['architecture'])).toBe('첫 줄 둘째 줄');
+  });
+});
+
+describe('previewOf', () => {
+  it('builds a whitespace-normalized preview of at most 120 characters', () => {
+    const preview = previewOf(`첫 줄\n\n둘째 줄 ${'x'.repeat(200)}`);
+    expect(preview).toHaveLength(120);
+    expect(preview.startsWith('첫 줄 둘째 줄 xxx')).toBe(true);
   });
 });

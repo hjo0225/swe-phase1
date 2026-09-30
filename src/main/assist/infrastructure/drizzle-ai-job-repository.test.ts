@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createTestDatabase } from '../../note/testing';
+import { createTestVaultIndex, insertIndexedNote } from '../../note/testing';
 import { AIJob } from '../domain/ai-job';
 import { JobOwnerGoneError } from '../domain/ai-job-repository';
 import { JobFailure } from '../domain/job-failure';
@@ -12,14 +12,12 @@ const NOTE = '11111111-1111-4111-8111-111111111111';
 const t = (s: number) => new Date(s * 1000);
 
 describe('DrizzleAIJobRepository', () => {
-  let database: ReturnType<typeof createTestDatabase>;
+  let database: ReturnType<typeof createTestVaultIndex>;
   let repo: DrizzleAIJobRepository;
 
   beforeEach(() => {
-    database = createTestDatabase();
-    database.sqlite
-      .prepare("INSERT INTO notes (id, title, content_json, plain_text, created_at, updated_at) VALUES (?, '', '{}', '', 0, 0)")
-      .run(NOTE);
+    database = createTestVaultIndex();
+    insertIndexedNote(database.sqlite, NOTE);
     repo = new DrizzleAIJobRepository(database.db);
   });
   afterEach(() => database.close());

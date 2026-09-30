@@ -18,19 +18,31 @@ describe('createRawBlinkApi', () => {
     const api = createRawBlinkApi(invoke, noSubscribe);
     const id = '11111111-1111-4111-8111-111111111111';
 
-    await api.notes.create({ title: 't' });
-    await api.notes.list();
+    await api.notes.tree();
+    await api.notes.create({ folder: 'a' });
     await api.notes.get({ id });
-    await api.notes.update({ id, title: 'u' });
+    await api.notes.update({ id, content: '# u' });
+    await api.notes.rename({ id, title: 'v' });
+    await api.notes.move({ id, folder: 'b' });
     await api.notes.delete({ id });
+    await api.folders.create({ name: 'c' });
+    await api.folders.rename({ path: 'c', name: 'd' });
+    await api.folders.delete({ path: 'd' });
+    await api.vault.open({ root: 'C:/v' });
     await api.app.readyToClose();
 
     expect(invoke.mock.calls).toEqual([
-      ['note:create', { title: 't' }],
-      ['note:list', {}],
+      ['note:tree', {}],
+      ['note:create', { folder: 'a' }],
       ['note:get', { id }],
-      ['note:update', { id, title: 'u' }],
+      ['note:update', { id, content: '# u' }],
+      ['note:rename', { id, title: 'v' }],
+      ['note:move', { id, folder: 'b' }],
       ['note:delete', { id }],
+      ['folder:create', { name: 'c' }],
+      ['folder:rename', { path: 'c', name: 'd' }],
+      ['folder:delete', { path: 'd' }],
+      ['vault:open', { root: 'C:/v' }],
       ['app:ready-to-close', {}],
     ]);
   });

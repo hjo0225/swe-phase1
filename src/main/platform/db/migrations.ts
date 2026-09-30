@@ -26,4 +26,41 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX idx_note_links_target ON note_links (target_note_id);
     `,
   },
+  {
+    id: '0002_ai',
+    sql: `
+      CREATE TABLE ai_provider_settings (
+        provider TEXT PRIMARY KEY CHECK (provider IN ('openai', 'kimi')),
+        model TEXT NOT NULL,
+        base_url TEXT,
+        encrypted_api_key BLOB,
+        is_active INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        CHECK (is_active = 0 OR encrypted_api_key IS NOT NULL)
+      );
+      CREATE UNIQUE INDEX uq_ai_provider_active ON ai_provider_settings (is_active) WHERE is_active = 1;
+
+      CREATE TABLE ai_jobs (
+        id TEXT PRIMARY KEY,
+        note_id TEXT NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+        type TEXT NOT NULL CHECK (type IN ('EXPAND', 'ORGANIZE', 'VISUALIZE')),
+        status TEXT NOT NULL CHECK (status IN ('QUEUED', 'RUNNING', 'COMPLETED', 'FAILED')),
+        input_text TEXT NOT NULL,
+        result_kind TEXT,
+        result_text TEXT,
+        result_data TEXT,
+        failure_code TEXT,
+        failure_message TEXT,
+        provider TEXT,
+        model TEXT,
+        attempt INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER
+      );
+      CREATE INDEX idx_ai_jobs_note ON ai_jobs (note_id, created_at DESC);
+      CREATE INDEX idx_ai_jobs_status ON ai_jobs (status);
+    `,
+  },
 ];

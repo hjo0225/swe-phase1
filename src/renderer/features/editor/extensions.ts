@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import type { Extensions } from '@tiptap/react';
 import { AiPending } from '../assist/editor/ai-pending';
 import { NoteLink } from '../notes/editor/note-link';
+import { Infographic } from '../visualization/editor/infographic-node';
 
 /**
  * 편집기 스키마 조립 지점 (docs/frontend/feature-map.md "편집기와 feature의 관계").
@@ -17,5 +18,6 @@ export function createEditorExtensions(options: { placeholder?: string } = {}): 
     Markdown,
     NoteLink,
     AiPending,
+    Infographic,
   ];
 }

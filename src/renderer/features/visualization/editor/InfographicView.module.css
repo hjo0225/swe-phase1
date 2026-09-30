@@ -1,0 +1,65 @@
+.figure {
+  position: relative;
+  margin: 16px 0;
+  padding: 12px;
+}
+
+.figure[data-selected='true'] {
+  box-shadow:
+    0 0 0 2px var(--blue-300),
+    0 16px 40px rgba(31, 87, 174, 0.1);
+}
+
+.canvas {
+  overflow-x: auto;
+}
+
+.canvas svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.invalid {
+  margin: 12px;
+  font-size: 13px;
+  color: var(--ink-500);
+}
+
+.toolbar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--dur-hover) ease-out;
+}
+
+.figure:hover .toolbar,
+.figure:focus-within .toolbar,
+.figure[data-selected='true'] .toolbar {
+  opacity: 1;
+}
+
+.toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 10px;
+  background: rgba(245, 250, 255, 0.9);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-700);
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  color: var(--blue-700);
+  background: var(--blue-100);
+}

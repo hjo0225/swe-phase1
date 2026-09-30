@@ -5,6 +5,8 @@ import { Link, useParams } from 'react-router';
 import type { NoteDetail } from '../../../../shared/ipc/notes';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import { Dialog } from '../../../shared/ui/Dialog';
+import { AIActionBubble } from '../../assist/components/AIActionBubble';
+import { useAssistBridge } from '../../assist/components/use-assist-bridge';
 import { useActiveEditor } from '../../editor/ActiveEditorContext';
 import { NoteEditor } from '../../editor/NoteEditor';
 import { useDeleteNote, useNoteDetail } from '../api/note-queries';
@@ -48,6 +50,7 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const titleRef = useRef(note.title);
   const editorRef = useRef<Editor | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const deleteNote = useDeleteNote();
   const { setActive } = useActiveEditor();
 
@@ -65,9 +68,10 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
 
   // 검색 팔레트가 연결·가져오기 대상으로 쓸 수 있게 현재 편집기를 등록한다.
   const onReady = useCallback(
-    (editor: Editor) => {
-      editorRef.current = editor;
-      setActive(() => ({ noteId: note.id, editor }));
+    (ready: Editor) => {
+      editorRef.current = ready;
+      setEditor(ready);
+      setActive(() => ({ noteId: note.id, editor: ready }));
     },
     [note.id, setActive],
   );
@@ -75,6 +79,9 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
     () => () => setActive((current) => (current?.noteId === note.id ? null : current)),
     [note.id, setActive],
   );
+
+  // AI Job 상태 ↔ 편집기 (잠금·Pulse·Commit)
+  useAssistBridge(note.id, editor);
 
   return (
     <article className={`paper ${styles.page}`}>
@@ -100,6 +107,7 @@ function NoteWorkspace({ note }: { note: NoteDetail }) {
       </header>
 
       <NoteEditor initialContent={note.content} onReady={onReady} onChange={() => queue.markDirty(payload)} />
+      {editor && <AIActionBubble editor={editor} noteId={note.id} />}
       <BacklinksPanel noteId={note.id} />
 
       {confirmingDelete && (

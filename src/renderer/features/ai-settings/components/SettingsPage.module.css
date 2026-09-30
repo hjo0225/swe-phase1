@@ -1,0 +1,148 @@
+.page {
+  width: 100%;
+  max-width: 760px;
+  align-self: flex-start;
+  padding: 40px 64px 48px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.lead {
+  margin: 0 0 28px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-600);
+}
+
+.skeleton {
+  height: 240px;
+  border-radius: var(--radius-lg);
+  background: var(--blue-50);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+.field input,
+.field select {
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border-blue);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--ink-900);
+}
+
+.inputWithIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: var(--ink-500);
+}
+
+.inputWithIcon svg {
+  position: absolute;
+  left: 12px;
+}
+
+.inputWithIcon input {
+  flex: 1;
+  padding-left: 36px;
+}
+
+.capabilities {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: -4px 0 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--blue-50);
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-800);
+}
+
+.capabilities li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capabilities li[data-supported='true'] svg {
+  color: var(--mint-600);
+}
+
+.capabilities li[data-supported='false'] {
+  color: var(--ink-500);
+}
+
+.enables {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+.advanced summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-600);
+  cursor: pointer;
+}
+
+.advanced .field {
+  margin-top: 10px;
+}
+
+.warning,
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(232, 148, 58, 0.1);
+  font-size: 13px;
+  color: #9a5a17;
+}
+
+.testResult {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.testResult[data-ok='true'] {
+  color: var(--mint-600);
+}
+
+.testResult[data-ok='false'] {
+  color: #9a5a17;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

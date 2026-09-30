@@ -1,6 +1,8 @@
 import { Placeholder } from '@tiptap/extensions';
+import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
 import type { Extensions } from '@tiptap/react';
+import { AiPending } from '../assist/editor/ai-pending';
 import { NoteLink } from '../notes/editor/note-link';
 
 /**
@@ -11,6 +13,9 @@ export function createEditorExtensions(options: { placeholder?: string } = {}): 
   return [
     StarterKit.configure({ link: { openOnClick: false, autolink: true } }),
     Placeholder.configure({ placeholder: options.placeholder ?? '생각을 적어 보세요' }),
+    // AI 결과(Markdown)를 편집기 스키마로 파싱한다. HTML로 직접 넣지 않는다.
+    Markdown,
     NoteLink,
+    AiPending,
   ];
 }

@@ -1,7 +1,7 @@
 import type { BlinkApi, RawBlinkApi } from '../../../shared/ipc/blink-api';
 import { unwrap } from '../../../shared/ipc/errors';
 import type { IpcResult } from '../../../shared/ipc/result';
-import { createMockBlink } from '../../mocks/createMockBlink';
+import { createMockBlink, type MockBlinkOptions } from '../../mocks/createMockBlink';
 
 const isThenable = (value: unknown): value is PromiseLike<unknown> =>
   typeof (value as { then?: unknown } | null)?.then === 'function';
@@ -25,12 +25,15 @@ export function wrapRawApi(raw: RawBlinkApi): BlinkApi {
 }
 
 let client: BlinkApi | undefined;
+let mockOptions: MockBlinkOptions = {};
 
 export function getBlink(): BlinkApi {
-  client ??= wrapRawApi(window.blink ?? createMockBlink());
+  client ??= wrapRawApi(window.blink ?? createMockBlink(mockOptions));
   return client;
 }
 
-export function resetBlinkForTests(): void {
+/** 테스트마다 새 Mock을 쓴다. options는 다음 getBlink()가 만드는 Mock에 적용된다. */
+export function resetBlinkForTests(options: MockBlinkOptions = {}): void {
   client = undefined;
+  mockOptions = options;
 }

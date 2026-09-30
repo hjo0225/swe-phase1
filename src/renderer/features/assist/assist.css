@@ -1,0 +1,64 @@
+/* AI 상태 표현 — docs/frontend/design-system.md "AI 상태 표현". 편집기 장식(Decoration) 클래스라 전역이다. */
+
+/* 처리 중: 선택 영역 자체가 상태 표시기다 (명세서 §9.2, 1.4s) */
+.ai-processing {
+  border-radius: 3px;
+  animation: blink-processing 1.4s ease-in-out infinite;
+}
+
+@keyframes blink-processing {
+  0%,
+  100% {
+    opacity: 1;
+    background-color: rgba(66, 129, 231, 0.08);
+  }
+  50% {
+    opacity: 0.4;
+    background-color: rgba(66, 129, 231, 0.18);
+  }
+}
+
+/* 실패: 점선 밑줄 + 범위 끝의 칩 */
+.ai-failed {
+  text-decoration: underline dashed var(--warning-500);
+  text-underline-offset: 4px;
+}
+
+.ai-failure-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  padding: 1px 4px 1px 10px;
+  border: 1px solid rgba(232, 148, 58, 0.35);
+  border-radius: var(--radius-full);
+  background: rgba(255, 250, 245, 0.95);
+  font-size: 12px;
+  line-height: 22px;
+  color: #9a5a17;
+  vertical-align: middle;
+  user-select: none;
+}
+
+.ai-failure-chip button {
+  height: 20px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--blue-600);
+  cursor: pointer;
+}
+
+.ai-failure-chip button:hover {
+  background: var(--blue-100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-processing {
+    animation: none;
+    background-color: rgba(66, 129, 231, 0.14);
+  }
+}

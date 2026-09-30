@@ -43,7 +43,7 @@ export interface MockBlinkOptions {
   aiDelayMs?: number;
 }
 
-/** 입력에 `#fail:CODE`가 있으면 그 코드로 실패한다 (UI 개발·테스트용). */
+/** 입력에 `#fail:CODE`가 있으면 첫 시도는 그 코드로 실패하고 재시도는 성공한다 (UI 개발·테스트용). */
 const FAIL_MARKER = /#fail:([A-Z_]+)/;
 
 function mockResult(job: AIJobView): JobResultDto {
@@ -98,7 +98,7 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       setTimeout(() => {
         const running = jobs.get(id);
         if (!running || running.status !== 'RUNNING') return;
-        const failCode = running.inputText.match(FAIL_MARKER)?.[1];
+        const failCode = running.attempt === 1 ? running.inputText.match(FAIL_MARKER)?.[1] : undefined;
         emitJob(
           failCode
             ? { ...running, status: 'FAILED', failure: { code: failCode as never, retryable: true }, completedAt: now() }
@@ -258,7 +258,7 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
           noteId: job.noteId,
           type: job.type,
           status: 'QUEUED',
-          inputText: job.inputText.replace(FAIL_MARKER, ''),
+          inputText: job.inputText,
           attempt: job.attempt + 1,
           createdAt: job.createdAt,
         };

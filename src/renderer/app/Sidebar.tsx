@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Settings } from 'lucide-react';
 import { NavLink } from 'react-router';
+import { AIStatusChip } from '../features/ai-settings/components/AIStatusChip';
 import { useCreateNote } from '../features/notes/api/note-queries';
 import { NoteList } from '../features/notes/components/NoteList';
 import { getBlink } from '../shared/api/blink';
@@ -35,10 +36,7 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
           검색
           <kbd className={styles.kbd}>{modifierKey} K</kbd>
         </button>
-        <div className={`floating-chip ${styles.aiStatus}`}>
-          <span className={styles.statusDot} aria-hidden />
-          AI 설정 필요
-        </div>
+        <AIStatusChip />
         <NavLink to="/settings/ai" className={styles.navItem}>
           <Settings size={16} strokeWidth={1.75} />
           설정

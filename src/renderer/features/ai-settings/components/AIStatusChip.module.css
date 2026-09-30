@@ -1,0 +1,28 @@
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--ink-700);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--ink-300);
+}
+
+.chip[data-active='true'] .dot {
+  background: var(--mint-500);
+  box-shadow: 0 0 8px rgba(80, 221, 203, 0.6);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

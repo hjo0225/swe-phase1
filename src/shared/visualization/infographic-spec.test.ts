@@ -52,7 +52,7 @@ describe('parseInfographicSpec — common rules', () => {
   it('rejects malformed shapes and unsupported types', () => {
     expect(reason('nope')).toBe('SHAPE');
     expect(reason(base({ version: 2 }))).toBe('SHAPE');
-    expect(reason(base({ type: 'mindmap' }))).toBe('UNSUPPORTED_TYPE');
+    expect(reason(base({ type: 'timeline' }))).toBe('UNSUPPORTED_TYPE');
   });
 
   it('enforces length and count limits', () => {
@@ -134,6 +134,87 @@ describe('parseInfographicSpec — hierarchy', () => {
   });
 });
 
+describe('parseInfographicSpec — comparison', () => {
+  const compare = (edges: [string, string][], ids = ['a', 'b', 'a1', 'a2', 'b1', 'b2']) =>
+    base({ type: 'comparison', nodes: ids.map((id) => node(id)), edges });
+
+  it('accepts 2-3 compared items, each with its own features', () => {
+    const spec = parseInfographicSpec(
+      compare([
+        ['a', 'a1'],
+        ['a', 'a2'],
+        ['b', 'b1'],
+        ['b', 'b2'],
+      ]),
+    );
+    expect(spec.type).toBe('comparison');
+  });
+
+  it('rejects one or four items, items without features, and nested features', () => {
+    expect(reason(compare([['a', 'a1']], ['a', 'a1']))).toBe('STRUCTURE'); // 비교 대상 1개
+    expect(
+      reason(
+        compare(
+          [
+            ['a', 'a1'],
+            ['b', 'b1'],
+            ['c', 'c1'],
+            ['d', 'd1'],
+          ],
+          ['a', 'b', 'c', 'd', 'a1', 'b1', 'c1', 'd1'],
+        ),
+      ),
+    ).toBe('STRUCTURE'); // 4개
+    expect(reason(compare([['a', 'a1']], ['a', 'b', 'a1']))).toBe('STRUCTURE'); // b에 특징 없음
+    expect(
+      reason(
+        compare(
+          [
+            ['a', 'a1'],
+            ['a1', 'a2'],
+            ['b', 'b1'],
+          ],
+          ['a', 'b', 'a1', 'a2', 'b1'],
+        ),
+      ),
+    ).toBe('STRUCTURE'); // 특징 아래 특징
+  });
+});
+
+describe('parseInfographicSpec — mindmap', () => {
+  const map = (edges: [string, string][], ids: string[]) =>
+    base({ type: 'mindmap', nodes: ids.map((id) => node(id)), edges });
+
+  it('accepts a center with topics and details (depth 2)', () => {
+    const spec = parseInfographicSpec(
+      map(
+        [
+          ['c', 't1'],
+          ['c', 't2'],
+          ['t1', 'd1'],
+        ],
+        ['c', 't1', 't2', 'd1'],
+      ),
+    );
+    expect(spec.type).toBe('mindmap');
+  });
+
+  it('rejects branches deeper than center → topic → detail', () => {
+    expect(
+      reason(
+        map(
+          [
+            ['c', 't'],
+            ['t', 'd'],
+            ['d', 'x'],
+          ],
+          ['c', 't', 'd', 'x'],
+        ),
+      ),
+    ).toBe('STRUCTURE');
+  });
+});
+
 describe('infographicJsonSchema', () => {
   it('describes a strict object with object edges for structured output', () => {
     const schema = infographicJsonSchema();
@@ -142,7 +223,7 @@ describe('infographicJsonSchema', () => {
       additionalProperties: false,
       required: ['version', 'type', 'title', 'nodes', 'edges'],
       properties: {
-        type: { enum: ['process', 'hierarchy'] },
+        type: { enum: ['process', 'hierarchy', 'comparison', 'mindmap'] },
         edges: { type: 'array', items: { type: 'object', required: ['from', 'to'] } },
       },
     });

@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 
 /** LLM에 허용하는 유형 = Renderer가 구현한 유형 (BR-VIS-01). Renderer를 추가할 때 함께 늘린다. */
-export const SUPPORTED_TYPES = ['process', 'hierarchy'] as const;
+export const SUPPORTED_TYPES = ['process', 'hierarchy', 'comparison', 'mindmap'] as const;
 export type InfographicType = (typeof SUPPORTED_TYPES)[number];
 
 export interface InfographicNode {
@@ -98,8 +98,7 @@ export function parseInfographicSpec(raw: unknown): InfographicSpec {
   }
 
   const spec: InfographicSpec = { version: 1, type, title: input.title, nodes, edges };
-  if (type === 'process') assertSinglePath(spec);
-  else assertTree(spec);
+  STRUCTURE_RULES[type](spec);
   return spec;
 }
 
@@ -150,6 +149,40 @@ function assertTree(spec: InfographicSpec): void {
     throw new InfographicSpecError('STRUCTURE', 'A hierarchy must connect every node');
   }
 }
+
+/** mindmap: hierarchy 규칙 + 깊이 ≤ 2 (중심 → 주제 → 세부). */
+function assertMindmap(spec: InfographicSpec): void {
+  assertTree(spec);
+  const { incoming, children } = degrees(spec);
+  const center = spec.nodes.find((n) => incoming.get(n.id) === 0)!.id;
+  const tooDeep = children.get(center)!.some((topic) => children.get(topic)!.some((detail) => children.get(detail)!.length > 0));
+  if (tooDeep) throw new InfographicSpecError('STRUCTURE', 'A mindmap goes at most center → topic → detail');
+}
+
+const MIN_COMPARED = 2;
+const MAX_COMPARED = 3;
+
+/** comparison: 비교 대상(루트) 2~3개, 나머지는 특징 노드로 비교 대상 하나에만 딸리고, 대상마다 특징 ≥ 1. */
+function assertComparison(spec: InfographicSpec): void {
+  const { incoming, children } = degrees(spec);
+  const items = spec.nodes.filter((n) => incoming.get(n.id) === 0);
+  const features = spec.nodes.filter((n) => incoming.get(n.id) !== 0);
+  const valid =
+    items.length >= MIN_COMPARED &&
+    items.length <= MAX_COMPARED &&
+    items.every((item) => children.get(item.id)!.length > 0) &&
+    features.every((f) => incoming.get(f.id) === 1 && children.get(f.id)!.length === 0);
+  if (!valid) {
+    throw new InfographicSpecError('STRUCTURE', 'A comparison needs 2-3 items, each with its own features');
+  }
+}
+
+const STRUCTURE_RULES: Record<InfographicType, (spec: InfographicSpec) => void> = {
+  process: assertSinglePath,
+  hierarchy: assertTree,
+  comparison: assertComparison,
+  mindmap: assertMindmap,
+};
 
 /**
  * Structured Output용 JSON Schema. strict 모드에 맞게 모든 필드를 required, additionalProperties false로 둔다.

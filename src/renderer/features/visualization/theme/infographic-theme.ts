@@ -20,5 +20,20 @@ export const infographicTheme = {
   nodeTitle: { size: 15, weight: 700, color: '#10213D', lineHeight: 20, maxChars: 12 },
   nodeDescription: { size: 13, weight: 400, color: '#40536E', lineHeight: 18, maxChars: 14 },
   edge: { color: 'rgba(66,129,231,0.45)', width: 1.5, dot: '#50DDCB', dotRadius: 3 },
-  spacing: { margin: 32, header: 56, columnGap: 48, rowGap: 56, siblingGap: 24, levelGap: 56, descGap: 6 },
+  spacing: {
+    margin: 32,
+    header: 56,
+    columnGap: 48,
+    rowGap: 56,
+    siblingGap: 24,
+    levelGap: 56,
+    descGap: 6,
+    /** 한 열(comparison)·한 묶음(mindmap 세부) 안의 카드 간격 */
+    stackGap: 16,
+    /** mindmap 주제 묶음 사이 */
+    groupGap: 28,
+    panelPadding: 16,
+  },
+  /** comparison 열 배경 */
+  panel: { fill: '#FFFFFF', fillOpacity: 0.45, stroke: 'rgba(123,177,241,0.28)', radius: 24 },
 } as const;

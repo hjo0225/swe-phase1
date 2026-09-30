@@ -4,7 +4,7 @@ import { infographicTheme as t } from '../theme/infographic-theme';
 import { layoutInfographic } from './layout';
 
 /**
- * Spec → SVG. 모든 유형(process, hierarchy)이 같은 카드·연결선 디자인을 쓴다 (디자인 일관성, 명세서 §18).
+ * Spec → SVG. 모든 유형(process, hierarchy, comparison, mindmap)이 같은 카드·연결선 디자인을 쓴다 (디자인 일관성, 명세서 §18).
  * PNG 변환을 위해 CSS 없이 속성만으로 그린다.
  */
 export const InfographicSvg = forwardRef<SVGSVGElement, { spec: InfographicSpec }>(function InfographicSvg({ spec }, ref) {
@@ -44,6 +44,21 @@ export const InfographicSvg = forwardRef<SVGSVGElement, { spec: InfographicSpec 
       <text x={t.spacing.margin} y={t.spacing.margin + 6} fontSize={t.title.size} fontWeight={t.title.weight} fill={t.title.color}>
         {layout.title}
       </text>
+
+      {layout.panels.map((panel, i) => (
+        <rect
+          key={`panel-${i}`}
+          data-panel=""
+          x={panel.x}
+          y={panel.y}
+          width={panel.width}
+          height={panel.height}
+          rx={t.panel.radius}
+          fill={t.panel.fill}
+          fillOpacity={t.panel.fillOpacity}
+          stroke={t.panel.stroke}
+        />
+      ))}
 
       {layout.edges.map((edge) => (
         <g key={`${edge.from}-${edge.to}`}>

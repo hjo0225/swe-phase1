@@ -1,0 +1,15 @@
+.shell {
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  gap: 12px;
+  height: 100%;
+  padding: 12px;
+}
+
+.main {
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 24px 32px;
+}

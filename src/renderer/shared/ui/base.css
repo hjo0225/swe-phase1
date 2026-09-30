@@ -1,0 +1,114 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-800);
+  background: var(--blue-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(66, 129, 231, 0.25);
+}
+
+/* 앱 배경: 왼쪽 흰색 → 오른쪽 Azure. 편집기 가독성을 위해 blue-300에서 멈춘다. */
+.app-background {
+  background:
+    radial-gradient(circle at 85% 12%, rgba(58, 126, 235, 0.28) 0%, transparent 38%),
+    radial-gradient(circle at 70% 80%, rgba(89, 174, 255, 0.2) 0%, transparent 42%),
+    linear-gradient(115deg, #f7fbff 0%, #eef6ff 40%, #d4e8fe 75%, #9bc8fa 100%);
+  background-attachment: fixed;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.44);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 16px 40px rgba(31, 87, 174, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  border-radius: var(--radius-lg);
+}
+
+.glass-elevated {
+  background: rgba(242, 248, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(28px);
+  box-shadow:
+    0 24px 70px rgba(25, 79, 169, 0.16),
+    0 4px 12px rgba(25, 79, 169, 0.06),
+    inset 0 1px rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-xl);
+}
+
+.floating-chip {
+  background: rgba(245, 250, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(24, 80, 171, 0.1);
+}
+
+/* 편집기·폼처럼 긴 글을 읽는 면은 거의 불투명하게 둔다. */
+.paper {
+  background: var(--surface-paper);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 22px rgba(47, 109, 219, 0.22);
+  cursor: pointer;
+  transition:
+    transform var(--dur-hover) ease-out,
+    box-shadow var(--dur-hover) ease-out;
+}
+
+.button-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(47, 109, 219, 0.28);
+}
+
+.button-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

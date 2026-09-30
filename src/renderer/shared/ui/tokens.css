@@ -1,0 +1,72 @@
+/* Cloud Glass design tokens — 기준: docs/frontend/design-system.md */
+:root {
+  /* Brand */
+  --blue-50: #f3f8ff;
+  --blue-100: #e5f1ff;
+  --blue-200: #c9e2ff;
+  --blue-300: #9bc8fa;
+  --blue-400: #6ba8f6;
+  --blue-500: #4281e7;
+  --blue-600: #2f6ddb;
+  --blue-700: #2059c1;
+  --blue-800: #174591;
+  --blue-900: #103268;
+
+  /* Accent — AI 활성·연결 전용 */
+  --mint-50: #edfffc;
+  --mint-200: #a9f1e7;
+  --mint-400: #50ddcb;
+  --mint-500: #28c8b8;
+  --mint-600: #18a99d;
+
+  /* Ink — blue-tinted neutral */
+  --ink-900: #10213d;
+  --ink-800: #203451;
+  --ink-700: #40536e;
+  --ink-600: #62758d;
+  --ink-500: #8394a9;
+  --ink-300: #b9c7d8;
+  --ink-200: #d6e0eb;
+  --ink-100: #ebf1f7;
+
+  /* Status */
+  --warning-500: #e8943a;
+  --danger-500: #e25c5c;
+
+  /* Surface */
+  --surface-glass: rgba(255, 255, 255, 0.48);
+  --surface-glass-strong: rgba(247, 251, 255, 0.68);
+  --surface-paper: rgba(255, 255, 255, 0.86);
+  --border-light: rgba(255, 255, 255, 0.65);
+  --border-blue: rgba(123, 177, 241, 0.2);
+  --divider: rgba(70, 130, 210, 0.1);
+
+  /* Radius */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+
+  /* Shadow — 파란 빛 번짐, 검정 금지 */
+  --shadow-xs: 0 4px 12px rgba(31, 87, 174, 0.06);
+  --shadow-sm: 0 8px 24px rgba(31, 87, 174, 0.08);
+  --shadow-md: 0 18px 45px rgba(31, 87, 174, 0.11);
+  --shadow-lg: 0 28px 80px rgba(23, 70, 150, 0.16);
+  --glow-blue: 0 0 48px rgba(62, 137, 255, 0.22);
+  --glow-mint: 0 0 30px rgba(80, 221, 203, 0.28);
+
+  /* Blur */
+  --blur-sm: 8px;
+  --blur-md: 16px;
+  --blur-lg: 24px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-hover: 160ms;
+  --dur-ui: 240ms;
+
+  /* Type */
+  --font-sans: 'Inter Variable', 'Pretendard Variable', -apple-system, 'Segoe UI', sans-serif;
+}

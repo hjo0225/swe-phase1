@@ -47,6 +47,10 @@ export interface BlinkApi {
     /** Job 상태 변경 푸시. 해제 함수를 반환한다. */
     onJobUpdated(listener: (job: AIJobView) => void): () => void;
   };
+  visualization: {
+    /** 사용자가 Dialog를 취소하면 { saved: false } */
+    savePng(input: { png: Uint8Array; suggestedFileName?: string }): Promise<{ saved: true; filePath: string } | { saved: false }>;
+  };
   settings: {
     getProvider(): Promise<ProviderSettingsView>;
     updateProvider(input: UpdateProviderInput): Promise<ProviderSettingsView>;

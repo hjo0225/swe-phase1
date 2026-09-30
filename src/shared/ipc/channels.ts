@@ -16,6 +16,7 @@ export const IpcChannels = {
   aiGetJob: 'ai:get-job',
   aiListJobs: 'ai:list-jobs',
   aiRetryJob: 'ai:retry-job',
+  visualizationSavePng: 'visualization:save-png',
 } as const;
 
 /** Main → Renderer 푸시 이벤트. */

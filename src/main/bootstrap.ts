@@ -31,6 +31,9 @@ import { migrations } from './platform/db/migrations';
 import { createIpcHandler } from './platform/ipc/handler';
 import { registerIpcHandlers } from './platform/ipc/register';
 import { createSenderValidator } from './platform/ipc/sender';
+import { ExportInfographicPng } from './visualization/application/export-infographic-png';
+import { ElectronFileSaver, FixedPathFileSaver } from './visualization/infrastructure/electron-file-saver';
+import { visualizationIpcHandlers } from './visualization/presentation/visualization.ipc';
 import { createMainWindow } from './window';
 
 const CLOSE_FLUSH_TIMEOUT_MS = 3000;
@@ -68,6 +71,9 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
     logger: console,
   });
 
+  const e2eSavePath = app.isPackaged ? undefined : process.env.BLINK_E2E_SAVE_PATH;
+  const exportPng = new ExportInfographicPng(e2eSavePath ? new FixedPathFileSaver(e2eSavePath) : new ElectronFileSaver());
+
   // 3. 중단된 AI Job 정리 (UC-ASSIST-006) — Renderer가 중간 상태를 보기 전에
   new RecoverInterruptedJobs(jobRepo, systemClock).execute();
 
@@ -90,6 +96,7 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
         retry: new RetryAIJob({ repo: jobRepo, activeLLM, runner, clock: systemClock, publisher }),
         queries: new AIJobQueries(jobRepo),
       }),
+      ...visualizationIpcHandlers(exportPng),
     },
     isTrusted,
   );

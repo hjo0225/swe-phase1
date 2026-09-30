@@ -215,6 +215,9 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         return ok({ outgoing, incoming });
       },
     },
+    visualization: {
+      savePng: ({ suggestedFileName }) => ok({ saved: true as const, filePath: `mock/${suggestedFileName ?? 'infographic'}.png` }),
+    },
     settings: {
       getProvider: () => ok(settingsView()),
       updateProvider: ({ provider, model, apiKey, baseUrl }) => {

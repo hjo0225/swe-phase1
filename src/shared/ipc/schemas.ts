@@ -62,3 +62,10 @@ export const CreateJobRequest = z
 export const JobIdRequest = z.object({ jobId: z.uuid() }).strict();
 
 export const ListJobsRequest = z.object({ noteId: NoteIdSchema }).strict();
+
+export const SavePngRequest = z
+  .object({
+    png: z.instanceof(Uint8Array),
+    suggestedFileName: z.string().max(200).optional(),
+  })
+  .strict();

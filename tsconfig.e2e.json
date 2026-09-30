@@ -3,7 +3,8 @@
     "composite": true,
     "target": "ES2023",
     "lib": [
-      "ES2023"
+      "ES2023",
+      "DOM"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -17,10 +18,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/main/**/*",
-    "src/preload/**/*",
-    "src/shared/**/*",
-    "electron.vite.config.ts",
-    "vitest.config.ts"
+    "e2e/**/*",
+    "vitest.e2e.config.ts"
   ]
 }

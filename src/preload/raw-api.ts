@@ -30,6 +30,9 @@ export function createRawBlinkApi(invoke: Invoke, subscribe: Subscribe): RawBlin
       retryJob: (input) => call(IpcChannels.aiRetryJob, input),
       onJobUpdated: (listener) => subscribe(IpcEvents.aiJobUpdated, (payload) => listener(payload as AIJobView)),
     },
+    visualization: {
+      savePng: (input) => call(IpcChannels.visualizationSavePng, input),
+    },
     settings: {
       getProvider: () => call(IpcChannels.settingsGetProvider),
       updateProvider: (input) => call(IpcChannels.settingsUpdateProvider, input),

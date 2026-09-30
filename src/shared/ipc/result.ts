@@ -13,8 +13,9 @@ export type ProviderErrorCode =
   | 'PROVIDER_API_KEY_REQUIRED'
   | 'PROVIDER_SECURE_STORAGE_UNAVAILABLE'
   | 'PROVIDER_BASE_URL_INVALID';
+export type ExportErrorCode = 'EXPORT_INVALID_IMAGE' | 'EXPORT_TOO_LARGE' | 'EXPORT_WRITE_FAILED';
 /** 도메인이 구현될 때마다 도메인 오류 코드 union을 여기에 합친다. */
-export type BlinkErrorCode = CommonErrorCode | NoteErrorCode | AssistErrorCode | ProviderErrorCode;
+export type BlinkErrorCode = CommonErrorCode | NoteErrorCode | AssistErrorCode | ProviderErrorCode | ExportErrorCode;
 
 export interface IpcError {
   code: BlinkErrorCode;

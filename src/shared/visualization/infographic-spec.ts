@@ -1,0 +1,192 @@
+import { z } from 'zod';
+
+/**
+ * InfographicSpec — Shared Kernel (docs/backend/visualization/domain-model.md, D-11).
+ * Main은 LLM 결과 검증에, Renderer는 본문에 저장된 Spec을 그리기 전 검증에 같은 규칙을 쓴다.
+ * LLM이 정하는 것(유형·제목·노드·연결)만 담는다. 좌표·색·폰트는 Blink가 정한다.
+ */
+
+/** LLM에 허용하는 유형 = Renderer가 구현한 유형 (BR-VIS-01). Renderer를 추가할 때 함께 늘린다. */
+export const SUPPORTED_TYPES = ['process', 'hierarchy'] as const;
+export type InfographicType = (typeof SUPPORTED_TYPES)[number];
+
+export interface InfographicNode {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface InfographicSpec {
+  version: 1;
+  type: InfographicType;
+  title: string;
+  nodes: InfographicNode[];
+  edges: [from: string, to: string][];
+}
+
+export type InfographicSpecErrorReason =
+  | 'SHAPE'
+  | 'UNSUPPORTED_TYPE'
+  | 'NODE_COUNT'
+  | 'DUPLICATE_ID'
+  | 'DANGLING_EDGE'
+  | 'SELF_EDGE'
+  | 'STRUCTURE';
+
+export class InfographicSpecError extends Error {
+  constructor(
+    readonly reason: InfographicSpecErrorReason,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'InfographicSpecError';
+  }
+}
+
+const MIN_NODES = 2;
+const MAX_NODES = 16;
+
+const ShapeSchema = z.object({
+  version: z.literal(1),
+  type: z.string(),
+  title: z.string().trim().min(1).max(60),
+  nodes: z.array(
+    z.object({
+      id: z.string().trim().min(1).max(40),
+      title: z.string().trim().min(1).max(40),
+      description: z.string().trim().max(120).optional(),
+    }),
+  ),
+  edges: z.array(z.tuple([z.string().trim(), z.string().trim()])),
+});
+
+/** 형식 검증 → 정규화 → 구조 불변식. 같은 Spec에 다시 적용해도 결과가 같다. */
+export function parseInfographicSpec(raw: unknown): InfographicSpec {
+  const shape = ShapeSchema.safeParse(raw);
+  if (!shape.success) throw new InfographicSpecError('SHAPE', shape.error.issues[0]?.message ?? 'Invalid shape');
+  const input = shape.data;
+
+  if (!(SUPPORTED_TYPES as readonly string[]).includes(input.type)) {
+    throw new InfographicSpecError('UNSUPPORTED_TYPE', `Unsupported type ${input.type}`);
+  }
+  const type = input.type as InfographicType;
+  if (input.nodes.length < MIN_NODES || input.nodes.length > MAX_NODES) {
+    throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${MAX_NODES} nodes`);
+  }
+
+  const nodes: InfographicNode[] = input.nodes.map((n) => ({
+    id: n.id,
+    title: n.title,
+    ...(n.description ? { description: n.description } : {}),
+  }));
+  const ids = new Set(nodes.map((n) => n.id));
+  if (ids.size !== nodes.length) throw new InfographicSpecError('DUPLICATE_ID', 'Node ids must be unique');
+
+  const seen = new Set<string>();
+  let edges: [string, string][] = [];
+  for (const [from, to] of input.edges) {
+    if (from === to) throw new InfographicSpecError('SELF_EDGE', `Edge ${from} points to itself`);
+    if (!ids.has(from) || !ids.has(to)) throw new InfographicSpecError('DANGLING_EDGE', `Edge ${from}→${to} has no node`);
+    const key = `${from}\u0000${to}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      edges.push([from, to]);
+    }
+  }
+  if (type === 'process' && edges.length === 0) {
+    edges = nodes.slice(1).map((n, i) => [nodes[i]!.id, n.id]);
+  }
+
+  const spec: InfographicSpec = { version: 1, type, title: input.title, nodes, edges };
+  if (type === 'process') assertSinglePath(spec);
+  else assertTree(spec);
+  return spec;
+}
+
+function degrees(spec: InfographicSpec) {
+  const incoming = new Map(spec.nodes.map((n) => [n.id, 0]));
+  const children = new Map<string, string[]>(spec.nodes.map((n) => [n.id, []]));
+  for (const [from, to] of spec.edges) {
+    incoming.set(to, incoming.get(to)! + 1);
+    children.get(from)!.push(to);
+  }
+  return { incoming, children };
+}
+
+function reachableFrom(root: string, children: Map<string, string[]>): Set<string> {
+  const visited = new Set<string>();
+  const stack = [root];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    stack.push(...children.get(id)!);
+  }
+  return visited;
+}
+
+/** process: 모든 노드를 한 번씩 지나는 하나의 경로. */
+function assertSinglePath(spec: InfographicSpec): void {
+  const { incoming, children } = degrees(spec);
+  const starts = spec.nodes.filter((n) => incoming.get(n.id) === 0);
+  const branching = [...children.values()].some((c) => c.length > 1);
+  const merging = [...incoming.values()].some((d) => d > 1);
+  if (spec.edges.length !== spec.nodes.length - 1 || starts.length !== 1 || branching || merging) {
+    throw new InfographicSpecError('STRUCTURE', 'A process must be a single path through every node');
+  }
+  if (reachableFrom(starts[0]!.id, children).size !== spec.nodes.length) {
+    throw new InfographicSpecError('STRUCTURE', 'A process must connect every node');
+  }
+}
+
+/** hierarchy: 루트 하나, 나머지는 부모 하나, 모두 루트에서 도달 가능. */
+function assertTree(spec: InfographicSpec): void {
+  const { incoming, children } = degrees(spec);
+  const roots = spec.nodes.filter((n) => incoming.get(n.id) === 0);
+  if (roots.length !== 1 || [...incoming.values()].some((d) => d > 1)) {
+    throw new InfographicSpecError('STRUCTURE', 'A hierarchy must have one root and one parent per node');
+  }
+  if (reachableFrom(roots[0]!.id, children).size !== spec.nodes.length) {
+    throw new InfographicSpecError('STRUCTURE', 'A hierarchy must connect every node');
+  }
+}
+
+/**
+ * Structured Output용 JSON Schema. strict 모드에 맞게 모든 필드를 required, additionalProperties false로 둔다.
+ * 연결은 {from, to} 객체로 받고 실행기가 [from, to]로 바꾼다. 구조 규칙은 JSON Schema로 표현할 수 없어 parse가 사후 검사한다.
+ */
+export function infographicJsonSchema(): Record<string, unknown> {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['version', 'type', 'title', 'nodes', 'edges'],
+    properties: {
+      version: { type: 'integer', enum: [1] },
+      type: { type: 'string', enum: [...SUPPORTED_TYPES] },
+      title: { type: 'string', description: '인포그래픽 제목, 60자 이하' },
+      nodes: {
+        type: 'array',
+        description: `${MIN_NODES}~${MAX_NODES}개`,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'title', 'description'],
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string', description: '40자 이하' },
+            description: { type: 'string', description: '120자 이하, 없으면 빈 문자열' },
+          },
+        },
+      },
+      edges: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['from', 'to'],
+          properties: { from: { type: 'string' }, to: { type: 'string' } },
+        },
+      },
+    },
+  };
+}

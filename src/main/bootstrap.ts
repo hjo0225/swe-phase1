@@ -12,7 +12,9 @@ import { settingsIpcHandlers } from './ai-provider/presentation/settings.ipc';
 import { createCloseCoordinator } from './app/close-coordinator';
 import { AIJobQueries } from './assist/application/ai-job-queries';
 import { CreateAIJob } from './assist/application/create-ai-job';
+import { ExpandExecutor } from './assist/application/executors/expand-executor';
 import { OrganizeExecutor } from './assist/application/executors/organize-executor';
+import { VisualizeExecutor } from './assist/application/executors/visualize-executor';
 import { JobRunner } from './assist/application/job-runner';
 import type { JobEventPublisher } from './assist/application/ports';
 import { RecoverInterruptedJobs } from './assist/application/recover-interrupted-jobs';
@@ -60,7 +62,7 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
   const runner = new JobRunner({
     repo: jobRepo,
     activeLLM,
-    executors: { ORGANIZE: new OrganizeExecutor() },
+    executors: { ORGANIZE: new OrganizeExecutor(), EXPAND: new ExpandExecutor(), VISUALIZE: new VisualizeExecutor() },
     publisher,
     clock: systemClock,
     logger: console,

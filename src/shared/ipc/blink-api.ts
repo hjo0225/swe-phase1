@@ -1,3 +1,11 @@
+import type {
+  CreateNoteInput,
+  NoteDetail,
+  NoteId,
+  NoteSummary,
+  UpdateNoteInput,
+  UpdateNoteResult,
+} from './notes';
 import type { IpcResult } from './result';
 
 export interface AppInfo {
@@ -6,7 +14,19 @@ export interface AppInfo {
 
 /** Renderer 코드가 쓰는 API. 실패하면 BlinkIpcError를 throw 한다. */
 export interface BlinkApi {
-  app: { getInfo(): Promise<AppInfo> };
+  app: {
+    getInfo(): Promise<AppInfo>;
+    /** 창을 닫기 직전 Main이 보내는 flush 요청. 해제 함수를 반환한다. */
+    onWillClose(listener: () => void): () => void;
+    readyToClose(): Promise<void>;
+  };
+  notes: {
+    create(input: CreateNoteInput): Promise<NoteDetail>;
+    list(): Promise<{ items: NoteSummary[] }>;
+    get(input: { id: NoteId }): Promise<NoteDetail>;
+    update(input: UpdateNoteInput): Promise<UpdateNoteResult>;
+    delete(input: { id: NoteId }): Promise<{ deleted: true }>;
+  };
 }
 
 type RawMethod<F> = F extends (...args: infer A) => Promise<infer R> ? (...args: A) => Promise<IpcResult<R>> : F;

@@ -1,11 +1,10 @@
 import { app, BrowserWindow } from 'electron';
 import { bootstrap } from './bootstrap';
-import { createMainWindow } from './window';
 
 void app.whenReady().then(() => {
-  bootstrap();
+  const { openWindow } = bootstrap();
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    if (BrowserWindow.getAllWindows().length === 0) openWindow();
   });
 });
 

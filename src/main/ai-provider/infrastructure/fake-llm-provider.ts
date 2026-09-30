@@ -1,0 +1,65 @@
+import { ProviderError, type LLMProvider, type LLMProviderFactory } from '../application/ports';
+import { ModelCatalog } from '../domain/model-catalog';
+import { OPENAI_MODELS } from './openai-provider';
+
+/**
+ * E2E·수동 확인 전용 가짜 LLM. 실제 API Key 없이 AI 흐름 전체(요청 → 잠금 → 완료 → 적용)를 실행한다.
+ * 패키징된 앱에서는 절대 쓰지 않는다 (bootstrap에서 !app.isPackaged && BLINK_FAKE_LLM=1 일 때만).
+ * 입력에 `#fail`이 있으면 PROVIDER_UNAVAILABLE로 실패한다.
+ */
+export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory {
+  const catalog = new ModelCatalog({ openai: OPENAI_MODELS, kimi: [] });
+  const wait = (signal: AbortSignal) =>
+    new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, delayMs);
+      signal.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(new ProviderError('UNAVAILABLE', 'aborted'));
+      });
+    });
+  const guard = (user: string) => {
+    if (user.includes('#fail')) throw new ProviderError('UNAVAILABLE', 'fake failure');
+  };
+
+  return {
+    catalog: () => catalog,
+    create(_provider, config): LLMProvider {
+      return {
+        async testConnection() {
+          if (config.apiKey === 'bad-key') throw new ProviderError('AUTH', 'fake auth failure');
+        },
+        async generateText({ user, signal }) {
+          await wait(signal);
+          guard(user);
+          return `## 정리된 메모\n\n- ${user.trim()}`;
+        },
+        async researchAndGenerate({ user, signal }) {
+          await wait(signal);
+          guard(user);
+          return {
+            text: `${user.trim()} — Chromium과 Node.js를 기반으로 데스크톱 앱을 만든다.`,
+            sources: [{ title: 'Electron 문서', url: 'https://www.electronjs.org/docs/latest' }],
+          };
+        },
+        async generateStructured({ user, signal }) {
+          await wait(signal);
+          guard(user);
+          return {
+            version: 1,
+            type: 'process',
+            title: '처리 과정',
+            nodes: [
+              { id: '1', title: '노트 작성', description: user.slice(0, 40) },
+              { id: '2', title: 'AI 처리', description: '선택 영역 분석' },
+              { id: '3', title: '결과', description: '인포그래픽 생성' },
+            ],
+            edges: [
+              ['1', '2'],
+              ['2', '3'],
+            ],
+          };
+        },
+      };
+    },
+  };
+}

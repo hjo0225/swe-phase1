@@ -5,6 +5,7 @@ import { EmptyRequest } from '../shared/ipc/schemas';
 import { ActiveLLM } from './ai-provider/application/active-llm';
 import { ProviderSettingsService } from './ai-provider/application/provider-settings-service';
 import { DrizzleAIProviderSettingsRepository } from './ai-provider/infrastructure/drizzle-ai-provider-settings-repository';
+import { createFakeLLMProviderFactory } from './ai-provider/infrastructure/fake-llm-provider';
 import { createLLMProviderFactory } from './ai-provider/infrastructure/llm-provider-factory';
 import { SafeStorageCipher } from './ai-provider/infrastructure/safe-storage-cipher';
 import { settingsIpcHandlers } from './ai-provider/presentation/settings.ipc';
@@ -44,7 +45,9 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
 
   const providerRepo = new DrizzleAIProviderSettingsRepository(database.db);
   const cipher = new SafeStorageCipher();
-  const llmFactory = createLLMProviderFactory();
+  // E2E·수동 확인용 가짜 LLM은 개발 빌드에서 명시적으로 켰을 때만 쓴다.
+  const useFakeLLM = !app.isPackaged && process.env.BLINK_FAKE_LLM === '1';
+  const llmFactory = useFakeLLM ? createFakeLLMProviderFactory() : createLLMProviderFactory();
   const providerSettings = new ProviderSettingsService(providerRepo, cipher, llmFactory, systemClock);
   const activeLLM = new ActiveLLM(providerRepo, cipher, llmFactory);
 

@@ -14,12 +14,16 @@ export function createUserDataDir(): { dir: string; cleanup(): void } {
 }
 
 /** `pnpm build` 결과(out/)를 실제 Electron으로 실행한다. */
-export async function launchApp(userDataDir: string): Promise<{ app: ElectronApplication; page: Page }> {
+export async function launchApp(
+  userDataDir: string,
+  extraEnv: Record<string, string> = {},
+): Promise<{ app: ElectronApplication; page: Page }> {
   const env: Record<string, string> = Object.fromEntries(
     Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
   );
   delete env.ELECTRON_RENDERER_URL; // 번들된 renderer(file://)를 로드하게 한다
   delete env.ELECTRON_RUN_AS_NODE;
+  Object.assign(env, extraEnv);
   const app = await _electron.launch({
     executablePath: electronPath as unknown as string,
     args: [repoRoot, `--user-data-dir=${userDataDir}`],

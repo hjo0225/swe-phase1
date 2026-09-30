@@ -27,7 +27,7 @@
 | --- | --- |
 | better-sqlite3 13 in Electron 44 (Node 24) | 패키지 내 N-API prebuild(`prebuilds/win32-x64.node`) 로드 성공, rebuild 불필요 |
 | pnpm 11 install scripts | 기본 차단 → `pnpm-workspace.yaml`의 `allowBuilds`에 `better-sqlite3`, `electron`, `esbuild` 허용 |
-| Electron 바이너리 | 첫 실행 시 다운로드 |
+| Electron 바이너리 | 44부터 install 시 받지 않고 `require('electron')` 시점에 다운로드. electron-vite 5는 `path.txt`만 보고 다운로드를 유발하지 않아 "Electron uninstall" 오류 → 루트 `postinstall: node -e "require('electron')"`로 해결 (실행 중 발견) |
 | electron-vite 5 | peer `vite ^5 \|\| ^6 \|\| ^7` → Vite 7, `@vitejs/plugin-react` 5 |
 | TypeScript | 7은 네이티브 포트 → 도구 호환 위해 6 |
 | contextBridge | Error의 커스텀 속성(`code`)을 복사하지 않음 → **Preload는 Envelope를 그대로 반환, Renderer가 unwrap** (04 문서 수정) |

@@ -14,14 +14,18 @@ Blink의 외부 계약은 HTTP가 아니라 **Renderer ↔ Main IPC**다. 도메
 
 ## Preload API 모양
 
+`window.blink`(Preload, 타입 `RawBlinkApi`)는 **Envelope를 그대로** 반환한다. Renderer 코드는 `window.blink`를 직접 쓰지 않고 `getBlink()`(타입 `BlinkApi`)를 쓴다 — 이 클라이언트가 Envelope를 unwrap 한다.
+
 ```ts
-window.blink.notes.create(req)       // note:create
-window.blink.notes.listLinks(req)    // note-link:list
-window.blink.ai.createJob(req)       // ai:create-job
-window.blink.ai.onJobUpdated(cb)     // ai:job-updated 구독, 해제 함수 반환
-window.blink.settings.updateProvider(req)
-window.blink.visualization.savePng(req)
+getBlink().notes.create(req)         // note:create → Promise<NoteDetail>, 실패 시 BlinkIpcError
+getBlink().notes.listLinks(req)      // note-link:list
+getBlink().ai.createJob(req)         // ai:create-job
+getBlink().ai.onJobUpdated(cb)       // ai:job-updated 구독, 해제 함수 반환 (Envelope 아님)
+getBlink().settings.updateProvider(req)
+getBlink().visualization.savePng(req)
 ```
+
+코드: `src/shared/ipc/blink-api.ts`(두 타입), `src/preload/raw-api.ts`, `src/renderer/shared/api/blink.ts`.
 
 ## 앱 수명주기 채널
 
@@ -29,6 +33,7 @@ window.blink.visualization.savePng(req)
 
 | 채널 | 방향 | Preload | Payload | 설명 |
 | --- | --- | --- | --- | --- |
+| `app:get-info` | Renderer → Main (invoke) | `app.getInfo()` | `{}` → `{ version: string }` | 앱 버전. Sidebar 표시 |
 | `app:will-close` | Main → Renderer (event) | `app.onWillClose(cb) → unsubscribe` | `{}` | 창 `close` 이벤트를 `preventDefault`한 뒤 발행 |
 | `app:ready-to-close` | Renderer → Main (invoke) | `app.readyToClose()` | `{}` → `{}` | Renderer가 대기 중 저장을 모두 끝냈음을 알림. Main은 창을 닫는다 |
 
@@ -44,7 +49,8 @@ type IpcResult<T> =
   | { ok: false; error: { code: BlinkErrorCode; message: string; details?: unknown } };
 ```
 
-- Preload는 `ok: false`를 `BlinkIpcError(code, message, details)`로 변환해 throw 한다. Renderer 코드는 `try/catch` 또는 React Query의 `error`로 처리한다.
+- **Renderer 클라이언트**(`getBlink()`)가 `ok: false`를 `BlinkIpcError(code, message, details)`로 변환해 throw 한다. Renderer 코드는 `try/catch` 또는 React Query의 `error`로 처리한다.
+- Preload에서 변환하지 않는 이유: `contextBridge`는 Error를 넘길 때 `message`만 복사하고 `code` 같은 커스텀 속성을 버린다. Envelope(평범한 객체)로 경계를 넘긴 뒤 Renderer 쪽에서 Error를 만들어야 `code`가 살아남는다.
 - `message`는 개발자용 설명이다. 사용자 문구는 Renderer가 `code` 기준으로 결정한다.
 - 예상하지 못한 예외는 `INTERNAL_ERROR`로 변환하고 스택은 Main 로그에만 남긴다.
 

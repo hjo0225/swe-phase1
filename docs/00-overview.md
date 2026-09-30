@@ -57,7 +57,7 @@ Blink는 **Electron 기반 Local-first AI 노트 앱**이다. 제품 요구사�
 | D-03 | AI Job의 적용 위치는 `selectionFrom/To`가 아니라 **본문에 저장되는 Pending Mark(`jobId`)** 로 식별한다. | §11 | 위치 숫자는 편집 중 계속 바뀐다. Mark는 편집·노트 전환·앱 재시작 후에도 따라간다. |
 | D-04 | **노트 본문의 유일한 작성자는 Renderer 편집기**다. Main은 AI 결과를 노트에 직접 쓰지 않는다. | §12 | 두 작성자가 생기면 자동 저장과 경합한다. 단일 작성자면 동시성 문제가 사라진다. |
 | D-05 | 시각화 결과(InfographicSpec)는 본문의 **infographic 노드 속성에 포함**된다. `Visualization` 테이블과 SVG 저장은 두지 않는다. | §34 | SVG는 Spec에서 결정적으로 렌더링되므로 중복 데이터다. 노드에 포함하면 내용 가져오기·삭제 시 고아 레코드가 없다. |
-| D-06 | IPC는 예외를 던지지 않고 **Result Envelope** `{ ok, data \| error }`를 반환한다. | §32 | Electron `invoke`는 에러의 커스텀 속성(code)을 직렬화 과정에서 버린다. |
+| D-06 | IPC는 예외를 던지지 않고 **Result Envelope** `{ ok, data \| error }`를 반환한다. | §32 | Electron `invoke`와 `contextBridge` 모두 Error의 커스텀 속성(code)을 경계에서 버린다. 그래서 Envelope를 Renderer까지 그대로 보내고 Renderer 클라이언트가 unwrap 한다. |
 | D-07 | 앱 시작 시 `QUEUED/RUNNING` Job은 `FAILED(INTERRUPTED)`로 전환한다. | §40 (Resume 후순위) | 재개하지 않는다는 결정을 명시적 상태로 표현한다. 사용자는 재시도할 수 있다. |
 | D-08 | `safeStorage`를 사용할 수 없는 환경에서는 API Key 저장을 **거부**한다(평문 폴백 없음). | §29 | "평문 저장 금지" 요구사항을 조용히 깨지 않기 위함. |
 | D-09 | `note:get-preview`는 두지 않는다. 검색 결과에 매칭 스니펫을 포함하고, 상세는 `note:get`으로 조회한다. | §32 | 같은 목적의 채널 중복 제거. |

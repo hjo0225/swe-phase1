@@ -59,7 +59,7 @@ window.blink (preload)  또는  Mock 구현
 
 - `BlinkApi` 타입은 Preload가 노출하는 것과 **같은 타입**(`src/shared/ipc`)이다. DTO를 다시 정의하지 않는다.
 - IPC DTO를 그대로 UI 모델로 쓴다. 매핑 계층은 두지 않는다 — 백엔드 응답이 이미 표시용(`title`은 표시 제목, `preview`, `snippet`)으로 설계되어 있다.
-- 오류는 preload가 `BlinkIpcError(code)`로 throw 하므로 TanStack Query의 `error`로 받는다.
+- 오류는 `getBlink()` 클라이언트가 Envelope를 unwrap 하며 `BlinkIpcError(code)`로 throw 하므로 TanStack Query의 `error`로 받는다. (contextBridge는 Error의 `code`를 보존하지 않아 Preload에서 throw 하지 않는다.)
 
 ## Mock 전략
 

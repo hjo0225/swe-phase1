@@ -23,6 +23,17 @@ window.blink.settings.updateProvider(req)
 window.blink.visualization.savePng(req)
 ```
 
+## 앱 수명주기 채널
+
+도메인에 속하지 않는 앱 수준 채널이다. 자동 저장 debounce 구간에서 창을 닫아도 마지막 편집이 유실되지 않게 한다 (D-12).
+
+| 채널 | 방향 | Preload | Payload | 설명 |
+| --- | --- | --- | --- | --- |
+| `app:will-close` | Main → Renderer (event) | `app.onWillClose(cb) → unsubscribe` | `{}` | 창 `close` 이벤트를 `preventDefault`한 뒤 발행 |
+| `app:ready-to-close` | Renderer → Main (invoke) | `app.readyToClose()` | `{}` → `{}` | Renderer가 대기 중 저장을 모두 끝냈음을 알림. Main은 창을 닫는다 |
+
+Main은 `app:will-close` 후 **3초** 안에 응답이 없으면 그대로 닫는다(Renderer가 멈춘 경우 대비). 두 번째 `close`에서는 다시 묻지 않는다.
+
 ## 응답: Result Envelope (D-06)
 
 Main 핸들러는 **예외를 던지지 않는다.** 항상 다음을 반환한다.
@@ -50,7 +61,7 @@ type IpcResult<T> =
 
 | 항목 | 규칙 |
 | --- | --- |
-| ID | UUID v4 문자열 (`crypto.randomUUID()`). 기본은 Main이 생성. **예외: AI Job ID는 Renderer가 생성**한다(Pending Mark를 요청 전에 걸기 위해, [assist/use-cases.md](assist/use-cases.md#uc-assist-001-ai-작업-요청)). Main은 형식과 중복을 검증한다 |
+| ID | UUID v4 문자열 (`crypto.randomUUID()`). 기본은 Main이 생성. **예외: AI Job ID는 Renderer가 생성**한다(Pending Mark를 요청 전에 걸기 위해, [assist/use-cases.md](backend/assist/use-cases.md#uc-assist-001-ai-작업-요청)). Main은 형식과 중복을 검증한다 |
 | 시각 | ISO 8601 UTC 문자열 (`2026-09-30T09:00:00.000Z`). DB에는 epoch ms 정수 |
 | Enum | 대문자 문자열 리터럴 (`EXPAND`, `QUEUED`). Provider ID만 소문자(`openai`, `kimi`) |
 | 선택 필드 | 없으면 생략(`undefined`). `null`은 "명시적으로 값 없음"일 때만 응답에서 사용 |

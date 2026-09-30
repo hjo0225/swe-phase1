@@ -1,6 +1,6 @@
 # Note Domain — API Contract (IPC)
 
-공통 규칙: [04-api-conventions.md](../04-api-conventions.md). 모든 응답은 `IpcResult<T>`.
+공통 규칙: [04-api-conventions.md](../../04-api-conventions.md). 모든 응답은 `IpcResult<T>`.
 
 ## 타입
 

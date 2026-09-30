@@ -71,7 +71,7 @@ flowchart LR
 
 - 의존은 **상대 도메인의 application 공개 API** 또는 **도메인 값 객체**로만 한다. 다른 도메인의 Repository·테이블을 직접 조회하지 않는다.
 - `note`, `ai-provider`, `visualization`은 다른 도메인에 의존하지 않는다.
-- 예외: 노트 삭제 시 AI Job 정리는 DB의 `ON DELETE CASCADE`에 맡긴다(단일 로컬 DB이므로 허용, [assist/cross-cutting.md](assist/cross-cutting.md)).
+- 예외: 노트 삭제 시 AI Job 정리는 DB의 `ON DELETE CASCADE`에 맡긴다(단일 로컬 DB이므로 허용, [assist/cross-cutting.md](backend/assist/cross-cutting.md)).
 
 ## 소스 구조
 
@@ -130,3 +130,14 @@ app.whenReady
 ```
 
 IPC 핸들러는 창 생성 **전에** 등록해 Renderer의 첫 호출이 유실되지 않게 한다.
+
+## 앱 종료 순서
+
+```text
+창 close
+→ preventDefault, app:will-close 발행
+→ Renderer가 대기 중 자동 저장 flush → app:ready-to-close   (최대 3초)
+→ 창 닫기
+→ before-quit: Job Runner는 기다리지 않는다 (실행 중 Job은 다음 시작 시 INTERRUPTED)
+→ DB close
+```

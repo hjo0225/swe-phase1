@@ -2,10 +2,12 @@
 
 ## 목적
 
-Blink는 **Electron 기반 Local-first AI 노트 앱**이다. 제품 요구사항 원문은 [Blink_구현명세서.md](Blink_구현명세서.md)이며, 이 `docs/` 디렉터리의 나머지 문서는 그 요구사항을 **백엔드(Electron Main Process) 설계**로 옮긴 SSOT다.
+Blink는 **Electron 기반 Local-first AI 노트 앱**이다. 제품 요구사항 원문은 [Blink_구현명세서.md](Blink_구현명세서.md)이며, 이 `docs/` 디렉터리의 나머지 문서는 그 요구사항을 설계로 옮긴 SSOT다.
 
 - 요구사항(무엇을) → `Blink_구현명세서.md`
-- 설계(어떻게, 누가 책임지는가) → `docs/00~05`, `docs/<domain>/`
+- 시스템 공통 설계 → `docs/00~05`
+- 백엔드(Electron Main Process) 도메인 설계 → `docs/backend/<domain>/`
+- 프론트엔드(Renderer) 구조·디자인 시스템 → [`docs/frontend/`](frontend/feature-map.md)
 - 둘이 충돌하면 아래 [설계 결정](#설계-결정-명세서-대비)에 기록된 쪽이 우선한다. 기록되지 않은 충돌은 버그다.
 
 ## 용어
@@ -39,10 +41,10 @@ Blink는 **Electron 기반 Local-first AI 노트 앱**이다. 제품 요구사�
 
 | 도메인 | 담당 기능 (명세서) |
 | --- | --- |
-| [note](note/overview.md) | Basic(Note CRUD), Major 2(검색·연결·내용 가져오기) |
-| [assist](assist/overview.md) | Major 1(구체화·정리·시각화 Job, Selection Lock, Atomic Commit) |
-| [ai-provider](ai-provider/overview.md) | AI Settings(Provider, API Key, Model, Capability, 연결 테스트) |
-| [visualization](visualization/overview.md) | InfographicSpec 규칙, PNG Export |
+| [note](backend/note/overview.md) | Basic(Note CRUD), Major 2(검색·연결·내용 가져오기) |
+| [assist](backend/assist/overview.md) | Major 1(구체화·정리·시각화 Job, Selection Lock, Atomic Commit) |
+| [ai-provider](backend/ai-provider/overview.md) | AI Settings(Provider, API Key, Model, Capability, 연결 테스트) |
+| [visualization](backend/visualization/overview.md) | InfographicSpec 규칙, PNG Export |
 
 ## 설계 결정 (명세서 대비)
 
@@ -61,6 +63,8 @@ Blink는 **Electron 기반 Local-first AI 노트 앱**이다. 제품 요구사�
 | D-09 | `note:get-preview`는 두지 않는다. 검색 결과에 매칭 스니펫을 포함하고, 상세는 `note:get`으로 조회한다. | §32 | 같은 목적의 채널 중복 제거. |
 | D-10 | **AI Job ID는 Renderer가 생성**한다. `ai:create-job`은 이 ID 기준으로 멱등이다. | §11 | Pending Mark를 요청 전에 걸어야 스냅샷과 잠금 범위 사이에 편집이 끼어들지 않는다. 그 시점에 ID가 필요하다. |
 | D-11 | `InfographicSpec` 코드는 `src/shared`의 **Shared Kernel**로 Main과 Renderer가 함께 쓴다. LLM에 허용하는 유형은 구현된 Renderer 유형으로 제한한다. | §15, §39 | 같은 검증 규칙을 두 번 구현하지 않기 위함. 그릴 수 없는 유형이 생성되는 것을 막기 위함. |
+| D-12 | 창을 닫을 때 Main이 Renderer에 **자동 저장 flush**를 요청하고 완료(최대 3초)를 기다린다 (`app:will-close` / `app:ready-to-close`). | §6.3, §41 Scenario 1 | debounce 구간의 마지막 편집이 종료 시 유실되지 않게 하기 위함. 프론트엔드 설계에서 발견. |
+| D-13 | Job 유형별 필요 Capability 표는 `src/shared/assist`에 두어 Main(규칙 강제)과 Renderer(버튼 잠금)가 공유한다. | §27 | 같은 규칙의 이중 구현 방지. |
 
 ## 제품 결정 (확정: 2026-09-30)
 

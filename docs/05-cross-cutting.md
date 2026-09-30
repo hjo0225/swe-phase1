@@ -10,7 +10,7 @@ Renderer는 신뢰하지 않는 경계로 취급한다(노트 본문·LLM 결과
 | IPC 발신자 검증 | 모든 핸들러에서 `event.senderFrame`이 앱 자체 origin인지 확인. 아니면 무시 |
 | CSP | `default-src 'self'`; 외부 스크립트·원격 콘텐츠 로드 금지 |
 | 외부 링크 | `setWindowOpenHandler`로 차단하고 `shell.openExternal`로 http(s)만 허용 (구체화 출처 링크) |
-| API Key | Main에서만 복호화. IPC 응답·로그·오류 메시지에 절대 포함하지 않음 ([ai-provider/cross-cutting.md](ai-provider/cross-cutting.md)) |
+| API Key | Main에서만 복호화. IPC 응답·로그·오류 메시지에 절대 포함하지 않음 ([ai-provider/cross-cutting.md](backend/ai-provider/cross-cutting.md)) |
 | LLM 출력 | 신뢰하지 않는 입력. Markdown은 Renderer가 편집기 스키마로 파싱(HTML 직접 삽입 금지), Spec은 Zod + 도메인 불변식 검증 |
 
 ## 검증 (3단계 분리)

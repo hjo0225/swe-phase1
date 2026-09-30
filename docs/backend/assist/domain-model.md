@@ -60,6 +60,8 @@ JobType.timeoutMs(type): number                    // BR-ASSIST-07
 
 Capability 요구는 **JobType이 안다**(무엇이 필요한지는 작업의 성질). 모델이 무엇을 지원하는지는 ai-provider의 `ModelCapabilities`가 안다. 비교는 `capabilities.supportsAll(JobType.requiredCapabilities(type))`.
 
+요구 표 자체(`JOB_CAPABILITY_REQUIREMENTS`)는 `src/shared/assist`에 두고 Main의 `JobType`과 Renderer의 버튼 잠금(`canRunJob`)이 같은 값을 쓴다 (D-13). 규칙의 **강제**는 Main에서만 한다.
+
 ### InputSnapshot
 
 - `text`: 공백 제외 1자 이상, 최대 10,000자 (BR-ASSIST-01).

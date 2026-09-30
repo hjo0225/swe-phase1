@@ -1,72 +1,63 @@
 # Note Domain — Persistence
 
-SQLite (`better-sqlite3`) + Drizzle ORM. 연결 시 `PRAGMA foreign_keys = ON` 필수 (SQLite 기본값은 OFF라 cascade가 동작하지 않는다).
+## 파일 (원본)
 
-**마이그레이션**은 `src/main/platform/db/migrations.ts`에 SQL 문자열로 둔다(파일 경로 없이 테스트·dev·패키징 모두에 번들된다). `runMigrations`가 `schema_migrations`에 기록하며 id 순서대로, 파일마다 한 트랜잭션으로 적용한다. 배포된 마이그레이션은 고치지 않고 새 항목을 추가한다. Drizzle 스키마(`schema.ts`)는 쿼리용이며 제약의 원본은 SQL이다.
+| 대상 | 위치 |
+| --- | --- |
+| 노트 | `<보관함>/<폴더…>/<이름>.md` (UTF-8, 줄바꿈 `\n`) |
+| 폴더 | `<보관함>/<폴더…>/` |
+| 임시 파일 | 쓰는 동안만 `<같은 폴더>/.<이름>.md.blink-tmp` → 바로 교체 |
 
-## 테이블
+Blink 전용 요소의 Markdown 표기 (D-18):
+
+```markdown
+관련 내용은 [[Electron Architecture]] 참고, 별칭은 [[회의록|지난 회의]]
+<span data-ai-pending="3f2c…">AI가 처리 중인 문장</span>
+
+```blink-infographic
+{ "version": 1, "type": "process", "title": "…", "nodes": [...], "edges": [...] }
+```
+```
+
+## 색인 DB (`userData/vaults/<sha1(보관함 경로)>.db`, D-17)
+
+보관함마다 하나. 파일에서 다시 만들 수 있다(AI Job 제외). 마이그레이션 목록은 앱 설정 DB와 따로 둔다(`vaultMigrations`).
 
 ### `notes`
 
-| 컬럼 | 타입 | 제약 | 비고 |
-| --- | --- | --- | --- |
-| `id` | TEXT | PK | UUID |
-| `title` | TEXT | NOT NULL DEFAULT `''` | 원본 제목 |
-| `content_json` | TEXT | NOT NULL | ProseMirror JSON 직렬화 |
-| `plain_text` | TEXT | NOT NULL | 파생값. 검색·미리보기 전용, 직접 수정 금지 |
-| `created_at` | INTEGER | NOT NULL | epoch ms |
-| `updated_at` | INTEGER | NOT NULL | epoch ms |
-
-인덱스: `idx_notes_updated_at (updated_at DESC)`
+| 컬럼 | 타입 | 제약 |
+| --- | --- | --- |
+| `id` | TEXT | PK (UUID) |
+| `path` | TEXT | NOT NULL, UNIQUE (`COLLATE NOCASE` — Windows·macOS 파일 시스템은 대소문자를 구분하지 않는다) |
+| `plain_text` | TEXT | NOT NULL |
+| `size` | INTEGER | NOT NULL |
+| `mtime_ms` | INTEGER | NOT NULL |
+| `created_at` / `updated_at` | INTEGER | NOT NULL |
 
 ### `note_links`
 
 | 컬럼 | 타입 | 제약 |
 | --- | --- | --- |
-| `source_note_id` | TEXT | NOT NULL, FK → `notes.id` ON DELETE CASCADE |
-| `target_note_id` | TEXT | NOT NULL, FK → `notes.id` ON DELETE CASCADE |
-| `created_at` | INTEGER | NOT NULL |
+| `source_id` | TEXT | FK → notes ON DELETE CASCADE |
+| `target_key` | TEXT | 소문자로 정규화한 대상(`#`·`^` 앞부분) |
+| `target_text` | TEXT | 원문 대상 |
 
-- PK `(source_note_id, target_note_id)`, `CHECK (source_note_id <> target_note_id)`
-- 인덱스: `idx_note_links_target (target_note_id)` — 백링크 조회
-- 명세서 §22.1의 `id` 컬럼은 두지 않는다. 링크는 (출발, 도착) 쌍 자체가 식별자다.
+PK `(source_id, target_key)`, 인덱스 `(target_key)`.
 
-## 매핑
+### `ai_jobs`
 
-| Domain | Persistence |
+기존과 같다(`note_id` FK → notes ON DELETE CASCADE). docs/backend/assist/persistence.md.
+
+## 앱 설정
+
+| 파일 | 내용 |
 | --- | --- |
-| `Note.content.doc` | `content_json` (`JSON.stringify`) |
-| `Note.content.plainText` | `plain_text` |
-| `Note.linkedNoteIds` | `note_links` 행 집합 (source = note.id) |
+| `userData/blink.db` | `ai_provider_settings` (보관함과 무관). 이전 버전의 `notes`·`note_links`·`ai_jobs` 테이블은 더 이상 쓰지 않는다 |
+| `userData/app-config.json` | 마지막 보관함, 최근 보관함 10개 |
 
-복원 시 `NoteContent.from(JSON.parse(content_json))`로 파생값을 다시 계산하지 않고, 저장된 `plain_text`를 신뢰하는 `NoteContent.restore(doc, plainText, referencedIds)`를 사용한다. 파생 규칙이 바뀌면 마이그레이션에서 전체 재계산한다.
+## 색인 맞추기
 
-## save(note) 동작
-
-```sql
-BEGIN;
-INSERT INTO notes (...) VALUES (...)
-  ON CONFLICT(id) DO UPDATE SET title=?, content_json=?, plain_text=?, updated_at=?;
-DELETE FROM note_links WHERE source_note_id = ? AND target_note_id NOT IN (...linkedIds);
-INSERT OR IGNORE INTO note_links (source_note_id, target_note_id, created_at) VALUES ...;
-COMMIT;
-```
-
-`INSERT OR IGNORE`로 기존 링크의 `created_at`을 보존한다.
-
-## search() 쿼리
-
-```sql
-SELECT * FROM notes
-WHERE (:excludeNoteId IS NULL OR id <> :excludeNoteId)   -- NULL과 <> 비교는 전부 거짓이 되므로 주의
-  AND (title LIKE :k1 ESCAPE '\' OR plain_text LIKE :k1 ESCAPE '\')
-  AND (title LIKE :k2 ESCAPE '\' OR plain_text LIKE :k2 ESCAPE '\')   -- 키워드마다 반복
-ORDER BY
-  (title LIKE :k1 ESCAPE '\') DESC,   -- 첫 키워드의 제목 매칭 우선
-  updated_at DESC
-LIMIT :limit;
-```
-
-- `:kN = '%' || escape(keyword) || '%'`, `escape`는 `\`, `%`, `_` 앞에 `\`를 붙인다.
-- SQLite `LIKE`는 ASCII만 대소문자를 무시한다. 한글에는 대소문자가 없으므로 문제없다.
-- 수천 건 규모에서는 전체 스캔으로 충분하다. 느려지면 FTS5(`trigram` tokenizer)로 교체하고 이 문서를 갱신한다(Repository 계약은 불변).
+1. 파일 목록과 색인 목록을 경로로 맞춘다.
+2. 크기·수정 시각이 같으면 건너뛴다. 다르면 다시 읽어 `plain_text`·링크를 갱신한다(ID 유지).
+3. 색인에만 있는 경로는 지운다. 파일에만 있는 경로는 새 ID로 넣는다.
+4. **자기가 쓴 변경**: 저장·이름 변경 직후 색인을 먼저 갱신하므로, 곧 오는 감시 이벤트는 크기·수정 시각이 같아 무시된다.

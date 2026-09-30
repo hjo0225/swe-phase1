@@ -1,18 +1,21 @@
 # Note Domain — Status
 
+보관함(.md) 방식으로 전환 중 (D-14, 2026-09-30). 이전 SQLite 본문 방식의 구현은 대체된다.
+
 | Use Case | Design | Domain | Application | API | Persistence | Tests |
 | --- | --- | --- | --- | --- | --- | --- |
-| UC-NOTE-001 노트 생성 | Done | Done | Done | Done | Done | Done |
-| UC-NOTE-002 목록 조회 | Done | Done | Done | Done | Done | Done |
-| UC-NOTE-003 상세 조회 | Done | N/A | Done | Done | Done | Done |
-| UC-NOTE-004 저장(자동 저장, 링크 파생) | Done | Done | Done | Done | Done | Done |
-| UC-NOTE-005 삭제 | Done | N/A | Done | Done | Done | Done |
-| UC-NOTE-006 검색 | Done | Done | Done | Done | Done | Done |
-| UC-NOTE-007 노트 연결 | Done | N/A (UC-004) | N/A | N/A (Renderer) | N/A | Done |
-| UC-NOTE-008 링크 목록 조회 | Done | N/A | Done | Done | Done | Done |
-| UC-NOTE-009 내용 가져오기 | Done | N/A | N/A | N/A (Renderer) | N/A | Done |
-
-명세서 §38 구현 순서 매핑: Step 2 → UC-001~005, Step 4 → UC-006, Step 5 → UC-007~009.
-
-앱 종료 flush(D-12): Done — `e2e/scenario-1-notes.e2e.ts`가 debounce 전에 창을 닫아도 편집이 남는 것을 실제 Electron으로 검증한다.
-검색·연결·가져오기(Scenario 5·6·7): Done — `e2e/scenario-5-7-search.e2e.ts`.
+| UC-VAULT-001 보관함 열기 | Done | Pending | Pending | Pending | Pending | Pending |
+| UC-VAULT-002 색인 맞추기 | Done | Pending | Pending | N/A | Pending | Pending |
+| UC-VAULT-003 외부 변경 반영 | Done | N/A | Pending | Pending | Pending | Pending |
+| UC-NOTE-001 노트 생성 | Done | Pending | Pending | Pending | Pending | Pending |
+| UC-NOTE-002 목록(트리) | Done | N/A | Pending | Pending | Pending | Pending |
+| UC-NOTE-003 상세 조회 | Done | N/A | Pending | Pending | Pending | Pending |
+| UC-NOTE-004 본문 저장 | Done | Pending | Pending | Pending | Pending | Pending |
+| UC-NOTE-005 삭제 | Done | N/A | Pending | Pending | Pending | Pending |
+| UC-NOTE-006 검색 | Done | Done | Pending | Pending | Pending | Pending |
+| UC-NOTE-007 연결 | Done | Pending | N/A | N/A | N/A | Pending |
+| UC-NOTE-008 링크 조회 | Done | Pending | Pending | Pending | Pending | Pending |
+| UC-NOTE-009 내용 가져오기 | Done | N/A | N/A | N/A | N/A | Pending |
+| UC-NOTE-010 이름 변경(링크 고치기) | Done | Pending | Pending | Pending | Pending | Pending |
+| UC-NOTE-011 노트 이동 | Done | Pending | Pending | Pending | Pending | Pending |
+| UC-FOLDER-001~003 폴더 | Done | Pending | Pending | Pending | Pending | Pending |

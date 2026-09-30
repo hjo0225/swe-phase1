@@ -1,81 +1,60 @@
 # Note Domain — Domain Model
 
-## Aggregate: Note
+## Value Objects
+
+### NotePath
+
+보관함 기준 상대 경로. 구분자는 항상 `/`, 끝은 `.md`.
+
+| 행위 | 설명 |
+| --- | --- |
+| `NotePath.of(raw)` | `\`→`/`, 앞뒤 `/` 제거, `..`·절대 경로·숨김 폴더 경로 거절 |
+| `name` | 파일 이름에서 `.md`를 뺀 것 = 노트 제목 |
+| `folder` | 부모 폴더 경로(`''` = 맨 위) |
+| `linkTarget` | 확장자 없는 경로 (`프로젝트/회의록`) |
+| `withName(name)` / `inFolder(folder)` | 이름 변경·이동 결과 경로 |
+
+### NoteName (= 제목, D-16)
+
+- `NoteName.of(raw)`: 앞뒤 공백 제거, 1~200자, `\ / : * ? " < > |` 없음, `.`으로 시작·끝 금지 → 아니면 `NOTE_TITLE_INVALID`.
+- 폴더 이름(`FolderName`)도 같은 규칙, 오류 코드만 `FOLDER_NAME_INVALID`.
+- 새 노트 이름: `제목 없음`, 겹치면 `제목 없음 1`, `제목 없음 2`… (`uniqueName(base, taken)`)
+
+### NoteContent (Markdown)
 
 | 항목 | 내용 |
 | --- | --- |
-| Responsibility | 노트 하나의 제목·본문과 그로부터 파생되는 링크 집합의 일관성 |
-| State | `id`, `title: NoteTitle`, `content: NoteContent`, `linkedNoteIds: Set<NoteId>`, `createdAt`, `updatedAt` |
-| Behavior | `Note.create(id, title, content, now)`, `rename(title, now)`, `replaceContent(content, now)`, `resolveLinks(existingIds)`, `preview()`, `snippetFor(keywords)` |
-| Invariants | 링크 집합은 항상 현재 본문의 참조에서 파생된 것이며 자기 자신을 포함하지 않는다. `updatedAt >= createdAt`. |
-| Lifecycle | 생성 → (저장 반복) → 삭제. 상태 머신 없음. |
+| Creation | `NoteContent.fromMarkdown(md)` — UTF-8 2 MB 초과면 `NOTE_CONTENT_TOO_LARGE` |
+| `markdown` | 파일 내용 그대로 |
+| `plainText` | BR-NOTE-08 규칙으로 뽑은 검색용 텍스트 |
+| `linkTargets` | 본문의 `[[대상]]`·`[[대상\|별칭]]`에서 뽑은 대상 텍스트 집합 (코드 블록 안은 제외) |
 
-`linkedNoteIds`는 두 단계로 확정된다.
+편집기 문서 구조는 알지 못한다. Markdown 문자열에서 정규식 수준으로 필요한 것만 뽑는다.
 
-1. `replaceContent()`가 본문에서 **참조 후보**(`content.referencedNoteIds`)를 얻는다.
-2. 애플리케이션이 후보 중 존재하는 ID를 조회해 `resolveLinks(existingIds)`로 확정한다. 존재 여부는 Repository만 알기 때문에 이 단계를 분리한다.
+## 링크 해석 — Shared Kernel (`src/shared/notes/wiki-link.ts`)
 
-링크는 별도 엔티티가 아니다. 생성·삭제 행위가 없고 본문 외의 이유로 변하지 않으므로 Note 애그리거트의 파생 상태로 둔다. DB에는 조회(백링크) 성능을 위해 별도 테이블로 저장한다([persistence.md](persistence.md)).
+Main(백링크·이름 변경 시 링크 고치기)과 Renderer(링크 표시·이동·삽입)가 **같은 규칙**을 쓴다.
 
-## Value Object: NoteContent
+| 함수 | 규칙 (BR-NOTE-03) |
+| --- | --- |
+| `resolveLinkTarget(target, notes)` | ① 확장자 없는 경로가 같은 노트 ② 없으면 이름이 같은 노트 중 경로가 가장 짧은 것. 대소문자 무시, 앞뒤 공백 무시, `#제목`·`^블록` 부분은 무시 |
+| `linkTargetFor(path, allPaths)` | 이름이 보관함에서 유일하면 이름, 아니면 확장자 없는 경로 |
+| `rewriteLinkTargets(markdown, map)` | `[[옛 대상]]`·`[[옛 대상\|별칭]]`의 대상만 바꾸고 별칭·나머지 본문은 그대로 둔다. 코드 블록 안은 건드리지 않는다 |
+
+## Entity: Note (색인 항목)
 
 | 항목 | 내용 |
 | --- | --- |
-| Responsibility | 본문 JSON의 형식 검증과 파생 데이터 계산 |
-| State | `doc` (ProseMirror JSON, 불투명 트리), `plainText: string`, `referencedNoteIds: Set<NoteId>` |
-| Creation | `NoteContent.from(json)` — 형식·크기 검증 후 파생값을 **한 번** 계산. `NoteContent.empty()` |
-| Invariants | 루트 `type === 'doc'`, 직렬화 크기 ≤ 2 MB (BR-NOTE-02) |
+| State | `id`(UUID, 색인이 부여), `path: NotePath`, `content: NoteContent`, `createdAt`(파일 생성 시각), `updatedAt`(파일 수정 시각) |
+| Behavior | `rename(name)`, `moveTo(folder)`, `replaceContent(content, now)` → 바뀌었는지 반환 |
+| Invariants | 경로는 보관함 안의 `.md`. 제목은 경로에서 파생(따로 저장하지 않음) |
 
-파생 규칙 (트리를 재귀 순회, Tiptap 의존 없음):
+Note Link는 더 이상 "존재하는 노트만" 저장하지 않는다. 대상 텍스트를 그대로 색인하고 **조회 시점에 해석**한다 — 대상 노트가 나중에 생기거나 이름이 바뀌어도 맞게 보인다.
 
-| 노드 | plainText | referencedNoteIds |
-| --- | --- | --- |
-| `text` | `node.text` 추가 | — |
-| `noteLink` | `attrs.label` 추가 | `attrs.noteId` 추가 (UUID 형식일 때만) |
-| `hardBreak` | `\n` | — |
-| 블록 노드(`paragraph`, `heading`, `listItem`, `blockquote`, `codeBlock` 등) | 자식 결과 뒤에 `\n` | — |
-| 그 밖의 노드(`infographic` 등) | 무시 | — |
+## Vault
 
-## Value Object: NoteTitle
-
-- 앞뒤 공백 제거, 최대 200자 (BR-NOTE-01).
-- `displayTitle()` → 빈 값이면 `제목 없음`.
-
-## Value Object: SearchQuery
-
-- `SearchQuery.parse(raw)` → 공백 기준 분리, 빈 토큰 제거, 최대 5개 키워드, 각 키워드 최대 100자.
-- `isEmpty()` → 키워드가 없으면 검색하지 않는다.
-- LIKE 이스케이프는 persistence 책임이다(도메인은 문자 그대로의 키워드만 가진다).
-
-## 도메인 함수: snippet
-
-`snippetFor(keywords)`는 `plainText`에서 첫 매칭 위치(대소문자 무시)를 찾아 앞 30자 ~ 뒤 90자를 잘라 반환한다. 잘린 쪽에 `…`를 붙인다. 매칭이 없으면 `preview()` (BR-NOTE-07).
-
-검색은 SQL이 후보를 거르고, **스니펫은 도메인 함수가 만든다.** SQL로 스니펫을 만들면 규칙이 persistence에 숨는다.
-
-## 관계
-
-```text
-Note A ──linkedNoteIds──▶ Note B      (A 본문에 B를 가리키는 noteLink 노드가 있다)
-Note B ◀──backlink────── Note A      (조회 시 역방향으로 계산)
-```
-
-## Object Diagram — 링크 파생과 삭제
-
-링크가 본문에서 파생된다는 규칙이 삭제와 만나는 경우를 확인하기 위한 예시다.
-
-```text
-저장 전
-  Note A.content: "관련 내용은 [[Electron Architecture → B]] 와 [[Old → C]] 참고"
-  Note B: 존재
-  Note C: 삭제됨
-
-UC-NOTE-004 저장
-  content.referencedNoteIds = {B, C}
-  repository.existingIds({B, C}) = {B}
-  A.resolveLinks({B}) → A.linkedNoteIds = {B}
-
-결과
-  note_links: (A → B)
-  A 본문의 [[Old → C]] 노드는 그대로 남음 → Renderer가 깨진 링크로 표시
-```
+| 항목 | 내용 |
+| --- | --- |
+| State | `root`(절대 경로), `name`(폴더 이름) |
+| 규칙 | 한 번에 하나만 열려 있다. 전환하면 이전 색인 DB·감시를 닫는다 |
+| 최근 목록 | 앱 설정 파일에 최대 10개, 가장 최근 먼저 |

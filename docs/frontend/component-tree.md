@@ -96,3 +96,24 @@ SettingsPage
 | AI 범위 | QUEUED/RUNNING: Pulse | — | FAILED: `JobFailureChip` | 적용 완료: 짧은 Mint glow / 적용 불가: Toast |
 | InfographicView | — | — | Spec 무효 안내 | 저장 중 버튼 비활성, 취소는 무반응 |
 | Settings | 폼 스켈레톤 | 최초: 모든 필드 비어 있음 | 필드별 오류 | 테스트 중 / 성공(Mint) / 실패(코드별 문구) |
+
+## 보관함 방식 변경 (D-14)
+
+```text
+App
+└── VaultGate                             ← vault:get-current / vault:list-recent
+    ├── VaultPicker (보관함 없음)          [paper] 폴더 열기 · 최근 보관함
+    └── RouterProvider (보관함 열림)
+        └── AppShell
+            └── Sidebar
+                ├── VaultSwitcher          보관함 이름 · 다른 보관함 열기
+                ├── [새 노트] [새 폴더]      선택한 폴더 안에 만든다
+                └── NoteTree               ← note:tree  폴더(접기/펼치기, 메뉴: 새 노트·새 폴더·이름 변경·삭제) + 노트
+                                            노트를 폴더로 끌어 놓으면 이동
+NotePage
+├── NoteHeader.TitleInput                 입력을 마칠 때(Enter·blur) note:rename, 실패하면 원래 이름으로 되돌림 + 오류 문구
+└── ExternalChangeBanner                  열린 노트가 밖에서 바뀌었고 저장 대기 중일 때 "다시 불러오기"
+```
+
+- 편집기는 Markdown으로 불러오고(`contentType: 'markdown'`) `editor.getMarkdown()`으로 저장한다.
+- `noteLink` 표시·이동은 공유 규칙 `resolveLinkTarget`(노트 트리의 경로 목록)으로 대상을 찾는다.

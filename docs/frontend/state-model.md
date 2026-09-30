@@ -77,3 +77,16 @@
 | `PROVIDER_SECURE_STORAGE_UNAVAILABLE` | 설정 화면 경고 배너, API Key 입력 비활성 |
 | `PROVIDER_API_KEY_REQUIRED`, `PROVIDER_MODEL_NOT_SUPPORTED`, `PROVIDER_BASE_URL_INVALID` | 설정 폼 필드 오류 |
 | `EXPORT_*` | Toast |
+
+## 보관함 방식 변경 (D-14)
+
+| State | Query Key / Owner | 갱신 |
+| --- | --- | --- |
+| 현재 보관함 | `['vault','current']` | 열기·전환 성공 시 `queryClient.clear()` 후 다시 읽음 |
+| 최근 보관함 | `['vault','recent']` | 열기 후 무효화 |
+| 노트 트리(폴더+노트) | `['notes','tree']` (기존 `['notes','list']` 대체) | 생성·삭제·이름 변경·이동·폴더 작업·`vault:changed(structure)`·저장 후 무효화 |
+| 선택한 폴더 | Sidebar local | 새 노트·새 폴더의 위치 |
+| 펼친 폴더 | Sidebar local (localStorage) | — |
+| 제목 입력 초안 | TitleInput local | Enter·blur에 rename, 실패 시 원래 값 |
+
+`vault:changed`: `noteIds`에 열린 노트가 있으면 — SaveQueue가 깨끗하면 상세를 다시 읽어 편집기를 새로 만들고, 더럽혀져 있으면 배너를 띄운다.

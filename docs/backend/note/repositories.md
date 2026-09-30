@@ -1,32 +1,54 @@
-# Note Domain — Repository Contract
+# Note Domain — Ports & Repository Contracts
+
+## VaultFileSystem (파일 원본)
 
 ```ts
-interface NoteRepository {
-  findById(id: NoteId): Note | null;
-  exists(id: NoteId): boolean;
-  findExistingIds(ids: ReadonlySet<NoteId>): Set<NoteId>;
-
-  /** notes 행 UPSERT + note_links(source = note.id) 전체 교체. 단일 트랜잭션. */
-  save(note: Note): void;
-
-  /** 없으면 no-op. 링크·AI Job은 FK cascade. */
-  delete(id: NoteId): void;
-
-  listSummaries(): NoteSummaryRow[];            // updatedAt DESC, 본문 JSON 제외
-  search(query: SearchQuery, opts: { excludeNoteId?: NoteId; limit: number }): NoteSearchRow[];
-
-  findOutgoingLinks(sourceId: NoteId): LinkedNoteRow[];
-  findIncomingLinks(targetId: NoteId): LinkedNoteRow[];
+interface VaultFileSystem {
+  readonly root: string;
+  listMarkdownFiles(): { path: string; size: number; mtimeMs: number; birthtimeMs: number }[]; // 숨김 폴더 제외
+  listFolders(): string[];                       // 보관함 기준 경로
+  read(path: string): string;
+  stat(path: string): { size: number; mtimeMs: number; birthtimeMs: number } | null;
+  /** 같은 폴더의 임시 파일에 쓴 뒤 바꿔 끼운다 — 중간에 끊겨도 원본이 깨지지 않는다 */
+  writeAtomic(path: string, text: string): void;
+  createExclusive(path: string, text: string): void;   // 이미 있으면 실패
+  rename(from: string, to: string): void;              // 파일·폴더 공통
+  remove(path: string): void;                          // 파일
+  makeFolder(path: string): void;
+  removeFolder(path: string): void;                    // 안의 내용까지
+  exists(path: string): boolean;
+  watch(onChange: (paths: string[]) => void): () => void;
 }
-
-type NoteSummaryRow = { id: NoteId; title: string; plainTextHead: string; updatedAt: Date };
-type NoteSearchRow  = { id: NoteId; title: string; plainText: string; updatedAt: Date };
-type LinkedNoteRow  = { noteId: NoteId; title: string };   // title은 원본(빈 문자열 가능)
 ```
 
-## 설계 메모
+동기 API(`fs.*Sync`)를 쓴다. 노트 파일은 작고 Main의 다른 처리(SQLite)도 동기라 흐름이 단순해진다.
 
-- **동기 인터페이스.** `better-sqlite3`가 동기식이고 Main 단일 스레드에서만 쓰므로 `Promise`로 감싸지 않는다. 드라이버를 비동기식으로 바꾸면 이 계약도 바꾼다.
-- `listSummaries()`는 도메인 객체 대신 행 타입을 반환한다. 목록에는 본문 JSON이 필요 없고, 전체 노트를 복원하면 비용이 크다. 미리보기 규칙(BR-NOTE-05) 적용은 서비스가 한다.
-- `search()`는 **읽기 모델**(`NoteSearchRow`)을 반환한다. 링크까지 복원하지 않은 `Note`를 돌려주면 불완전한 애그리거트가 된다. 스니펫은 서비스가 도메인 순수 함수 `snippetOf(plainText, keywords)`(BR-NOTE-07)로 만든다 — 규칙은 여전히 도메인에 있다.
-- 범용 `findAll/update` 는 두지 않는다.
+## NoteIndex (색인 Repository)
+
+```ts
+interface NoteIndexEntry { id: string; path: string; plainText: string; linkTargets: string[]; size: number; mtimeMs: number; createdAt: Date; updatedAt: Date }
+
+interface NoteIndex {
+  findById(id: string): NoteIndexEntry | null;
+  findByPath(path: string): NoteIndexEntry | null;
+  all(): NoteIndexEntry[];
+  upsert(entry: NoteIndexEntry): void;         // 경로 기준, 링크 대상 교체 포함 — 단일 트랜잭션
+  remove(id: string): void;                    // 링크·AI Job cascade
+  movePath(id: string, path: string): void;    // ID 유지
+  search(query: SearchQuery, opts: { excludeNoteId?: string; limit: number }): NoteSearchRow[];
+  linkTargetsOf(id: string): string[];
+  sourcesLinkingTo(keys: string[]): string[];  // 대상 키(소문자)로 역참조 후보 찾기
+}
+```
+
+- 백링크: `sourcesLinkingTo([이름, 경로])`로 후보를 좁힌 뒤 공유 규칙(`resolveLinkTarget`)으로 실제로 이 노트로 해석되는 것만 남긴다.
+- 범용 CRUD는 두지 않는다.
+
+## AppConfigStore
+
+```ts
+interface AppConfigStore {
+  load(): { lastVault: string | null; recentVaults: { root: string; openedAt: string }[] };
+  save(config): void;   // userData/app-config.json
+}
+```

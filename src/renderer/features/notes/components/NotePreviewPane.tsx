@@ -24,7 +24,8 @@ export function NotePreviewPane({ noteId, onImportAll, onImportSelection }: Note
     {
       extensions: createEditorExtensions({ placeholder: '' }),
       editable: false,
-      content: (note?.content as JSONContent | undefined) ?? '',
+      content: note?.content ?? '',
+      contentType: 'markdown',
       editorProps: { attributes: { 'aria-label': '미리보기', class: styles.previewProse ?? '' } },
       onSelectionUpdate: ({ editor: e }) => setHasSelection(!e.state.selection.empty),
     },

@@ -4,10 +4,11 @@ import { Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { NoteSearchHit } from '../../../../shared/ipc/notes';
+import { linkTargetFor } from '../../../../shared/notes/wiki-link';
 import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
 import { formatRelativeTime } from '../../../shared/lib/relative-time';
 import { useActiveEditor } from '../../editor/ActiveEditorContext';
-import { fetchNotePreview, useNoteSearch } from '../api/note-queries';
+import { fetchNotePreview, useNoteList, useNoteSearch } from '../api/note-queries';
 import { sanitizeImportedContent } from '../model/sanitize-imported-content';
 import { NotePreviewPane } from './NotePreviewPane';
 import styles from './SearchPalette.module.css';
@@ -22,6 +23,7 @@ export function SearchPalette({ onClose }: { onClose(): void }) {
   const debounced = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const { active } = useActiveEditor();
   const { data: hits = [], isFetching, isError } = useNoteSearch(debounced, active?.noteId);
+  const { data: allNotes = [] } = useNoteList();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,14 +44,21 @@ export function SearchPalette({ onClose }: { onClose(): void }) {
     onClose();
   };
 
+  // 옵시디언처럼 이름만으로 구분되면 `[[이름]]`, 같은 이름이 여럿이면 경로를 적는다.
   const link = (hit: NoteSearchHit) => {
-    active?.editor.chain().focus().insertNoteLink({ noteId: hit.id, label: hit.title }).run();
+    const target = linkTargetFor(
+      hit.path,
+      allNotes.map((n) => n.path),
+    );
+    active?.editor.chain().focus().insertNoteLink({ target, label: '' }).run();
     onClose();
   };
 
   const importAll = async (id: string) => {
+    if (!active) return;
     const note = await fetchNotePreview(queryClient, id);
-    insert((note.content.content ?? []) as JSONContent[]);
+    const doc = active.editor.markdown?.parse(note.content);
+    insert((doc?.content ?? []) as JSONContent[]);
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {

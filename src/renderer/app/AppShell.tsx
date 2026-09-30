@@ -16,12 +16,23 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   useJobEvents();
 
-  // 저장이 끝나면 목록(제목·미리보기·정렬)과 링크를 갱신한다. 열린 노트의 상세는 편집기가 진실이므로 건드리지 않는다.
+  // 저장이 끝나면 트리(미리보기·수정 시각)와 링크를 갱신한다. 열린 노트의 상세는 편집기가 진실이므로 건드리지 않는다.
   useEffect(
     () =>
       onNoteSaved(() => {
-        void queryClient.invalidateQueries({ queryKey: noteKeys.list });
+        void queryClient.invalidateQueries({ queryKey: noteKeys.tree });
         void queryClient.invalidateQueries({ queryKey: noteKeys.links });
+      }),
+    [queryClient],
+  );
+
+  // 보관함 폴더가 밖에서 바뀌었다 (다른 앱, 탐색기). 열린 노트는 NotePage가 따로 처리한다.
+  useEffect(
+    () =>
+      getBlink().vault.onChanged(() => {
+        void queryClient.invalidateQueries({ queryKey: noteKeys.tree });
+        void queryClient.invalidateQueries({ queryKey: noteKeys.links });
+        void queryClient.invalidateQueries({ queryKey: ['notes', 'search'] });
       }),
     [queryClient],
   );

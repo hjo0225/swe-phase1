@@ -5,15 +5,15 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
 import { getBlink, resetBlinkForTests } from '../../shared/api/blink';
+import { seedNote } from '../../test/seed-note';
 import { resetToastsForTests } from '../../shared/ui/toast';
 import { resetAutosaveForTests } from '../notes/autosave/autosave';
 
-const doc = (text: string) => ({ type: 'doc' as const, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
 
 const editorOf = () => (screen.getByRole('textbox', { name: '노트 본문' }) as HTMLElement & { editor: Editor }).editor;
 
 async function openNoteWith(text: string) {
-  const note = await getBlink().notes.create({ title: '메모', content: doc(text) });
+  const note = await seedNote('메모', text);
   window.location.hash = `#/notes/${note.id}`;
   render(<App />);
   await screen.findByRole('textbox', { name: '노트 본문' });
@@ -139,7 +139,7 @@ describe('AI actions on selected text', () => {
   it('applies a result that completed while another note was open', async () => {
     const user = userEvent.setup();
     await configure();
-    const other = await getBlink().notes.create({ title: '다른 노트', content: doc('다른 내용') });
+    const other = await seedNote('다른 노트', '다른 내용');
     const note = await openNoteWith('나중에 적용될 메모');
     select('나중에 적용될 메모');
     await user.click(within(await screen.findByRole('toolbar', { name: 'AI 작업' })).getByRole('button', { name: /정리/ }));

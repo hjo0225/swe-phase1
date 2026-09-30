@@ -98,6 +98,10 @@ export const AiPending = Mark.create<object, AiPendingStorage>({
     return ['span', mergeAttributes({ 'data-ai-pending': '' }, HTMLAttributes), 0];
   },
 
+  // .md 파일에는 HTML span으로 남긴다 (D-18). 읽을 때는 위 parseHTML 규칙이 Mark로 되돌린다.
+  renderMarkdown: (node, helpers) =>
+    `<span data-ai-pending data-job-id="${escapeAttribute(String(node.attrs?.jobId ?? ''))}">${helpers.renderChildren(node)}</span>`,
+
   addStorage() {
     return { onRetry: null, onDismiss: null, failureLabel: null };
   },
@@ -139,6 +143,8 @@ export const AiPending = Mark.create<object, AiPendingStorage>({
     ];
   },
 });
+
+const escapeAttribute = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 function allowsTransaction(tr: Transaction, state: EditorState): boolean {
   if (!tr.docChanged || tr.getMeta(AI_COMMIT_META)) return true;

@@ -5,16 +5,16 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
 import { getBlink, resetBlinkForTests } from '../../shared/api/blink';
+import { seedNote } from '../../test/seed-note';
 import { resetToastsForTests } from '../../shared/ui/toast';
 import { resetAutosaveForTests } from '../notes/autosave/autosave';
 
-const doc = (text: string) => ({ type: 'doc' as const, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
 const editorOf = () => (screen.getByRole('textbox', { name: '노트 본문' }) as HTMLElement & { editor: Editor }).editor;
 
 async function runAction(text: string, target: string, action: RegExp) {
   const user = userEvent.setup();
   await getBlink().settings.updateProvider({ provider: 'openai', model: 'gpt-5.4-mini', apiKey: 'sk' });
-  const note = await getBlink().notes.create({ title: '메모', content: doc(text) });
+  const note = await seedNote('메모', text);
   window.location.hash = `#/notes/${note.id}`;
   render(<App />);
   await screen.findByRole('textbox', { name: '노트 본문' });
@@ -53,9 +53,10 @@ describe('visualize and expand', () => {
     // PNG 저장 버튼은 Main으로 PNG를 보낸다 (Mock은 경로를 돌려준다)
     expect(within(figure).getByRole('button', { name: 'PNG로 저장' })).toBeInTheDocument();
 
-    // 인포그래픽은 본문(JSON)에 Spec으로 저장된다
+    // 인포그래픽은 .md 본문에 blink-infographic 코드 블록(Spec JSON)으로 저장된다 (D-18)
     await waitFor(
-      async () => expect(JSON.stringify((await getBlink().notes.get({ id: note.id })).content)).toContain('"type":"infographic"'),
+      async () =>
+        expect((await getBlink().notes.get({ id: note.id })).content).toMatch(/```blink-infographic\n\{[\s\S]*"type": "process"/),
       { timeout: 3000 },
     );
 
@@ -72,10 +73,7 @@ describe('visualize and expand', () => {
   });
 
   it('shows a placeholder instead of crashing on an invalid stored spec', async () => {
-    const note = await getBlink().notes.create({
-      title: '깨진 인포그래픽',
-      content: { type: 'doc', content: [{ type: 'infographic', attrs: { spec: { type: 'nope' } } }] },
-    });
+    const note = await seedNote('깨진 인포그래픽', '```blink-infographic\n{"type":"nope"}\n```');
     window.location.hash = `#/notes/${note.id}`;
     render(<App />);
     expect(await screen.findByText('표시할 수 없는 인포그래픽입니다')).toBeInTheDocument();

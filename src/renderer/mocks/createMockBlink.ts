@@ -2,46 +2,49 @@ import { missingCapabilities, type Capabilities } from '../../shared/assist/capa
 import type { ProviderId, ProviderSettingsView } from '../../shared/ipc/ai-provider';
 import type { AIJobView, JobResultDto } from '../../shared/ipc/assist';
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
-import type { LinkedNote, NoteDetail, ProseMirrorDocDto } from '../../shared/ipc/notes';
+import type { LinkedNote, NoteSummary, VaultChangedEvent, VaultInfo } from '../../shared/ipc/notes';
 import type { BlinkErrorCode, IpcResult } from '../../shared/ipc/result';
-
-interface JsonNode {
-  type?: string;
-  text?: string;
-  attrs?: Record<string, unknown>;
-  content?: JsonNode[];
-}
-
-function walk(node: JsonNode, visit: (n: JsonNode) => void): void {
-  visit(node);
-  node.content?.forEach((child) => walk(child, visit));
-}
-
-const textOf = (doc: ProseMirrorDocDto) => {
-  const parts: string[] = [];
-  walk(doc as JsonNode, (n) => {
-    if (n.type === 'text' && n.text) parts.push(n.text);
-    if (n.type === 'noteLink' && typeof n.attrs?.label === 'string') parts.push(n.attrs.label);
-  });
-  return parts.join(' ');
-};
-
-const linkTargets = (doc: ProseMirrorDocDto) => {
-  const ids = new Set<string>();
-  walk(doc as JsonNode, (n) => {
-    if (n.type === 'noteLink' && typeof n.attrs?.noteId === 'string') ids.add(n.attrs.noteId);
-  });
-  return ids;
-};
+import { extractLinkTargets, linkTargetFor, resolveLinkTarget, rewriteLinkTargets } from '../../shared/notes/wiki-link';
 
 /**
  * 백엔드 없이 Renderer를 띄우기 위한 in-memory 구현. 실제 Preload와 같은 Envelope를 반환한다.
- * 규칙은 화면이 기대는 것만 흉내 낸다(표시 제목, 최신순, NOT_FOUND, 링크 파생). 검색·스니펫은 단순화했다.
+ * 규칙은 화면이 기대는 것만 흉내 낸다(제목 = 파일 이름, 링크 해석·고치기, NOT_FOUND). 검색·스니펫은 단순화했다.
  */
 export interface MockBlinkOptions {
   /** AI Job의 각 상태 전이 사이 지연(ms). */
   aiDelayMs?: number;
+  /** false면 보관함 없이 시작한다 (선택 화면). 기본은 빈 보관함이 열려 있다. */
+  vaultOpen?: boolean;
+  /** 테스트가 "밖에서 바뀜"을 흉내 낼 수 있게 Mock이 채운다. */
+  controls?: Partial<MockControls>;
 }
+
+export interface MockControls {
+  /** 다른 앱이 파일을 고친 것처럼 본문을 바꾸고 vault:changed를 보낸다. */
+  externalEdit(noteId: string, content: string): void;
+  /** 경로의 파일 내용 (테스트 확인용). */
+  contentOf(path: string): string | undefined;
+}
+
+interface MockNote {
+  id: string;
+  path: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const MOCK_VAULT: VaultInfo = { root: 'C:/Blink/Mock', name: 'Mock' };
+const INVALID_NAME = /[\\/:*?"<>|]/;
+
+const plainTextOf = (markdown: string) =>
+  markdown
+    .replace(/```blink-infographic[\s\S]*?```/g, ' ')
+    .replace(/\[\[([^[\]|\n]+?)(?:\|([^[\]\n]*?))?\]\]/g, (_m, target: string, label?: string) => label || target)
+    .replace(/<[^>]+>/g, '')
+    .replace(/[#*_`>~]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /** 입력에 `#fail:CODE`가 있으면 첫 시도는 그 코드로 실패하고 재시도는 성공한다 (UI 개발·테스트용). */
 const FAIL_MARKER = /#fail:([A-Z_]+)/;
@@ -49,16 +52,11 @@ const FAIL_MARKER = /#fail:([A-Z_]+)/;
 function mockResult(job: AIJobView): JobResultDto {
   switch (job.type) {
     case 'ORGANIZE':
-      return { kind: 'MARKDOWN', markdown: `## 정리된 메모
-
-- ${job.inputText.trim()}` };
+      return { kind: 'MARKDOWN', markdown: `## 정리된 메모\n\n- ${job.inputText.trim()}` };
     case 'EXPAND':
       return {
         kind: 'RESEARCHED_MARKDOWN',
-        markdown: `${job.inputText.trim()} (구체화됨)
-
-**출처**
-- [예시 출처](https://example.com/)`,
+        markdown: `${job.inputText.trim()} (구체화됨)\n\n**출처**\n- [예시 출처](https://example.com/)`,
         sources: [{ title: '예시 출처', url: 'https://example.com/' }],
       };
     case 'VISUALIZE':
@@ -108,17 +106,70 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
     }, aiDelayMs);
   };
 
-  const notes = new Map<string, NoteDetail>();
+  const notes = new Map<string, MockNote>();
+  const folders = new Set<string>();
+  let vault: VaultInfo | null = options.vaultOpen === false ? null : MOCK_VAULT;
+  const recent: VaultInfo[] = vault ? [vault] : [];
+  const vaultListeners = new Set<(event: VaultChangedEvent) => void>();
   let tick = Date.UTC(2026, 8, 30);
   const now = () => new Date((tick += 1000)).toISOString();
 
   const ok = <T>(data: T): Promise<IpcResult<T>> => Promise.resolve({ ok: true, data });
   const fail = <T>(code: BlinkErrorCode, message: string): Promise<IpcResult<T>> =>
     Promise.resolve({ ok: false, error: { code, message } });
-  const emptyDoc = (): ProseMirrorDocDto => ({ type: 'doc', content: [{ type: 'paragraph' }] });
-  const displayTitle = (n: NoteDetail) => n.title || '제목 없음';
-  const linked = (n: NoteDetail): LinkedNote => ({ noteId: n.id, title: displayTitle(n) });
-  const byRecent = (a: NoteDetail, b: NoteDetail) => b.updatedAt.localeCompare(a.updatedAt);
+  const notOpen = <T>() => fail<T>('VAULT_NOT_OPEN', 'No vault is open');
+  const titleOf = (path: string) => path.replace(/\.md$/, '').split('/').pop()!;
+  const folderOf = (path: string) => path.split('/').slice(0, -1).join('/');
+  const inFolder = (folder: string, name: string) => (folder ? `${folder}/${name}` : name);
+  const summary = (n: MockNote): NoteSummary => ({
+    id: n.id,
+    title: titleOf(n.path),
+    path: n.path,
+    folder: folderOf(n.path),
+    preview: plainTextOf(n.content).slice(0, 120),
+    updatedAt: n.updatedAt,
+  });
+  const detail = (n: MockNote) => ({ ...structuredClone(n), title: titleOf(n.path) });
+  const linked = (n: MockNote): LinkedNote => ({ noteId: n.id, title: titleOf(n.path) });
+  const byRecent = (a: MockNote, b: MockNote) => b.updatedAt.localeCompare(a.updatedAt);
+  const pathTaken = (path: string, exceptId?: string) =>
+    [...notes.values()].some((n) => n.id !== exceptId && n.path.toLowerCase() === path.toLowerCase());
+  const folderExists = (path: string) => path === '' || folders.has(path);
+  const validName = (name: string) => Boolean(name) && !INVALID_NAME.test(name) && !name.startsWith('.');
+
+  /** 옮겨진 노트를 가리키던 링크를 고친다 (UC-NOTE-010, 규칙은 Shared Kernel). */
+  const relink = (before: MockNote[], moved: Map<string, string>) => {
+    const afterPaths = [...notes.values()].map((n) => n.path);
+    const updated: string[] = [];
+    for (const note of notes.values()) {
+      const next = rewriteLinkTargets(note.content, (target) => {
+        const newPath = moved.get(resolveLinkTarget(target, before)?.id ?? '');
+        if (!newPath) return null;
+        return target.includes('/') ? newPath.replace(/\.md$/, '') : linkTargetFor(newPath, afterPaths);
+      });
+      if (next !== note.content) {
+        note.content = next;
+        updated.push(note.id);
+      }
+    }
+    return updated;
+  };
+  const relocate = (note: MockNote, path: string) => {
+    if (pathTaken(path, note.id)) return fail<never>('NOTE_TITLE_TAKEN', path);
+    const before = [...notes.values()].map((n) => ({ ...n }));
+    note.path = path;
+    return ok({ note: summary(note), updatedNoteIds: relink(before, new Map([[note.id, path]])) });
+  };
+
+  if (options.controls) {
+    options.controls.externalEdit = (noteId, content) => {
+      const note = notes.get(noteId);
+      if (!note) return;
+      Object.assign(note, { content, updatedAt: now() });
+      for (const listener of vaultListeners) listener({ noteIds: [noteId], structure: false });
+    };
+    options.controls.contentOf = (path) => [...notes.values()].find((n) => n.path === path)?.content;
+  }
 
   const all: Capabilities = { generate: true, structuredOutput: true, webSearch: true };
   const noSearch: Capabilities = { generate: true, structuredOutput: true, webSearch: false };
@@ -156,36 +207,66 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       onWillClose: () => () => undefined,
       readyToClose: () => ok(undefined),
     },
-    notes: {
-      create: (input) => {
-        const at = now();
-        const note: NoteDetail = {
-          id: crypto.randomUUID(),
-          title: (input.title ?? '').trim(),
-          content: input.content ?? emptyDoc(),
-          createdAt: at,
-          updatedAt: at,
-        };
-        notes.set(note.id, note);
-        return ok(structuredClone(note));
+    vault: {
+      getCurrent: () => ok(vault),
+      choose: () => {
+        vault = MOCK_VAULT;
+        if (!recent.includes(MOCK_VAULT)) recent.unshift(MOCK_VAULT);
+        return ok(vault);
       },
-      list: () =>
-        ok({
-          items: [...notes.values()]
-            .sort(byRecent)
-            .map((n) => ({ id: n.id, title: displayTitle(n), preview: textOf(n.content).slice(0, 120), updatedAt: n.updatedAt })),
-        }),
+      open: ({ root }) => {
+        const found = recent.find((v) => v.root === root);
+        if (!found) return fail('VAULT_NOT_FOUND', root);
+        vault = found;
+        return ok(found);
+      },
+      listRecent: () => ok({ items: recent.map((v) => ({ ...v, exists: true })) }),
+      onChanged: (listener) => {
+        vaultListeners.add(listener);
+        return () => vaultListeners.delete(listener);
+      },
+    },
+    notes: {
+      tree: () => {
+        if (!vault) return notOpen();
+        return ok({
+          folders: [...folders].sort(),
+          notes: [...notes.values()].sort((a, b) => a.path.localeCompare(b.path)).map(summary),
+        });
+      },
+      create: ({ folder = '' }) => {
+        if (!vault) return notOpen();
+        if (!folderExists(folder)) return fail('FOLDER_NOT_FOUND', folder);
+        let name = '제목 없음';
+        for (let n = 2; pathTaken(inFolder(folder, `${name}.md`)); n++) name = `제목 없음 ${n}`;
+        const at = now();
+        const note: MockNote = { id: crypto.randomUUID(), path: inFolder(folder, `${name}.md`), content: '', createdAt: at, updatedAt: at };
+        notes.set(note.id, note);
+        return ok(detail(note));
+      },
       get: ({ id }) => {
         const note = notes.get(id);
-        return note ? ok(structuredClone(note)) : fail('NOTE_NOT_FOUND', `Note ${id} not found`);
+        return note ? ok(detail(note)) : fail('NOTE_NOT_FOUND', `Note ${id} not found`);
       },
-      update: ({ id, title, content }) => {
+      update: ({ id, content }) => {
         const note = notes.get(id);
         if (!note) return fail('NOTE_NOT_FOUND', `Note ${id} not found`);
-        const next = { ...note, title: title?.trim() ?? note.title, content: content ?? note.content };
-        const changed = next.title !== note.title || JSON.stringify(next.content) !== JSON.stringify(note.content);
-        if (changed) notes.set(id, { ...next, updatedAt: now() });
-        return ok({ id, updatedAt: notes.get(id)!.updatedAt, changed });
+        const changed = note.content !== content;
+        if (changed) Object.assign(note, { content, updatedAt: now() });
+        return ok({ id, updatedAt: note.updatedAt, changed });
+      },
+      rename: ({ id, title }) => {
+        const note = notes.get(id);
+        if (!note) return fail('NOTE_NOT_FOUND', id);
+        const name = title.trim();
+        if (!validName(name)) return fail('NOTE_TITLE_INVALID', title);
+        return relocate(note, inFolder(folderOf(note.path), `${name}.md`));
+      },
+      move: ({ id, folder }) => {
+        const note = notes.get(id);
+        if (!note) return fail('NOTE_NOT_FOUND', id);
+        if (!folderExists(folder)) return fail('FOLDER_NOT_FOUND', folder);
+        return relocate(note, inFolder(folder, note.path.split('/').pop()!));
       },
       delete: ({ id }) => {
         notes.delete(id);
@@ -194,25 +275,80 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       search: ({ query, excludeNoteId, limit = 20 }) => {
         const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
         if (keywords.length === 0) return ok({ items: [] });
+        const text = (n: MockNote) => `${titleOf(n.path)} ${plainTextOf(n.content)}`.toLowerCase();
+        const titleHit = (n: MockNote) => Number(titleOf(n.path).toLowerCase().includes(keywords[0]!));
         const items = [...notes.values()]
-          .filter((n) => n.id !== excludeNoteId)
-          .filter((n) => keywords.every((k) => `${n.title} ${textOf(n.content)}`.toLowerCase().includes(k)))
-          .sort((a, b) => Number(b.title.toLowerCase().includes(keywords[0]!)) - Number(a.title.toLowerCase().includes(keywords[0]!)) || byRecent(a, b))
+          .filter((n) => n.id !== excludeNoteId && keywords.every((k) => text(n).includes(k)))
+          .sort((a, b) => titleHit(b) - titleHit(a) || byRecent(a, b))
           .slice(0, limit)
-          .map((n) => ({ id: n.id, title: displayTitle(n), snippet: textOf(n.content).slice(0, 120), updatedAt: n.updatedAt }));
+          .map((n) => ({
+            id: n.id,
+            title: titleOf(n.path),
+            path: n.path,
+            snippet: plainTextOf(n.content).slice(0, 120),
+            updatedAt: n.updatedAt,
+          }));
         return ok({ items });
       },
       listLinks: ({ noteId }) => {
         const source = notes.get(noteId);
         if (!source) return fail('NOTE_NOT_FOUND', `Note ${noteId} not found`);
-        const outgoing = [...linkTargets(source.content)]
-          .filter((id) => id !== noteId)
-          .flatMap((id) => (notes.has(id) ? [linked(notes.get(id)!)] : []));
-        const incoming = [...notes.values()]
-          .filter((n) => n.id !== noteId && linkTargets(n.content).has(noteId))
+        const everyNote = [...notes.values()];
+        const targetsOf = (n: MockNote) => extractLinkTargets(n.content).map((t) => resolveLinkTarget(t, everyNote)?.id);
+        const outgoing = [...new Set(targetsOf(source))]
+          .filter((id): id is string => id !== undefined && id !== noteId)
+          .map((id) => linked(notes.get(id)!));
+        const incoming = everyNote
+          .filter((n) => n.id !== noteId && targetsOf(n).includes(noteId))
           .sort(byRecent)
           .map(linked);
         return ok({ outgoing, incoming });
+      },
+    },
+    folders: {
+      create: ({ parent = '', name }) => {
+        if (!folderExists(parent)) return fail('FOLDER_NOT_FOUND', parent);
+        const trimmed = name.trim();
+        if (!validName(trimmed)) return fail('FOLDER_NAME_INVALID', name);
+        const path = inFolder(parent, trimmed);
+        if (folders.has(path)) return fail('FOLDER_NAME_TAKEN', path);
+        folders.add(path);
+        return ok({ path });
+      },
+      rename: ({ path, name }) => {
+        if (!folders.has(path)) return fail('FOLDER_NOT_FOUND', path);
+        const trimmed = name.trim();
+        if (!validName(trimmed)) return fail('FOLDER_NAME_INVALID', name);
+        const next = inFolder(folderOf(path), trimmed);
+        if (folders.has(next)) return fail('FOLDER_NAME_TAKEN', next);
+        const moveUnder = (p: string) => (p === path || p.startsWith(`${path}/`) ? next + p.slice(path.length) : p);
+        for (const folder of [...folders]) {
+          folders.delete(folder);
+          folders.add(moveUnder(folder));
+        }
+        const before = [...notes.values()].map((n) => ({ ...n }));
+        const moved = new Map<string, string>();
+        for (const note of notes.values()) {
+          const nextPath = moveUnder(note.path);
+          if (nextPath !== note.path) {
+            note.path = nextPath;
+            moved.set(note.id, nextPath);
+          }
+        }
+        return ok({ path: next, updatedNoteIds: relink(before, moved) });
+      },
+      delete: ({ path }) => {
+        if (!folders.has(path)) return fail('FOLDER_NOT_FOUND', path);
+        const inside = (p: string) => p === path || p.startsWith(`${path}/`);
+        for (const folder of [...folders]) if (inside(folder)) folders.delete(folder);
+        let deletedNotes = 0;
+        for (const note of [...notes.values()]) {
+          if (inside(note.path)) {
+            notes.delete(note.id);
+            deletedNotes++;
+          }
+        }
+        return ok({ deletedNotes });
       },
     },
     visualization: {

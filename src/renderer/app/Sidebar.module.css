@@ -75,3 +75,12 @@
   font-weight: 500;
   color: var(--ink-500);
 }
+
+.createRow {
+  display: flex;
+  gap: 8px;
+}
+
+.newNote {
+  flex: 1;
+}

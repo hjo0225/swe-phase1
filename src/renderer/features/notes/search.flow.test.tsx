@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
 import { getBlink, resetBlinkForTests } from '../../shared/api/blink';
+import { seedNote } from '../../test/seed-note';
 import { resetAutosaveForTests } from './autosave/autosave';
 
-const doc = (text: string) => ({ type: 'doc' as const, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] });
 
 async function seed() {
-  const past = await getBlink().notes.create({ title: 'Electron Architecture', content: doc('Main Process와 Renderer 차이') });
-  const current = await getBlink().notes.create({ title: '오늘 작업', content: doc('시작') });
+  const past = await seedNote('Electron Architecture', 'Main Process와 Renderer 차이');
+  const current = await seedNote('오늘 작업', '시작');
   return { past, current };
 }
 
@@ -79,14 +79,8 @@ describe('search palette', () => {
   });
 
   it('shows backlinks of the open note', async () => {
-    const target = await getBlink().notes.create({ title: '대상', content: doc('x') });
-    await getBlink().notes.create({
-      title: '출발 노트',
-      content: {
-        type: 'doc',
-        content: [{ type: 'paragraph', content: [{ type: 'noteLink', attrs: { noteId: target.id, label: '대상' } }] }],
-      },
-    });
+    const target = await seedNote('대상', 'x');
+    await seedNote('출발 노트', '[[대상]]');
     window.location.hash = `#/notes/${target.id}`;
     render(<App />);
 

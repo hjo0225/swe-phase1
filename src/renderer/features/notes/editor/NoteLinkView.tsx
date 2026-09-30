@@ -1,37 +1,38 @@
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react';
 import { useNavigate } from 'react-router';
+import { resolveLinkTarget } from '../../../../shared/notes/wiki-link';
 import { useNoteList } from '../api/note-queries';
 import styles from './NoteLinkView.module.css';
 
 /**
- * 링크 표시: 대상의 현재 제목(없으면 삽입 시점 label), 대상이 사라졌으면 깨진 링크.
- * 제목·존재 여부는 사이드바가 이미 구독 중인 노트 목록에서 읽는다 — 방금 넣은 링크도 저장 전부터 정상 표시된다.
+ * 링크 표시: 별칭이 있으면 별칭, 없으면 대상 이름. 대상은 Main과 같은 규칙(resolveLinkTarget)으로 노트 트리에서 찾는다.
+ * 찾지 못하면 깨진 링크 — 옵시디언처럼 나중에 같은 이름의 노트가 생기면 다시 이어진다.
  */
 export function NoteLinkView({ node }: ReactNodeViewProps) {
-  const { noteId, label } = node.attrs as { noteId: string; label: string };
+  const { target, label } = node.attrs as { target: string; label: string };
   const { data: notes } = useNoteList();
   const navigate = useNavigate();
 
-  const target = notes?.find((n) => n.id === noteId);
-  const broken = notes !== undefined && target === undefined;
-  const title = target?.title ?? label;
+  const resolved = notes ? resolveLinkTarget(target, notes) : null;
+  const broken = notes !== undefined && resolved === null;
+  const text = label || target.split('/').pop() || target;
 
   return (
     <NodeViewWrapper as="span" className={styles.wrapper}>
-      {broken ? (
-        <span className={styles.broken} title="삭제된 노트입니다">
-          {title}
+      {broken || !resolved ? (
+        <span className={styles.broken} title={broken ? `'${target}' 노트가 없습니다` : undefined}>
+          {text}
         </span>
       ) : (
         <a
-          href={`#/notes/${noteId}`}
+          href={`#/notes/${resolved.id}`}
           className={styles.link}
           onClick={(event) => {
             event.preventDefault();
-            void navigate(`/notes/${noteId}`);
+            void navigate(`/notes/${resolved.id}`);
           }}
         >
-          {title}
+          {text}
         </a>
       )}
     </NodeViewWrapper>

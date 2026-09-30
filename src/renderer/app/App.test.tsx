@@ -15,15 +15,15 @@ describe('App shell', () => {
   it('renders the sidebar with settings link and app version', async () => {
     window.location.hash = '#/';
     render(<App />);
-    expect(screen.getByRole('navigation', { name: 'Blink' })).toBeInTheDocument();
+    expect(await screen.findByRole('navigation', { name: 'Blink' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /설정/ })).toHaveAttribute('href', '#/settings/ai');
     expect(await screen.findByText('vmock')).toBeInTheDocument();
   });
 
-  it('renders the AI settings screen at #/settings/ai', () => {
+  it('renders the AI settings screen at #/settings/ai', async () => {
     window.location.hash = '#/settings/ai';
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'AI 설정' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'AI 설정' })).toBeInTheDocument();
   });
 
   it('redirects unknown routes to the start screen', async () => {

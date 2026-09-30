@@ -1,11 +1,10 @@
 import { useSyncExternalStore } from 'react';
-import type { ProseMirrorDocDto } from '../../../../shared/ipc/notes';
 import { getBlink } from '../../../shared/api/blink';
 import { AutosaveRegistry, type SaveStatus } from './save-queue';
 
 export interface NotePayload {
-  title: string;
-  content: ProseMirrorDocDto;
+  /** Markdown 본문. 제목은 파일 이름이라 이름 변경(note:rename)으로 따로 바꾼다. */
+  content: string;
 }
 
 const DEBOUNCE_MS = 700;

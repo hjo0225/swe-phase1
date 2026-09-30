@@ -1,9 +1,11 @@
 import { mergeAttributes, Node, ReactNodeViewRenderer } from '@tiptap/react';
+import { formatWikiLink, wikiLinkAtStart } from '../../../../shared/notes/wiki-link';
 import { NoteLinkView } from './NoteLinkView';
 
 export interface NoteLinkAttrs {
-  noteId: string;
-  /** 삽입 시점의 제목. 대상 제목이 바뀌면 화면은 현재 제목을 보여 준다. */
+  /** `[[대상]]`의 대상 — 노트 이름 또는 보관함 기준 경로(.md 제외) */
+  target: string;
+  /** `[[대상|별칭]]`의 별칭. 없으면 '' */
   label: string;
 }
 
@@ -16,9 +18,11 @@ declare module '@tiptap/core' {
   }
 }
 
+const TOKEN = 'noteLink';
+
 /**
- * `[[다른 노트]]` 참조. 이름과 속성은 백엔드 계약(docs/backend/note/api-contract.md)을 따른다 —
- * Main이 저장 시 이 노드에서 링크 집합을 파생한다(D-02).
+ * `[[다른 노트]]` 참조 (D-15). 파일에는 옵시디언과 같은 `[[대상|별칭]]` 그대로 저장되고,
+ * 대상 해석은 Shared Kernel(wiki-link)이 Main과 같은 규칙으로 한다.
  */
 export const NoteLink = Node.create({
   name: 'noteLink',
@@ -29,10 +33,10 @@ export const NoteLink = Node.create({
 
   addAttributes() {
     return {
-      noteId: {
-        default: null,
-        parseHTML: (el) => el.getAttribute('data-note-id'),
-        renderHTML: (attrs) => ({ 'data-note-id': attrs.noteId as string }),
+      target: {
+        default: '',
+        parseHTML: (el) => el.getAttribute('data-target') ?? '',
+        renderHTML: (attrs) => ({ 'data-target': attrs.target as string }),
       },
       label: {
         default: '',
@@ -47,12 +51,26 @@ export const NoteLink = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    return ['span', mergeAttributes({ 'data-note-link': '' }, HTMLAttributes), `[[${node.attrs.label as string}]]`];
+    return ['span', mergeAttributes({ 'data-note-link': '' }, HTMLAttributes), formatWikiLink(node.attrs.target, node.attrs.label)];
   },
 
   renderText({ node }) {
-    return `[[${node.attrs.label as string}]]`;
+    return formatWikiLink(node.attrs.target as string, node.attrs.label as string);
   },
+
+  markdownTokenName: TOKEN,
+  markdownTokenizer: {
+    name: TOKEN,
+    level: 'inline',
+    start: (src) => src.indexOf('[['),
+    tokenize: (src) => {
+      const link = wikiLinkAtStart(src);
+      return link ? { type: TOKEN, raw: link.raw, target: link.target, label: link.label } : undefined;
+    },
+  },
+  parseMarkdown: (token, helpers) =>
+    helpers.createNode('noteLink', { target: token.target as string, label: token.label as string }),
+  renderMarkdown: (node) => formatWikiLink(node.attrs?.target as string, node.attrs?.label as string),
 
   addNodeView() {
     return ReactNodeViewRenderer(NoteLinkView);

@@ -23,6 +23,11 @@ export class SaveQueue<P> {
     return this.currentStatus;
   }
 
+  /** 아직 파일에 쓰지 않은 편집이 있는지 (대기 중이거나 쓰는 중). */
+  get hasPendingChanges(): boolean {
+    return this.dirty || this.inFlight !== undefined;
+  }
+
   /** 저장할 내용은 저장 시점에 getPayload()로 읽는다 (편집기 문서를 매 키 입력마다 직렬화하지 않기 위함). */
   markDirty(getPayload: () => P): void {
     this.latest = getPayload;

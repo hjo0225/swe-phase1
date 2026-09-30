@@ -13,7 +13,19 @@ export interface LinkableNote {
 /** `[[대상]]`, `[[대상|별칭]]` */
 const WIKI_LINK = /\[\[([^[\]|\n]+?)(?:\|([^[\]\n]*?))?\]\]/g;
 
-const withoutExtension = (path: string) => path.replace(/\.md$/i, '');
+const WIKI_LINK_AT_START = new RegExp(`^${WIKI_LINK.source}`);
+
+/** 문자열 맨 앞의 `[[링크]]` — 편집기 Markdown 토크나이저용. label이 없으면 ''. */
+export function wikiLinkAtStart(src: string): { raw: string; target: string; label: string } | null {
+  const match = WIKI_LINK_AT_START.exec(src);
+  return match ? { raw: match[0], target: match[1]!, label: match[2] ?? '' } : null;
+}
+
+export function formatWikiLink(target: string, label = ''): string {
+  return label ? `[[${target}|${label}]]` : `[[${target}]]`;
+}
+
+const withoutExtension =(path: string) => path.replace(/\.md$/i, '');
 const pathKey = (path: string) => withoutExtension(path).toLowerCase();
 const nameKey = (path: string) => pathKey(path).split('/').pop()!;
 

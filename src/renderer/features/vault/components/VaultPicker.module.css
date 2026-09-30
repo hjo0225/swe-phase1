@@ -1,0 +1,102 @@
+.screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  width: min(520px, 100%);
+  padding: 40px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--blue-400), var(--blue-600));
+  box-shadow: var(--glow-mint);
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-700);
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--warning-500);
+}
+
+.recent {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.recent ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recentTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.recentItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-hover) ease-out;
+}
+
+.recentItem:hover:not(:disabled) {
+  background: var(--blue-100);
+}
+
+.recentItem:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.recentName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-800);
+}
+
+.recentPath {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ink-500);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

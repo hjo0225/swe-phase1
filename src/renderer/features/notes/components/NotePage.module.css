@@ -136,3 +136,43 @@
 .backlinks a:hover {
   background: var(--blue-100);
 }
+
+.titleField {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.titleError {
+  margin: 0;
+  font-size: 12px;
+  color: var(--warning-500);
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--blue-200);
+  border-radius: var(--radius-md);
+  background: var(--blue-50);
+  font-size: 13px;
+  color: var(--ink-700);
+}
+
+.banner span {
+  flex: 1;
+}
+
+.bannerDismiss {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-500);
+  cursor: pointer;
+}

@@ -1,0 +1,38 @@
+# Windows 설치 파일 (NSIS) — `pnpm dist` → dist/Blink-Setup-<버전>.exe
+appId: com.blink.notes
+productName: Blink
+copyright: Copyright © 2026 HJO
+
+directories:
+  output: dist
+  buildResources: build
+
+# electron-vite 결과물만 넣는다. main이 require 하는 패키지(package.json dependencies)는 electron-builder가 함께 넣는다.
+files:
+  - out/**
+  - package.json
+
+asar: true
+# better-sqlite3의 네이티브 모듈은 asar 밖에 있어야 로드된다.
+asarUnpack:
+  - '**/*.node'
+
+# better-sqlite3는 N-API prebuild라 Electron용으로 다시 빌드할 필요가 없다 (E2E가 같은 바이너리로 실제 Electron에서 돈다).
+npmRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Blink
+  artifactName: Blink-Setup-${version}.${ext}
+  # 제거할 때 사용자 데이터(설정·AI Key·색인)는 남긴다. 노트 원본은 사용자가 고른 보관함 폴더에 있어 설치 폴더와 무관하다.
+  deleteAppDataOnUninstall: false

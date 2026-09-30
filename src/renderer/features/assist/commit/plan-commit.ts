@@ -48,10 +48,11 @@ export function applyCommit(editor: Editor, plan: CommitPlan): void {
   switch (plan.kind) {
     case 'replace':
       // 새 내용에는 aiPending Mark가 없으므로 교체와 함께 잠금이 풀린다.
+      // updateSelection: false — 결과가 도착해도 사용자가 다른 곳에서 쓰던 커서를 옮기지 않는다.
       editor
         .chain()
         .setMeta(AI_COMMIT_META, true)
-        .insertContentAt(plan.range, plan.markdown, { contentType: 'markdown' })
+        .insertContentAt(plan.range, plan.markdown, { contentType: 'markdown', updateSelection: false })
         .run();
       return;
     case 'discard':
@@ -76,6 +77,6 @@ function insertInfographicBelow(editor: Editor, plan: Extract<CommitPlan, { kind
       tr.removeMark(plan.range.from, plan.range.to, markType);
       return true;
     })
-    .insertContentAt(blockEnd, { type: 'infographic', attrs: { spec: plan.spec } })
+    .insertContentAt(blockEnd, { type: 'infographic', attrs: { spec: plan.spec } }, { updateSelection: false })
     .run();
 }

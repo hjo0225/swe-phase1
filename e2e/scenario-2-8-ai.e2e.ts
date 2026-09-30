@@ -1,18 +1,6 @@
-import type { Page } from 'playwright-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createUserDataDir, launchApp } from './support/app';
-
-/** 실제 편집기(Tiptap) 인스턴스로 텍스트를 선택한다 — 마우스 드래그보다 안정적이다. */
-async function selectText(page: Page, target: string) {
-  await page.evaluate((text) => {
-    const dom = document.querySelector('[aria-label="노트 본문"]') as HTMLElement & {
-      editor: { state: { doc: { textContent: string } }; commands: { focus(): void; setTextSelection(r: object): void } };
-    };
-    const from = 1 + dom.editor.state.doc.textContent.indexOf(text);
-    dom.editor.commands.focus();
-    dom.editor.commands.setTextSelection({ from, to: from + text.length });
-  }, target);
-}
+import { selectText } from './support/editor';
 
 // 명세서 §41 Scenario 8(AI Provider 설정) · Scenario 2(정리: Pulse 중 다른 부분 계속 작성 → 한 번에 적용)
 describe('Scenarios 8 & 2: AI settings and organize', () => {

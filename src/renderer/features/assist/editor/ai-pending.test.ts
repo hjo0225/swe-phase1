@@ -108,6 +108,16 @@ describe('planCommit / applyCommit', () => {
     expect(findPendingRanges(editor.state.doc).size).toBe(0);
   });
 
+  it('leaves the user’s cursor where they are writing when a result lands elsewhere', () => {
+    const end = editor.state.doc.content.size - 1;
+    editor.commands.setTextSelection(end);
+    applyCommit(editor, plan(job({})));
+    const { from: cursor } = editor.state.selection;
+    expect(editor.state.doc.textBetween(cursor - 3, cursor)).toBe('문장.');
+    editor.commands.insertContent('!');
+    expect(editor.state.doc.textContent).toBe('앞 문장. 정리됨. 뒤 문장.!');
+  });
+
   it('discards the result when the range text no longer matches the snapshot', () => {
     setJobStatuses(editor, new Map([['job-1', 'FAILED']])); // 잠금 해제 후 편집
     editor.commands.insertContentAt(from + 1, 'Z');

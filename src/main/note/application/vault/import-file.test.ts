@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -78,5 +78,32 @@ describe('VaultNoteService.importFile', () => {
     ['relative-path', () => '강의.md'],
   ])('refuses a %s file', (_case, source) => {
     expect(codeOf(() => notes.importFile({ sourcePath: source(), folder: '' }))).toBe('NOTE_IMPORT_INVALID');
+  });
+
+  // 다른 프로그램이 연 파일: 복사는 되지만 원본 지우기가 EBUSY로 실패한다 (테스트에서는 파일을 실제로 잠글 수 없어 지우기만 흉내 낸다)
+  it('leaves no copy in the vault when the source is locked', () => {
+    const fs = new NodeVaultFileSystem(root);
+    const locked: NodeVaultFileSystem = Object.assign(Object.create(fs) as NodeVaultFileSystem, {
+      removeExternal: () => {
+        throw Object.assign(new Error('resource busy or locked'), { code: 'EBUSY' });
+      },
+    });
+    const lockedNotes = new VaultNoteService({
+      fs: locked,
+      index: new SqliteNoteIndex(db.db),
+      clock: { now: () => new Date(0) },
+      nextId: () => `id-${++seq}`,
+    });
+    const source = download('잠긴 노트.md');
+    expect(codeOf(() => lockedNotes.importFile({ sourcePath: source, folder: '' }))).toBe('NOTE_IMPORT_LOCKED');
+    expect(existsSync(source)).toBe(true);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('keeps the source and leaves no copy when the file is too large', () => {
+    const source = download('큰 노트.md', 'a'.repeat(2 * 1024 * 1024 + 1));
+    expect(codeOf(() => notes.importFile({ sourcePath: source, folder: '' }))).toBe('NOTE_CONTENT_TOO_LARGE');
+    expect(existsSync(source)).toBe(true);
+    expect(readdirSync(root)).toEqual([]);
   });
 });

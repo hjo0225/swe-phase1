@@ -121,18 +121,26 @@ export class VaultNoteService {
         .map((p) => p.name),
     );
     const path = NotePath.in(folder, NoteName.of(numberedName(fileName.replace(/\.md$/i, ''), taken)));
+    // 복사 → 내용 검사 → 원본 지우기. 중간에 실패하면 복사본을 지워서 «아무것도 안 옮김» 상태로 되돌린다.
     try {
-      fs.importExternal(input.sourcePath, path.value);
+      fs.copyIn(input.sourcePath, path.value);
+    } catch {
+      throw new DomainError('NOTE_IMPORT_INVALID', `Could not import ${fileName}`);
+    }
+    let entry: ReturnType<typeof readEntry>;
+    try {
+      entry = readEntry(fs, path.value, nextId())!; // 크기(2MB) 같은 내용 규칙도 여기서 검사된다
+      fs.removeExternal(input.sourcePath);
     } catch (error) {
+      fs.remove(path.value);
       const code = (error as { code?: string }).code;
       if (code === 'EBUSY' || code === 'EPERM' || code === 'EACCES') {
         throw new DomainError('NOTE_IMPORT_LOCKED', `${fileName} is open in another program`);
       }
-      throw new DomainError('NOTE_IMPORT_INVALID', `Could not import ${fileName}`);
+      throw error;
     }
     // 감시 이벤트보다 먼저 색인을 맞춰 두면 자기 변경을 외부 변경으로 보지 않는다.
-    const entry = readEntry(fs, path.value, nextId())!;
-    index.upsert(entry);
+    index.upsert(entry!);
     return this.detail(entry, fs.read(path.value));
   }
 

@@ -54,6 +54,10 @@ export class KimiProvider implements LLMProvider {
     });
   }
 
+  async embed(_request: { inputs: string[]; signal: AbortSignal }): Promise<number[][]> {
+    throw new ProviderError('UNSUPPORTED', 'Kimi embeddings are not supported');
+  }
+
   async testConnection(signal: AbortSignal): Promise<void> {
     const models = await this.call(() => this.client.models.list({ signal }));
     if (!models.data.some((m) => m.id === this.model)) {

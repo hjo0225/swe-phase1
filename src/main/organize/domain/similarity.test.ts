@@ -1,18 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { distanceToCenter, pairDistance, silhouette, subMatrix, titleSimilarity } from './similarity';
+import { cosineSimilarity, distanceToCenter, pairDistance, silhouette, subMatrix } from './similarity';
 
-describe('titleSimilarity', () => {
+describe('cosineSimilarity', () => {
   it('is 1 on the diagonal and symmetric', () => {
-    const sim = titleSimilarity(['spring boot 실무', 'spring 시큐리티', '김치찌개 레시피']);
+    const sim = cosineSimilarity([
+      [1, 2, 0],
+      [0, 1, 3],
+      [4, 0, 1],
+    ]);
     sim.forEach((row, i) => {
       expect(row[i]).toBeCloseTo(1);
       row.forEach((value, j) => expect(value).toBeCloseTo(sim[j]![i]!));
     });
   });
 
-  it('rates titles on the same topic as more similar', () => {
-    const sim = titleSimilarity(['spring boot 실무 1편', 'spring boot 실무 2편', '김치찌개 레시피']);
-    expect(sim[0]![1]!).toBeGreaterThan(sim[0]![2]!);
+  it('ignores length: same direction is 1, a right angle is 0', () => {
+    const sim = cosineSimilarity([
+      [1, 0],
+      [5, 0],
+      [0, 3],
+    ]);
+    expect(sim[0]![1]).toBeCloseTo(1);
+    expect(sim[0]![2]).toBeCloseTo(0);
+  });
+
+  it('treats an all-zero vector as unrelated to everything', () => {
+    const sim = cosineSimilarity([
+      [0, 0],
+      [1, 0],
+    ]);
+    expect(sim[0]).toEqual([0, 0]);
   });
 });
 

@@ -7,14 +7,16 @@ import type {
   PlannedNote,
 } from '../../../shared/ipc/organize';
 import type { ActiveModel } from '../../ai-provider/application/active-llm';
+import { ProviderError } from '../../ai-provider/application/ports';
 import { numberedName } from '../../note/domain/names';
 import { DomainError } from '../../platform/errors';
 import { bestClustering, MIN_NOTES, MIN_SILHOUETTE } from '../domain/clustering';
 import { closerNewGroup, fittingFolder, folderRadius } from '../domain/placement';
-import { subMatrix, titleSimilarity } from '../domain/similarity';
+import { cosineSimilarity, subMatrix } from '../domain/similarity';
 import { nameFolders, UNSORTED } from './folder-namer';
 
 const NAMING_TIMEOUT_MS = 60_000;
+const EMBEDDING_TIMEOUT_MS = 60_000;
 
 /** note 도메인 공개 API 중 organize가 쓰는 부분 (VaultNoteService가 만족한다). */
 export interface OrganizeNotePort {
@@ -42,7 +44,9 @@ const join = (folder: string, name: string) => (folder ? `${folder}/${name}` : n
 const nameOf = (folder: string) => folder.split('/').pop() ?? '';
 const parentOf = (folder: string) => folder.split('/').slice(0, -1).join('/');
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
-const isUnder = (path: string, folder: string) => same(path, folder) || path.toLowerCase().startsWith(`${folder.toLowerCase()}/`);
+/** path가 folder이거나 그 안(하위 포함)인지. 맨 위('')는 모든 폴더를 품는다. */
+const isUnder = (path: string, folder: string) =>
+  folder === '' || same(path, folder) || path.toLowerCase().startsWith(`${folder.toLowerCase()}/`);
 /** 폴더 바로 아래 하위 폴더 (「미분류」 제외) */
 const childFolders = (tree: VaultTree, folder: string) =>
   tree.folders.filter((f) => same(parentOf(f), folder) && nameOf(f) !== UNSORTED);
@@ -67,8 +71,13 @@ export class OrganizeService {
     const candidates = tree.notes.filter((n) => same(n.folder, folder) || same(n.folder, unsorted));
     const subfolders = childFolders(tree, folder);
     const members = subfolders.map((path) => notesUnder(tree, path));
+    // 견줄 하위 폴더도 없고 묶을 노트도 3개가 안 되면 AI를 부를 필요가 없다
+    const nothingToCompare = subfolders.length === 0 ? candidates.length < MIN_NOTES : candidates.length === 0;
+    if (nothingToCompare) {
+      return { folder, newFolders: [], moves: [], skipped: candidates.length < MIN_NOTES ? 'TOO_FEW_NOTES' : 'NO_CLEAR_GROUPS' };
+    }
     const everyone = [...candidates, ...members.flat()];
-    const sim = titleSimilarity(everyone.map((n) => n.title));
+    const sim = cosineSimilarity(await this.embedTitles(everyone.map((n) => n.title)));
     const indexOf = new Map(everyone.map((n, i) => [n.id, i]));
     const at = (note: NoteSummary) => indexOf.get(note.id)!;
     const shapes = subfolders.map((path, i) => {
@@ -159,16 +168,22 @@ export class OrganizeService {
   }
 
   /** 새 노트 자동 배치: 지금 폴더를 맨 위로 보고 한 층씩 내려간다. 맞는 하위 폴더가 없으면 그 층의 「미분류」. */
-  place(noteId: string): PlaceNoteResult {
+  async place(noteId: string): Promise<PlaceNoteResult> {
     const tree = this.deps.notes().tree();
     const note = tree.notes.find((n) => n.id === noteId);
     if (!note) throw new DomainError('NOTE_NOT_FOUND', `Note ${noteId} not found`);
     let level = nameOf(note.folder) === UNSORTED ? parentOf(note.folder) : note.folder;
+    if (childFolders(tree, level).length === 0) return { folder: note.folder, updatedNoteIds: [] }; // 견줄 폴더가 없으면 AI도 부르지 않는다
+
+    // 내려가며 견줄 노트 전부를 한 번에 임베딩한다 (층마다 부르지 않게)
+    const below = notesUnder(tree, level, noteId).filter((n) => !same(n.folder, level));
+    const vectors = await this.embedTitles([note.title, ...below.map((n) => n.title)]);
+    const vectorOf = new Map(below.map((n, i) => [n.id, vectors[i + 1]!]));
     for (;;) {
       const subfolders = childFolders(tree, level);
       if (subfolders.length === 0) break;
       const members = subfolders.map((path) => notesUnder(tree, path, noteId));
-      const sim = titleSimilarity([note.title, ...members.flat().map((n) => n.title)]);
+      const sim = cosineSimilarity([vectors[0]!, ...members.flat().map((n) => vectorOf.get(n.id)!)]);
       let offset = 1; // 0번은 새 노트
       const shapes = subfolders.map((path, i) => {
         const indexes = members[i]!.map((_, j) => offset + j);
@@ -189,10 +204,27 @@ export class OrganizeService {
   }
 
   /** 끌어다 놓은 바깥 `.md`: 놓은 폴더로 가져온 뒤 그 폴더부터 자동 배치 */
-  importFile(input: { sourcePath: string; folder: string }): ImportNoteResult {
+  async importFile(input: { sourcePath: string; folder: string }): Promise<ImportNoteResult> {
     const note = this.deps.notes().importFile(input);
-    const placed = this.place(note.id);
+    const placed = await this.place(note.id);
     return { noteId: note.id, folder: placed.folder, updatedNoteIds: placed.updatedNoteIds };
+  }
+
+  /** 제목들을 «사용 중» AI로 임베딩한다. 설정이 없으면 AI_PROVIDER_NOT_CONFIGURED, 임베딩을 못 하는 공급자면 AI_CAPABILITY_UNSUPPORTED. */
+  private async embedTitles(titles: string[]): Promise<number[][]> {
+    const active = this.deps.activeLLM.resolve();
+    let vectors: number[][];
+    try {
+      vectors = await active.client.embed({ inputs: titles, signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS) });
+    } catch (error) {
+      if (error instanceof ProviderError && error.kind === 'UNSUPPORTED') {
+        throw new DomainError('AI_CAPABILITY_UNSUPPORTED', `${active.provider} cannot embed note titles`);
+      }
+      // Provider 오류 메시지에는 요청 내용이 섞일 수 있어 그대로 내보내지 않는다.
+      throw new DomainError('ORGANIZE_EMBEDDING_FAILED', 'Could not read note titles with the AI');
+    }
+    if (vectors.length !== titles.length) throw new DomainError('ORGANIZE_EMBEDDING_FAILED', 'The AI returned a wrong number of embeddings');
+    return vectors;
   }
 
   private async nameGroups(folder: string, groups: NoteSummary[][]): Promise<string[]> {

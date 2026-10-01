@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProviderError } from '../../ai-provider/application/ports';
 import { ModelCapabilities } from '../../ai-provider/domain/model-capabilities';
 import { fakeProvider } from '../../ai-provider/testing';
 import { FolderService } from '../../note/application/vault/folder-service';
@@ -25,6 +26,8 @@ let organize: OrganizeService;
 let llmConfigured: boolean;
 /** 다른 프로그램이 쓰는 파일처럼 옮기기가 EBUSY로 실패하는 노트 */
 let busyNoteId: string | null;
+/** 임베딩이 이 오류로 실패한다 (null이면 성공) */
+let embedError: Error | null;
 /** 가짜 AI: 묶음 줄에 spring이 있으면 Spring, rust면 Rust */
 const namer = vi.fn(async ({ user }: { user: string }) => ({
   names: user
@@ -32,6 +35,21 @@ const namer = vi.fn(async ({ user }: { user: string }) => ({
     .filter((line) => line.startsWith('묶음 '))
     .map((line, i) => (line.includes('spring') ? 'Spring' : line.includes('rust') ? 'Rust' : `기타${i + 1}`)),
 }));
+/** 가짜 임베딩: 제목에 든 주제 단어마다 그 칸에 1, 제목마다 다른 작은 흔들림 칸에 0.3 */
+const TOPIC_WORDS = ['spring', 'rust', '찌개', '스쿼트', '영어', '자료구조'];
+const embedder = vi.fn(async ({ inputs }: { inputs: string[] }) => {
+  if (embedError) throw embedError;
+  return inputs.map((title) => {
+    const vector = new Array<number>(TOPIC_WORDS.length + 997).fill(0);
+    TOPIC_WORDS.forEach((word, i) => {
+      if (title.toLowerCase().includes(word)) vector[i] = 1;
+    });
+    let hash = 0;
+    for (const ch of title) hash = (hash * 31 + ch.charCodeAt(0)) % 997;
+    vector[TOPIC_WORDS.length + hash] = 0.3;
+    return vector;
+  });
+});
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'blink-organize-'));
@@ -49,6 +67,8 @@ beforeEach(() => {
   const folders = new FolderService(deps);
   sync = new IndexSync(deps);
   namer.mockClear();
+  embedder.mockClear();
+  embedError = null;
   llmConfigured = true;
   busyNoteId = null;
   const notesPort = Object.assign(Object.create(notes) as VaultNoteService, {
@@ -67,7 +87,7 @@ beforeEach(() => {
           provider: 'openai' as const,
           model: 'test',
           capabilities: new ModelCapabilities({ generate: true, structuredOutput: true, webSearch: false }),
-          client: fakeProvider({ generateStructured: namer }),
+          client: fakeProvider({ generateStructured: namer, embed: embedder }),
         };
       },
     },
@@ -136,7 +156,8 @@ describe('preview', () => {
     await expect(organize.preview('')).resolves.toMatchObject({ newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' });
   });
 
-  it('says so when there are fewer than 3 notes', async () => {
+  it('says so when there are fewer than 3 notes, without calling the AI', async () => {
+    llmConfigured = false;
     seed('', 'spring boot 실무 1편', '김치찌개 레시피');
     await expect(organize.preview('')).resolves.toMatchObject({ skipped: 'TOO_FEW_NOTES' });
   });
@@ -146,10 +167,29 @@ describe('preview', () => {
     expect(await codeOf(() => organize.preview('미분류'))).toBe('VALIDATION_FAILED');
   });
 
-  it('needs a configured AI only when new folders must be named', async () => {
+  it('embeds all titles in one request', async () => {
+    seed('', ...SPRING, ...RUST);
+    await organize.preview('');
+    expect(embedder).toHaveBeenCalledTimes(1);
+    expect(embedder.mock.calls[0]![0].inputs).toHaveLength(6);
+  });
+
+  it('needs a configured OpenAI to classify', async () => {
     llmConfigured = false;
     seed('', ...SPRING, ...RUST);
     expect(await codeOf(() => organize.preview(''))).toBe('AI_PROVIDER_NOT_CONFIGURED');
+  });
+
+  it('reports a provider that cannot embed', async () => {
+    embedError = new ProviderError('UNSUPPORTED', 'no embeddings');
+    seed('', ...SPRING, ...RUST);
+    expect(await codeOf(() => organize.preview(''))).toBe('AI_CAPABILITY_UNSUPPORTED');
+  });
+
+  it('reports other embedding failures', async () => {
+    embedError = new ProviderError('RATE_LIMIT', 'slow down');
+    seed('', ...SPRING, ...RUST);
+    expect(await codeOf(() => organize.preview(''))).toBe('ORGANIZE_EMBEDDING_FAILED');
   });
 });
 
@@ -192,49 +232,52 @@ describe('place', () => {
     seed('Rust', 'rust 소유권 정리', 'rust 소유권 활용');
   });
 
-  it('moves a new note into the subfolder it fits', () => {
+  it('moves a new note into the subfolder it fits', async () => {
     seed('', 'spring boot 실무 4편');
-    expect(organize.place(idOf('spring boot 실무 4편')).folder).toBe('Spring');
+    expect((await organize.place(idOf('spring boot 실무 4편'))).folder).toBe('Spring');
     expect(titlesIn('Spring')).toContain('spring boot 실무 4편');
   });
 
-  it('sends a note that fits nowhere to 미분류 of that level', () => {
+  it('sends a note that fits nowhere to 미분류 of that level', async () => {
     seed('', '김치찌개 레시피');
-    expect(organize.place(idOf('김치찌개 레시피')).folder).toBe('미분류');
+    expect((await organize.place(idOf('김치찌개 레시피'))).folder).toBe('미분류');
   });
 
-  it('numbers the title when the target folder already has it', () => {
+  it('numbers the title when the target folder already has it', async () => {
     seed('', 'spring boot 실무 1편');
-    expect(organize.place(idOf('spring boot 실무 1편', '')).folder).toBe('Spring');
+    expect((await organize.place(idOf('spring boot 실무 1편', ''))).folder).toBe('Spring');
     expect(titlesIn('Spring')).toContain('spring boot 실무 1편 (2)');
   });
 
-  it('works without an AI', () => {
+  it('needs a configured OpenAI to place a note into subfolders', async () => {
     llmConfigured = false;
     seed('', 'spring boot 실무 4편');
-    expect(organize.place(idOf('spring boot 실무 4편')).folder).toBe('Spring');
+    expect(await codeOf(() => organize.place(idOf('spring boot 실무 4편')))).toBe('AI_PROVIDER_NOT_CONFIGURED');
+    expect(titlesIn('')).toEqual(['spring boot 실무 4편']);
   });
 });
 
 describe('place across levels', () => {
-  it('goes down several levels', () => {
+  it('goes down several levels with one embedding request', async () => {
     seed('공부/Spring', ...SPRING);
     seed('공부/Rust', ...RUST);
     seed('요리', '김치찌개 레시피', '된장찌개 레시피', '부대찌개 레시피');
     seed('', 'spring boot 실무 4편');
-    expect(organize.place(idOf('spring boot 실무 4편')).folder).toBe('공부/Spring');
+    expect((await organize.place(idOf('spring boot 실무 4편'))).folder).toBe('공부/Spring');
+    expect(embedder).toHaveBeenCalledTimes(1);
   });
 
-  it('starts from the folder the note was created in', () => {
+  it('starts from the folder the note was created in', async () => {
     seed('공부/Spring', ...SPRING);
     seed('공부/Rust', ...RUST);
     seed('공부', 'rust 소유권 입문');
-    expect(organize.place(idOf('rust 소유권 입문', '공부')).folder).toBe('공부/Rust');
+    expect((await organize.place(idOf('rust 소유권 입문', '공부'))).folder).toBe('공부/Rust');
   });
 
-  it('leaves the note where it is when the folder has no subfolders', () => {
+  it('leaves the note where it is when the folder has no subfolders, without calling the AI', async () => {
+    llmConfigured = false;
     seed('', ...RUST, 'spring boot 실무 4편');
-    expect(organize.place(idOf('spring boot 실무 4편'))).toEqual({ folder: '', updatedNoteIds: [] });
+    expect(await organize.place(idOf('spring boot 실무 4편'))).toEqual({ folder: '', updatedNoteIds: [] });
   });
 });
 
@@ -250,11 +293,11 @@ describe('speed', () => {
 });
 
 describe('importFile', () => {
-  it('brings an outside .md in and places it', () => {
+  it('brings an outside .md in and places it', async () => {
     seed('Spring', ...SPRING);
     const source = join(dir, 'spring boot 실무 4편.md');
     writeFileSync(source, '# 4편');
-    expect(organize.importFile({ sourcePath: source, folder: '' }).folder).toBe('Spring');
+    expect((await organize.importFile({ sourcePath: source, folder: '' })).folder).toBe('Spring');
     expect(existsSync(source)).toBe(false);
     expect(titlesIn('Spring')).toContain('spring boot 실무 4편');
   });

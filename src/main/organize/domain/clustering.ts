@@ -5,9 +5,9 @@ import { silhouette, type Similarity } from './similarity';
 export const MIN_NOTES = 3;
 /**
  * 가장 좋은 실루엣도 이보다 낮으면 «나눌 만한 묶음이 없다».
- * 제목만으로 잰 값: 뚜렷한 두 주제 0.45, 네 쌍 0.42, 전부 다른 6개 0.02 (계획서 0.51에서 바꿈 — 구현계획서 «계획서와 달라진 점»).
+ * 제목 임베딩(text-embedding-3-large)으로 잰 값: 관계없는 제목만 0.023~0.032, 주제가 있는 노트 0.107~0.603.
  */
-export const MIN_SILHOUETTE = 0.1;
+export const MIN_SILHOUETTE = 0.05;
 
 export interface Clustering {
   /** 노트 순서대로 묶음 번호. 처음 나온 순서대로 0, 1, 2… */
@@ -16,11 +16,14 @@ export interface Clustering {
   score: number;
 }
 
-/** k = 2 ~ max(2, ⌊노트 수 ÷ 2⌋)를 전부 돌려 실루엣이 가장 높은 묶음. ÷2보다 크면 1개짜리 묶음이 반드시 생긴다. */
+/**
+ * k = 2 ~ max(2, ⌊√(노트 수 ÷ 2)⌋)를 전부 돌려 실루엣이 가장 높은 묶음.
+ * 실루엣은 잘게 쪼갤수록 점수가 오르는 경향이 있어서, 상한을 작게 두어야 위층이 넓게 나오고 안에서 다시 누를 때 세세하게 나뉜다.
+ */
 export function bestClustering(sim: Similarity, options: { minScore?: number; seed?: number } = {}): Clustering | null {
   const n = sim.length;
   if (n < MIN_NOTES) return null;
-  const maxK = Math.max(2, Math.floor(n / 2));
+  const maxK = Math.max(2, Math.floor(Math.sqrt(n / 2)));
   let best: Clustering | null = null;
   for (let k = 2; k <= maxK; k += 1) {
     const raw = kmeans(sim, k, options.seed ?? 42);

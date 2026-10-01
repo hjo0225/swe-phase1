@@ -1,43 +1,28 @@
 /**
- * 제목끼리의 유사도 표. 제목을 글자 2~4개 조각의 TF-IDF 숫자 목록(길이 1)으로 바꾼 뒤 서로 곱한 값(코사인 유사도).
- * 1이면 같은 제목, 0이면 겹치는 조각이 없다. 거리·대표 위치·k-means가 모두 이 표 하나로 계산된다.
+ * 제목끼리의 유사도 표. 제목의 임베딩(뜻이 담긴 숫자 목록)끼리 코사인 유사도를 잰 값.
+ * 1이면 같은 뜻, 0이면 관계없음. 거리·대표 위치·k-means가 모두 이 표 하나로 계산된다.
  */
 export type Similarity = readonly (readonly number[])[];
 
-export function titleSimilarity(titles: readonly string[]): number[][] {
-  const grams = titles.map(charGrams);
-  const docFreq = new Map<string, number>();
-  for (const list of grams) for (const gram of new Set(list)) docFreq.set(gram, (docFreq.get(gram) ?? 0) + 1);
-  const n = titles.length;
-  const vectors = grams.map((list) => {
-    const counts = new Map<string, number>();
-    for (const gram of list) counts.set(gram, (counts.get(gram) ?? 0) + 1);
-    // 여러 제목에 흔한 조각은 가볍게, 드문 조각은 무겁게 (scikit-learn smooth idf와 같은 식)
-    const weights = new Map<string, number>();
-    for (const [gram, count] of counts) weights.set(gram, count * (Math.log((1 + n) / (1 + docFreq.get(gram)!)) + 1));
-    const length = Math.sqrt([...weights.values()].reduce((sum, w) => sum + w * w, 0));
-    for (const [gram, w] of weights) weights.set(gram, length === 0 ? 0 : w / length);
-    return weights;
+/** 숫자 목록끼리의 코사인 유사도 표 (길이는 무시하고 방향만 본다). 길이 0인 목록은 모두와 0. */
+export function cosineSimilarity(vectors: readonly (readonly number[])[]): number[][] {
+  const unit = vectors.map((v) => {
+    const length = Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
+    return v.map((x) => (length === 0 ? 0 : x / length));
   });
-  return vectors.map((a) =>
-    vectors.map((b) => {
+  const n = unit.length;
+  const sim = Array.from({ length: n }, () => new Array<number>(n).fill(0));
+  for (let i = 0; i < n; i += 1) {
+    for (let j = i; j < n; j += 1) {
+      const a = unit[i]!;
+      const b = unit[j]!;
       let dot = 0;
-      for (const [gram, w] of a) dot += w * (b.get(gram) ?? 0);
-      return dot;
-    }),
-  );
-}
-
-/** 단어마다 앞뒤에 공백을 붙여 2~4글자 조각을 낸다 (scikit-learn char_wb와 같은 방식). */
-function charGrams(title: string): string[] {
-  const grams: string[] = [];
-  for (const word of title.toLowerCase().split(/[\s\-_.,()[\]]+/).filter(Boolean)) {
-    const padded = ` ${word} `;
-    for (let size = 2; size <= 4; size += 1) {
-      for (let i = 0; i + size <= padded.length; i += 1) grams.push(padded.slice(i, i + size));
+      for (let d = 0; d < a.length; d += 1) dot += a[d]! * (b[d] ?? 0);
+      sim[i]![j] = dot;
+      sim[j]![i] = dot; // 대칭이라 절반만 계산한다
     }
   }
-  return grams;
+  return sim;
 }
 
 const sqrt0 = (x: number) => Math.sqrt(Math.max(0, x));

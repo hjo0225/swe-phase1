@@ -193,7 +193,7 @@ export function onNotesRelinked(listener: (noteIds: string[]) => void): () => vo
   return () => relinkListeners.delete(listener);
 }
 
-function notifyRelinked(noteIds: string[]): void {
+export function notifyRelinked(noteIds: string[]): void {
   if (noteIds.length === 0) return;
   for (const listener of relinkListeners) listener(noteIds);
 }

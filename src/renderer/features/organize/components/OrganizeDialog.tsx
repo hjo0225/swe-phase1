@@ -1,0 +1,79 @@
+import { useEffect, useRef } from 'react';
+import { BlinkIpcError } from '../../../../shared/ipc/errors';
+import { Dialog } from '../../../shared/ui/Dialog';
+import { useOrganizeApply, useOrganizePreview } from '../api/organize-queries';
+
+const ERRORS: Partial<Record<string, string>> = {
+  AI_PROVIDER_NOT_CONFIGURED: '설정에서 AI를 먼저 연결해 주세요',
+  AI_CAPABILITY_UNSUPPORTED: '지금 모델은 폴더 이름 짓기를 지원하지 않습니다',
+  ORGANIZE_NAMING_FAILED: '폴더 이름을 짓지 못했습니다. 다시 시도해 주세요',
+};
+const SKIPPED = {
+  TOO_FEW_NOTES: '분류하려면 노트가 3개 이상 있어야 합니다',
+  NO_CLEAR_GROUPS: '나눌 만한 묶음이 없습니다',
+} as const;
+
+/** 분류하기: 열리자마자 미리보기를 만들고, «옮기기»를 누르면 그대로 옮긴다. */
+export function OrganizeDialog({ folder, onClose }: { folder: string; onClose(): void }) {
+  const preview = useOrganizePreview();
+  const apply = useOrganizeApply();
+  const started = useRef(false);
+  const { mutate } = preview;
+
+  useEffect(() => {
+    // StrictMode에서 effect가 두 번 돌아도 AI를 두 번 부르지 않는다.
+    if (started.current) return;
+    started.current = true;
+    mutate(folder);
+  }, [mutate, folder]);
+
+  const plan = preview.data;
+  const empty = plan !== undefined && plan.newFolders.length === 0 && plan.moves.length === 0;
+  const error = preview.error ?? apply.error;
+  const errorText = error ? (error instanceof BlinkIpcError && ERRORS[error.code]) || '분류하지 못했습니다' : null;
+
+  return (
+    <Dialog
+      title={`분류하기 — ${folder || '보관함 맨 위'}`}
+      onClose={onClose}
+      actions={
+        <>
+          <button type="button" className="button-secondary" onClick={onClose}>
+            취소
+          </button>
+          <button
+            type="button"
+            className="button-primary"
+            disabled={!plan || empty || apply.isPending}
+            onClick={() => plan && apply.mutate(plan, { onSuccess: onClose })}
+          >
+            옮기기
+          </button>
+        </>
+      }
+    >
+      {preview.isPending && <p>분류하는 중…</p>}
+      {errorText && <p role="alert">{errorText}</p>}
+      {plan && empty && <p>{SKIPPED[plan.skipped ?? 'NO_CLEAR_GROUPS']}</p>}
+      {plan && !empty && (
+        <ul aria-label="분류 미리보기">
+          {plan.newFolders.map((group) => (
+            <li key={`new:${group.name}`}>
+              <strong>새 폴더 {group.name}</strong>
+              <ul>
+                {group.notes.map((note) => (
+                  <li key={note.id}>{note.title}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+          {plan.moves.map((move) => (
+            <li key={`move:${move.id}`}>
+              {move.title} → {move.to}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Dialog>
+  );
+}

@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { FolderPlus, Plus, Search, Settings } from 'lucide-react';
+import { FolderPlus, Plus, Search, Settings, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { AIStatusChip } from '../features/ai-settings/components/AIStatusChip';
 import { useCreateNote } from '../features/notes/api/note-queries';
 import { FolderDialog } from '../features/notes/components/FolderDialogs';
 import { NoteTree } from '../features/notes/components/NoteTree';
+import { OrganizeDialog } from '../features/organize/components/OrganizeDialog';
 import { VaultSwitcher } from '../features/vault/components/VaultSwitcher';
 import { getBlink } from '../shared/api/blink';
 import styles from './Sidebar.module.css';
@@ -22,6 +23,7 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
   // 새 노트·새 폴더가 생길 위치. '' = 보관함 맨 위
   const [selectedFolder, setSelectedFolder] = useState('');
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [organizingRoot, setOrganizingRoot] = useState(false);
   const where = selectedFolder ? ` (${selectedFolder.split('/').pop()})` : '';
 
   return (
@@ -51,6 +53,15 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
         >
           <FolderPlus size={16} strokeWidth={1.75} />
         </button>
+        <button
+          type="button"
+          className="button-icon"
+          aria-label="보관함 분류하기"
+          title="보관함 분류하기"
+          onClick={() => setOrganizingRoot(true)}
+        >
+          <Sparkles size={16} strokeWidth={1.75} />
+        </button>
       </div>
 
       <NoteTree selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />
@@ -72,6 +83,7 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
       {creatingFolder && (
         <FolderDialog state={{ kind: 'create', parent: selectedFolder }} onClose={() => setCreatingFolder(false)} />
       )}
+      {organizingRoot && <OrganizeDialog folder="" onClose={() => setOrganizingRoot(false)} />}
     </nav>
   );
 }

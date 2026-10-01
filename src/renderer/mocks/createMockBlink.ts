@@ -20,6 +20,8 @@ export interface MockBlinkOptions {
   controls?: Partial<MockControls>;
   /** organize:preview가 돌려줄 계획. 없으면 «나눌 만한 묶음 없음». */
   organizePreview?: (folder: string) => OrganizePlan;
+  /** organize:preview를 이 오류 코드로 실패시킨다 (AI 미설정 등) */
+  organizePreviewError?: BlinkErrorCode;
 }
 
 export interface MockControls {
@@ -418,7 +420,9 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
     },
     organize: {
       preview: ({ folder }) =>
-        ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' }),
+        options.organizePreviewError
+          ? fail<OrganizePlan>(options.organizePreviewError, 'mock preview failure')
+          : ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' }),
       apply: (plan) => {
         const createdFolders: string[] = [];
         const failed: { id: string; title: string }[] = [];
@@ -453,9 +457,10 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         const note = notes.get(id);
         return note ? ok({ folder: folderOf(note.path), updatedNoteIds: [] }) : fail('NOTE_NOT_FOUND', id);
       },
-      // 경로(= 파일 이름)에 `#fail`이 있으면 «다른 프로그램이 쓰는 중»으로 실패한다
+      // 경로(= 파일 이름)에 `#fail`이 있으면 «다른 프로그램이 쓰는 중», `#noai`면 «AI 설정 없음»으로 실패한다
       importFile: ({ sourcePath, folder }) => {
         if (sourcePath.includes('#fail')) return fail('NOTE_IMPORT_LOCKED', `${sourcePath} is open in another program`);
+        if (sourcePath.includes('#noai')) return fail('AI_PROVIDER_NOT_CONFIGURED', 'No usable AI provider is configured');
         const at = now();
         const note: MockNote = { id: crypto.randomUUID(), path: inFolder(folder, sourcePath), content: '', createdAt: at, updatedAt: at };
         notes.set(note.id, note);

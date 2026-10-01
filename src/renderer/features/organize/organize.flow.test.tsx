@@ -135,4 +135,24 @@ describe('organize flow', () => {
     expect(await screen.findByText('파일이 다른 프로그램에서 열려 있습니다. 닫고 다시 넣어 주세요')).toBeInTheDocument();
     expect(await sidebarTree().findByText('a 노트')).toBeInTheDocument();
   });
+
+  it('tells the user to connect OpenAI when importing without it', async () => {
+    render(<App />);
+    const region = await screen.findByRole('region', { name: '노트 목록' });
+    const dataTransfer = { types: ['Files'], files: [new File([''], 'c #noai.md')], getData: () => '' };
+
+    fireEvent.dragOver(region, { dataTransfer });
+    fireEvent.drop(region, { dataTransfer });
+
+    expect(await screen.findByText('설정에서 OpenAI를 연결해 주세요')).toBeInTheDocument();
+  });
+
+  it('tells the user to connect OpenAI when classifying without it', async () => {
+    resetBlinkForTests({ organizePreviewError: 'AI_PROVIDER_NOT_CONFIGURED' });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
+    expect(await screen.findByText('설정에서 OpenAI를 연결해 주세요')).toBeInTheDocument();
+  });
 });

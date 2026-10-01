@@ -15,6 +15,10 @@ const UNSORTED = '미분류';
 const IMPORT_ERRORS: Partial<Record<string, string>> = {
   NOTE_IMPORT_LOCKED: '파일이 다른 프로그램에서 열려 있습니다. 닫고 다시 넣어 주세요',
   NOTE_IMPORT_INVALID: '가져올 수 없는 파일입니다',
+  // 가져온 뒤 자동 배치에 임베딩이 필요하다 — 파일은 놓은 폴더에 들어가 있다
+  AI_PROVIDER_NOT_CONFIGURED: '설정에서 OpenAI를 연결해 주세요',
+  AI_CAPABILITY_UNSUPPORTED: '지금 AI 설정으로는 자동 정리를 할 수 없습니다. 설정에서 OpenAI를 연결해 주세요',
+  ORGANIZE_EMBEDDING_FAILED: '노트 제목을 읽지 못해 자동 정리를 못 했습니다',
 };
 
 interface FolderNode {

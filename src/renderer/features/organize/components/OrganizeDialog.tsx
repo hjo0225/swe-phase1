@@ -4,8 +4,9 @@ import { Dialog } from '../../../shared/ui/Dialog';
 import { useOrganizeApply, useOrganizePreview } from '../api/organize-queries';
 
 const ERRORS: Partial<Record<string, string>> = {
-  AI_PROVIDER_NOT_CONFIGURED: '설정에서 AI를 먼저 연결해 주세요',
-  AI_CAPABILITY_UNSUPPORTED: '지금 모델은 폴더 이름 짓기를 지원하지 않습니다',
+  AI_PROVIDER_NOT_CONFIGURED: '설정에서 OpenAI를 연결해 주세요',
+  AI_CAPABILITY_UNSUPPORTED: '지금 AI 설정으로는 분류할 수 없습니다. 설정에서 OpenAI를 연결해 주세요',
+  ORGANIZE_EMBEDDING_FAILED: '노트 제목을 읽지 못했습니다. 다시 시도해 주세요',
   ORGANIZE_NAMING_FAILED: '폴더 이름을 짓지 못했습니다. 다시 시도해 주세요',
 };
 const SKIPPED = {

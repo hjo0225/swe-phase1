@@ -40,3 +40,13 @@ export function uniqueName(base: string, taken: ReadonlySet<string>): string {
     if (!lower.has(candidate.toLowerCase())) return candidate;
   }
 }
+
+/** `기본`, 겹치면 `기본 (2)`, `기본 (3)`… — 윈도우 복사 이름과 같은 모양. 분류·가져오기에서 쓴다. (대소문자 무시) */
+export function numberedName(base: string, taken: ReadonlySet<string>): string {
+  const lower = new Set([...taken].map((t) => t.toLowerCase()));
+  if (!lower.has(base.toLowerCase())) return base;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base} (${n})`;
+    if (!lower.has(candidate.toLowerCase())) return candidate;
+  }
+}

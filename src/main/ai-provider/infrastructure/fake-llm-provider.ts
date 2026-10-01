@@ -57,10 +57,10 @@ export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory 
         async generateStructured({ user, schemaName, signal }) {
           await wait(signal);
           guard(user);
-          // organize의 폴더 이름 짓기 (FOLDER_NAMES_SCHEMA) — 묶음 수만큼 «묶음1», «묶음2»…
-          if (schemaName === 'folder_names') {
-            const count = user.split('\n').filter((line) => line.startsWith('묶음 ')).length;
-            return { names: Array.from({ length: count }, (_, i) => `묶음${i + 1}`) };
+          // organize의 폴더 경로 정하기 (FOLDER_PLAN_SCHEMA) — 묶음마다 «묶음N» 폴더 하나
+          if (schemaName === 'folder_paths') {
+            const groups = user.split('\n').filter((line) => /^G\d+ /.test(line));
+            return { assignments: groups.map((line, i) => ({ group: line.split(' ')[0]!, path: [`묶음${i + 1}`] })) };
           }
           return {
             version: 1,

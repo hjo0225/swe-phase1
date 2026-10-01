@@ -12,8 +12,8 @@ export interface PlannedNote {
 export interface OrganizePlan {
   /** 분류를 누른 폴더 ('' = 보관함 맨 위) */
   folder: string;
-  /** 새로 만들 하위 폴더 (AI가 지은 이름)와 그리로 갈 노트 */
-  newFolders: { name: string; notes: PlannedNote[] }[];
+  /** 새로 만들 하위 폴더와 그리로 갈 노트. path는 분류를 누른 폴더 기준 경로(1~3층, AI가 정함) */
+  newFolders: { path: string[]; notes: PlannedNote[] }[];
   /** 이미 있는 폴더(또는 「미분류」)로 갈 노트 */
   moves: (PlannedNote & { to: string })[];
   /** 옮길 것이 하나도 없을 때 그 이유 */

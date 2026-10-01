@@ -13,7 +13,7 @@ import { DomainError } from '../../platform/errors';
 import { bestClustering, MIN_NOTES, MIN_SILHOUETTE } from '../domain/clustering';
 import { closerNewGroup, fittingFolder, folderRadius } from '../domain/placement';
 import { cosineSimilarity, subMatrix } from '../domain/similarity';
-import { nameFolders, UNSORTED } from './folder-namer';
+import { planFolders, UNSORTED } from './folder-planner';
 
 const NAMING_TIMEOUT_MS = 60_000;
 const EMBEDDING_TIMEOUT_MS = 60_000;
@@ -128,12 +128,20 @@ export class OrganizeService {
       for (const note of leftovers) if (!same(note.folder, unsorted)) moves.push({ ...planned(note), to: unsorted });
     }
 
-    // 5. 새 폴더 이름 — 분류하기 한 번에 AI 한 번
-    const names = groups.length === 0 ? [] : await this.nameGroups(folder, groups);
+    // 5. 위로 합치기와 이름 — 묶음마다 폴더 경로를 gpt가 정한다 (분류하기 한 번에 AI 한 번). 같은 경로는 한 폴더로 합친다.
+    const paths = groups.length === 0 ? [] : await this.planGroups(folder, groups);
+    const byPath = new Map<string, { path: string[]; notes: PlannedNote[] }>();
+    groups.forEach((group, i) => {
+      const path = paths[i]!;
+      const key = path.join('/').toLowerCase();
+      const entry = byPath.get(key) ?? { path, notes: [] };
+      entry.notes.push(...group.map(planned));
+      byPath.set(key, entry);
+    });
     const nothing = groups.length === 0 && moves.length === 0;
     return {
       folder,
-      newFolders: groups.map((group, i) => ({ name: names[i]!, notes: group.map(planned) })),
+      newFolders: [...byPath.values()],
       moves,
       skipped: nothing ? (remaining.length < MIN_NOTES ? 'TOO_FEW_NOTES' : 'NO_CLEAR_GROUPS') : null,
     };
@@ -160,7 +168,8 @@ export class OrganizeService {
     };
     for (const group of plan.newFolders) {
       let path: string | null = null;
-      const folder = () => (path ??= this.ensureFolder(plan.folder, group.name, createdFolders));
+      // 경로의 폴더를 위층부터 하나씩 만든다 (이미 있으면 그대로 쓴다)
+      const folder = () => (path ??= group.path.reduce((parent, name) => this.ensureFolder(parent, name, createdFolders), plan.folder));
       for (const note of group.notes) moveInto(note, folder);
     }
     for (const move of plan.moves) moveInto(move, () => this.ensureFolder(parentOf(move.to), nameOf(move.to), createdFolders));
@@ -227,12 +236,12 @@ export class OrganizeService {
     return vectors;
   }
 
-  private async nameGroups(folder: string, groups: NoteSummary[][]): Promise<string[]> {
+  private async planGroups(folder: string, groups: NoteSummary[][]): Promise<string[][]> {
     const active = this.deps.activeLLM.resolve(); // 설정이 없으면 AI_PROVIDER_NOT_CONFIGURED
     if (!active.capabilities.supportsAll(['structuredOutput'])) {
       throw new DomainError('AI_CAPABILITY_UNSUPPORTED', `${active.model} cannot return structured output`);
     }
-    return nameFolders(
+    return planFolders(
       active.client,
       { parentPath: folder, groups: groups.map((group) => group.map((n) => n.title)) },
       AbortSignal.timeout(NAMING_TIMEOUT_MS),

@@ -25,7 +25,7 @@ describe('organize flow', () => {
     const b = await seedNote('spring boot 실무 2편');
     plan = (folder) => ({
       folder,
-      newFolders: [{ name: 'Spring', notes: [a, b].map((n) => ({ id: n.id, title: n.title, from: '' })) }],
+      newFolders: [{ path: ['공부', 'Spring'], notes: [a, b].map((n) => ({ id: n.id, title: n.title, from: '' })) }],
       moves: [],
       skipped: null,
     });
@@ -34,11 +34,11 @@ describe('organize flow', () => {
 
     await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
     const dialog = await screen.findByRole('dialog', { name: '분류하기 — 보관함 맨 위' });
-    expect(await within(dialog).findByText('새 폴더 Spring')).toBeInTheDocument();
+    expect(await within(dialog).findByText('새 폴더 공부 / Spring')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: '옮기기' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(await sidebarTree().findByRole('treeitem', { name: 'Spring' })).toBeInTheDocument();
+    expect(await sidebarTree().findByRole('treeitem', { name: '공부' })).toBeInTheDocument();
   });
 
   it('tells the user when there is nothing to group', async () => {
@@ -102,7 +102,7 @@ describe('organize flow', () => {
       folder,
       newFolders: [
         {
-          name: 'Spring',
+          path: ['Spring'],
           notes: [
             { id: a.id, title: a.title, from: '' },
             { id: '22222222-2222-4222-8222-222222222222', title: '잠긴 노트', from: '' },

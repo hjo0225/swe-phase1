@@ -443,8 +443,12 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
           movedNotes += 1;
         };
         for (const group of plan.newFolders) {
-          const path = inFolder(plan.folder, group.name);
-          ensure(path);
+          // 경로의 폴더를 위층부터 하나씩 만든다
+          const path = group.path.reduce((parent, name) => {
+            const child = inFolder(parent, name);
+            ensure(child);
+            return child;
+          }, plan.folder);
           for (const note of group.notes) moveTo(note, path);
         }
         for (const move of plan.moves) {

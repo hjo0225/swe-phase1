@@ -28,12 +28,23 @@ let llmConfigured: boolean;
 let busyNoteId: string | null;
 /** 임베딩이 이 오류로 실패한다 (null이면 성공) */
 let embedError: Error | null;
-/** 가짜 AI: 묶음 줄에 spring이 있으면 Spring, rust면 Rust */
+/** true면 가짜 AI가 모든 묶음을 같은 경로로 보낸다 (합치기 시험용) */
+let samePath: boolean;
+/** 가짜 AI: 묶음 줄에 spring이 있으면 공부/Spring, rust면 공부/Rust */
 const namer = vi.fn(async ({ user }: { user: string }) => ({
-  names: user
+  assignments: user
     .split('\n')
-    .filter((line) => line.startsWith('묶음 '))
-    .map((line, i) => (line.includes('spring') ? 'Spring' : line.includes('rust') ? 'Rust' : `기타${i + 1}`)),
+    .filter((line) => /^G\d+ /.test(line))
+    .map((line, i) => ({
+      group: line.split(' ')[0]!,
+      path: samePath
+        ? ['공부']
+        : line.includes('spring')
+          ? ['공부', 'Spring']
+          : line.includes('rust')
+            ? ['공부', 'Rust']
+            : [`기타${i + 1}`],
+    })),
 }));
 /** 가짜 임베딩: 제목에 든 주제 단어마다 그 칸에 1, 제목마다 다른 작은 흔들림 칸에 0.3 */
 const TOPIC_WORDS = ['spring', 'rust', '찌개', '스쿼트', '영어', '자료구조'];
@@ -69,6 +80,7 @@ beforeEach(() => {
   namer.mockClear();
   embedder.mockClear();
   embedError = null;
+  samePath = false;
   llmConfigured = true;
   busyNoteId = null;
   const notesPort = Object.assign(Object.create(notes) as VaultNoteService, {
@@ -127,10 +139,10 @@ describe('preview', () => {
     const plan = await organize.preview('');
     expect(plan.skipped).toBeNull();
     expect(plan.moves).toEqual([]);
-    const groups = plan.newFolders.map((f) => [f.name, f.notes.map((n) => n.title).sort()]).sort();
+    const groups = plan.newFolders.map((f) => [f.path.join('/'), f.notes.map((n) => n.title).sort()]).sort();
     expect(groups).toEqual([
-      ['Rust', [...RUST].sort()],
-      ['Spring', [...SPRING].sort()],
+      ['공부/Rust', [...RUST].sort()],
+      ['공부/Spring', [...SPRING].sort()],
     ]);
     expect(namer).toHaveBeenCalledTimes(1);
     expect(titlesIn('')).toHaveLength(6);
@@ -194,13 +206,22 @@ describe('preview', () => {
 });
 
 describe('apply', () => {
-  it('creates the folders and moves the notes as previewed', async () => {
+  it('creates nested folders from the planned paths and moves the notes as previewed', async () => {
     seed('', ...SPRING, ...RUST);
     const result = organize.apply(await organize.preview(''));
-    expect(result.createdFolders.sort()).toEqual(['Rust', 'Spring']);
+    expect(result.createdFolders.sort()).toEqual(['공부', '공부/Rust', '공부/Spring']);
     expect(result.movedNotes).toBe(6);
-    expect(titlesIn('Spring')).toEqual([...SPRING].sort());
-    expect(titlesIn('Rust')).toEqual([...RUST].sort());
+    expect(titlesIn('공부/Spring')).toEqual([...SPRING].sort());
+    expect(titlesIn('공부/Rust')).toEqual([...RUST].sort());
+  });
+
+  it('merges groups that get the same path into one folder', async () => {
+    samePath = true;
+    seed('', ...SPRING, ...RUST);
+    const plan = await organize.preview('');
+    expect(plan.newFolders.map((f) => [f.path, f.notes.length])).toEqual([[['공부'], 6]]);
+    organize.apply(plan);
+    expect(titlesIn('공부')).toEqual([...SPRING, ...RUST].sort());
   });
 
   it('creates 미분류 when needed and skips notes deleted after the preview', async () => {
@@ -220,8 +241,8 @@ describe('apply', () => {
     const result = organize.apply(plan);
     expect(result.movedNotes).toBe(5);
     expect(result.failed).toEqual([{ id: busyNoteId, title: 'rust 소유권 활용' }]);
-    expect(titlesIn('Spring')).toEqual([...SPRING].sort());
-    expect(titlesIn('Rust')).toEqual(['rust 소유권 심화', 'rust 소유권 정리']);
+    expect(titlesIn('공부/Spring')).toEqual([...SPRING].sort());
+    expect(titlesIn('공부/Rust')).toEqual(['rust 소유권 심화', 'rust 소유권 정리']);
     expect(titlesIn('')).toEqual(['rust 소유권 활용']);
   });
 });

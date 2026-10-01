@@ -87,7 +87,13 @@ export const OrganizeFolderRequest = z.object({ folder: RelativePathSchema }).st
 export const OrganizeApplyRequest = z
   .object({
     folder: RelativePathSchema,
-    newFolders: z.array(z.object({ name: z.string().max(1000), notes: z.array(PlannedNoteSchema).max(10_000) }).strict()).max(5_000),
+    newFolders: z
+      .array(
+        z
+          .object({ path: z.array(z.string().max(1000)).min(1).max(3), notes: z.array(PlannedNoteSchema).max(10_000) })
+          .strict(),
+      )
+      .max(5_000),
     moves: z
       .array(z.object({ id: NoteIdSchema, title: z.string().max(1000), from: RelativePathSchema, to: RelativePathSchema }).strict())
       .max(10_000),

@@ -7,7 +7,7 @@ const ERRORS: Partial<Record<string, string>> = {
   AI_PROVIDER_NOT_CONFIGURED: '설정에서 OpenAI를 연결해 주세요',
   AI_CAPABILITY_UNSUPPORTED: '지금 AI 설정으로는 분류할 수 없습니다. 설정에서 OpenAI를 연결해 주세요',
   ORGANIZE_EMBEDDING_FAILED: '노트 제목을 읽지 못했습니다. 다시 시도해 주세요',
-  ORGANIZE_NAMING_FAILED: '폴더 이름을 짓지 못했습니다. 다시 시도해 주세요',
+  ORGANIZE_NAMING_FAILED: '폴더를 정리하지 못했습니다. 다시 시도해 주세요',
 };
 const SKIPPED = {
   TOO_FEW_NOTES: '분류하려면 노트가 3개 이상 있어야 합니다',
@@ -64,8 +64,8 @@ export function OrganizeDialog({ folder, onClose }: { folder: string; onClose():
       {plan && !empty && (
         <ul aria-label="분류 미리보기">
           {plan.newFolders.map((group) => (
-            <li key={`new:${group.name}`}>
-              <strong>새 폴더 {group.name}</strong>
+            <li key={`new:${group.path.join('/')}`}>
+              <strong>{`새 폴더 ${group.path.join(' / ')}`}</strong>
               <ul>
                 {group.notes.map((note) => (
                   <li key={note.id}>{note.title}</li>

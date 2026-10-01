@@ -28,7 +28,7 @@ const namer = vi.fn(async ({ user }: { user: string }) => ({
   names: user
     .split('\n')
     .filter((line) => line.startsWith('묶음 '))
-    .map((line) => (line.includes('spring') ? 'Spring' : line.includes('rust') ? 'Rust' : '기타')),
+    .map((line, i) => (line.includes('spring') ? 'Spring' : line.includes('rust') ? 'Rust' : `기타${i + 1}`)),
 }));
 
 beforeEach(() => {
@@ -215,6 +215,17 @@ describe('place across levels', () => {
     seed('', ...RUST, 'spring boot 실무 4편');
     expect(organize.place(idOf('spring boot 실무 4편'))).toEqual({ folder: '', updatedNoteIds: [] });
   });
+});
+
+describe('speed', () => {
+  it('previews 30 loose notes against a 200-note subfolder within 3 seconds', async () => {
+    const topics = ['spring boot 실무', 'rust 소유권', '김치찌개 레시피', '영어 회화', '자료구조'];
+    seed('공부', ...Array.from({ length: 200 }, (_, i) => `${topics[i % 5]} ${i}편`));
+    seed('', ...Array.from({ length: 30 }, (_, i) => `${topics[i % 5]} 새 노트 ${i}`));
+    const start = performance.now();
+    await organize.preview('');
+    expect(performance.now() - start).toBeLessThan(3000);
+  }, 60_000);
 });
 
 describe('importFile', () => {

@@ -10,7 +10,7 @@ import type { ActiveModel } from '../../ai-provider/application/active-llm';
 import { numberedName } from '../../note/domain/names';
 import { DomainError } from '../../platform/errors';
 import { bestClustering, MIN_NOTES, MIN_SILHOUETTE } from '../domain/clustering';
-import { closerNewGroup, fittingFolder } from '../domain/placement';
+import { closerNewGroup, fittingFolder, folderRadius } from '../domain/placement';
 import { subMatrix, titleSimilarity } from '../domain/similarity';
 import { nameFolders, UNSORTED } from './folder-namer';
 
@@ -71,7 +71,10 @@ export class OrganizeService {
     const sim = titleSimilarity(everyone.map((n) => n.title));
     const indexOf = new Map(everyone.map((n, i) => [n.id, i]));
     const at = (note: NoteSummary) => indexOf.get(note.id)!;
-    const shapes = subfolders.map((path, i) => ({ path, members: members[i]!.map(at) }));
+    const shapes = subfolders.map((path, i) => {
+      const indexes = members[i]!.map(at);
+      return { path, members: indexes, radius: folderRadius(sim, indexes) }; // 후보마다 다시 구하지 않게 한 번만
+    });
 
     // 1. 이미 있는 하위 폴더에 맞는 노트는 그 폴더로
     const moves: OrganizePlan['moves'] = [];

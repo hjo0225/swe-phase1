@@ -5,6 +5,22 @@ import { titleSimilarity } from './similarity';
 /** 1차원 점끼리 곱한 표 — 거리 = 두 점의 차이 */
 const line = (xs: number[]) => xs.map((a) => xs.map((b) => a * b));
 
+/** 주제 5개가 섞인 가짜 제목 n개 */
+const manyTitles = (n: number) =>
+  Array.from({ length: n }, (_, i) => `${['spring boot 실무', 'rust 소유권', '김치찌개 레시피', '영어 회화', '자료구조'][i % 5]} ${i}편`);
+
+describe('speed', () => {
+  it('measures the radius of a 400-note folder within half a second', () => {
+    const sim = titleSimilarity(manyTitles(400));
+    const start = performance.now();
+    folderRadius(
+      sim,
+      sim.map((_, i) => i),
+    );
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+});
+
 describe('folderRadius', () => {
   it('measures each note against the center of the others', () => {
     // 폴더 [0, 2]: 0은 나머지(2)와 2, 2는 나머지(0)와 2 → 반경 2

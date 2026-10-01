@@ -3,6 +3,7 @@ import type { ProviderId, ProviderSettingsView } from '../../shared/ipc/ai-provi
 import type { AIJobView, JobResultDto } from '../../shared/ipc/assist';
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
 import type { LinkedNote, NoteSummary, VaultChangedEvent, VaultInfo } from '../../shared/ipc/notes';
+import type { OrganizePlan } from '../../shared/ipc/organize';
 import type { BlinkErrorCode, IpcResult } from '../../shared/ipc/result';
 import { extractLinkTargets, linkTargetFor, resolveLinkTarget, rewriteLinkTargets } from '../../shared/notes/wiki-link';
 
@@ -17,6 +18,8 @@ export interface MockBlinkOptions {
   vaultOpen?: boolean;
   /** 테스트가 "밖에서 바뀜"을 흉내 낼 수 있게 Mock이 채운다. */
   controls?: Partial<MockControls>;
+  /** organize:preview가 돌려줄 계획. 없으면 «나눌 만한 묶음 없음». */
+  organizePreview?: (folder: string) => OrganizePlan;
 }
 
 export interface MockControls {
@@ -412,6 +415,41 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         jobListeners.add(listener);
         return () => jobListeners.delete(listener);
       },
+    },
+    organize: {
+      preview: ({ folder }) =>
+        ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' }),
+      apply: (plan) => {
+        const createdFolders: string[] = [];
+        let movedNotes = 0;
+        const ensure = (path: string) => {
+          if (folders.has(path)) return;
+          folders.add(path);
+          createdFolders.push(path);
+        };
+        const moveTo = (id: string, folder: string) => {
+          const note = notes.get(id);
+          if (!note) return;
+          note.path = inFolder(folder, note.path.split('/').pop()!);
+          movedNotes += 1;
+        };
+        for (const group of plan.newFolders) {
+          const path = inFolder(plan.folder, group.name);
+          ensure(path);
+          for (const note of group.notes) moveTo(note.id, path);
+        }
+        for (const move of plan.moves) {
+          ensure(move.to);
+          moveTo(move.id, move.to);
+        }
+        return ok({ movedNotes, createdFolders, updatedNoteIds: [] });
+      },
+      place: ({ id }) => {
+        const note = notes.get(id);
+        return note ? ok({ folder: folderOf(note.path), updatedNoteIds: [] }) : fail('NOTE_NOT_FOUND', id);
+      },
+      importFile: ({ sourcePath }) => fail('NOTE_IMPORT_INVALID', `Mock cannot read ${sourcePath}`),
+      pathForFile: (file) => file.name,
     },
   };
 }

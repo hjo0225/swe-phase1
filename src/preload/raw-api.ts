@@ -7,7 +7,11 @@ import type { IpcResult } from '../shared/ipc/result';
 export type Invoke = (channel: string, request: unknown) => Promise<unknown>;
 export type Subscribe = (channel: string, listener: (payload: unknown) => void) => () => void;
 
-export function createRawBlinkApi(invoke: Invoke, subscribe: Subscribe): RawBlinkApi {
+export function createRawBlinkApi(
+  invoke: Invoke,
+  subscribe: Subscribe,
+  pathForFile: (file: File) => string = () => '',
+): RawBlinkApi {
   const call = <T>(channel: string, request: unknown = {}) => invoke(channel, request) as Promise<IpcResult<T>>;
   return {
     app: {
@@ -52,6 +56,13 @@ export function createRawBlinkApi(invoke: Invoke, subscribe: Subscribe): RawBlin
       getProvider: () => call(IpcChannels.settingsGetProvider),
       updateProvider: (input) => call(IpcChannels.settingsUpdateProvider, input),
       testProvider: (input) => call(IpcChannels.settingsTestProvider, input),
+    },
+    organize: {
+      preview: (input) => call(IpcChannels.organizePreview, input),
+      apply: (input) => call(IpcChannels.organizeApply, input),
+      place: (input) => call(IpcChannels.organizePlace, input),
+      importFile: (input) => call(IpcChannels.organizeImport, input),
+      pathForFile,
     },
   };
 }

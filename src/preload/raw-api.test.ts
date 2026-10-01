@@ -58,4 +58,24 @@ describe('createRawBlinkApi', () => {
     subscribe.mock.calls[0]![1]({});
     expect(listener).toHaveBeenCalledOnce();
   });
+
+  it('maps organize methods to organize channels and passes file paths through', async () => {
+    const invoke = vi.fn().mockResolvedValue({ ok: true, data: null });
+    const api = createRawBlinkApi(invoke, noSubscribe, (file) => `C:/Downloads/${file.name}`);
+    const id = '11111111-1111-4111-8111-111111111111';
+    const plan = { folder: '', newFolders: [], moves: [], skipped: null };
+
+    await api.organize.preview({ folder: '' });
+    await api.organize.apply(plan);
+    await api.organize.place({ id });
+    await api.organize.importFile({ sourcePath: 'C:/a.md', folder: '' });
+
+    expect(invoke.mock.calls.map(([channel]) => channel)).toEqual([
+      'organize:preview',
+      'organize:apply',
+      'organize:place',
+      'organize:import',
+    ]);
+    expect(api.organize.pathForFile(new File([''], '강의.md'))).toBe('C:/Downloads/강의.md');
+  });
 });

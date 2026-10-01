@@ -28,6 +28,8 @@ import { VaultManager } from './note/application/vault/vault-manager';
 import { JsonAppConfigStore } from './note/infrastructure/vault/app-config-store';
 import { openNoteVault, type OpenedNoteVault } from './note/infrastructure/vault/open-note-vault';
 import { noteIpcHandlers } from './note/presentation/note.ipc';
+import { OrganizeService } from './organize/application/organize-service';
+import { organizeIpcHandlers } from './organize/presentation/organize.ipc';
 import { systemClock, uuid } from './platform/clock';
 import { openDatabase } from './platform/db/connection';
 import { runMigrations } from './platform/db/migrate';
@@ -89,6 +91,11 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
   const llmFactory = useFakeLLM ? createFakeLLMProviderFactory() : createLLMProviderFactory();
   const providerSettings = new ProviderSettingsService(providerRepo, cipher, llmFactory, systemClock);
   const activeLLM = new ActiveLLM(providerRepo, cipher, llmFactory);
+  const organize = new OrganizeService({
+    notes: () => vaults.session().notes,
+    folders: () => vaults.session().folders,
+    activeLLM,
+  });
 
   const jobRepo = new SessionAIJobRepository(() => vaults.session().jobs);
   const publisher: JobEventPublisher = { jobUpdated: (view) => broadcast(IpcEvents.aiJobUpdated, view) };
@@ -127,6 +134,7 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
         queries: new AIJobQueries(jobRepo),
       }),
       ...visualizationIpcHandlers(exportPng),
+      ...organizeIpcHandlers(organize),
     },
     isTrusted,
   );

@@ -79,3 +79,29 @@ export const SavePngRequest = z
     suggestedFileName: z.string().max(200).optional(),
   })
   .strict();
+
+const PlannedNoteSchema = z.object({ id: NoteIdSchema, title: z.string().max(1000), from: RelativePathSchema }).strict();
+
+export const OrganizeFolderRequest = z.object({ folder: RelativePathSchema }).strict();
+
+export const OrganizeApplyRequest = z
+  .object({
+    folder: RelativePathSchema,
+    newFolders: z
+      .array(
+        z
+          .object({ path: z.array(z.string().max(1000)).min(1).max(3), notes: z.array(PlannedNoteSchema).max(10_000) })
+          .strict(),
+      )
+      .max(5_000),
+    moves: z
+      .array(z.object({ id: NoteIdSchema, title: z.string().max(1000), from: RelativePathSchema, to: RelativePathSchema }).strict())
+      .max(10_000),
+    skipped: z.enum(['TOO_FEW_NOTES', 'NO_CLEAR_GROUPS']).nullable(),
+  })
+  .strict();
+
+export const PlaceNoteRequest = z.object({ id: NoteIdSchema }).strict();
+
+// 파일 확장자·절대 경로 여부는 도메인(NOTE_IMPORT_INVALID)이 검사한다.
+export const ImportNoteRequest = z.object({ sourcePath: z.string().min(1).max(1000), folder: RelativePathSchema }).strict();

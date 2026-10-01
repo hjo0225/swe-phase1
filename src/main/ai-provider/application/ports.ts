@@ -19,6 +19,8 @@ export interface LLMProvider {
     user: string;
     signal: AbortSignal;
   }): Promise<{ text: string; sources: { title: string; url: string }[] }>;
+  /** 글마다 뜻이 담긴 숫자 목록(임베딩)을 입력 순서대로. 지원하지 않는 공급자는 ProviderError('UNSUPPORTED'). */
+  embed(request: { inputs: string[]; signal: AbortSignal }): Promise<number[][]>;
 }
 
 export type ProviderErrorKind = 'AUTH' | 'RATE_LIMIT' | 'UNAVAILABLE' | 'MODEL_NOT_FOUND' | 'BAD_RESPONSE' | 'UNSUPPORTED';

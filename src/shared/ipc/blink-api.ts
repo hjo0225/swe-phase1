@@ -19,6 +19,7 @@ import type {
   UpdateProviderInput,
 } from './ai-provider';
 import type { AIJobView, CreateJobInput, JobId } from './assist';
+import type { ImportNoteResult, OrganizeApplyResult, OrganizePlan, PlaceNoteResult } from './organize';
 import type { IpcResult } from './result';
 
 export interface AppInfo {
@@ -74,6 +75,14 @@ export interface BlinkApi {
     getProvider(): Promise<ProviderSettingsView>;
     updateProvider(input: UpdateProviderInput): Promise<ProviderSettingsView>;
     testProvider(input: TestProviderInput): Promise<TestProviderResult>;
+  };
+  organize: {
+    preview(input: { folder: string }): Promise<OrganizePlan>;
+    apply(input: OrganizePlan): Promise<OrganizeApplyResult>;
+    place(input: { id: NoteId }): Promise<PlaceNoteResult>;
+    importFile(input: { sourcePath: string; folder: string }): Promise<ImportNoteResult>;
+    /** 끌어다 놓은 파일의 실제 경로 (Electron webUtils). IPC가 아니라 Preload에서 바로 답한다. */
+    pathForFile(file: File): string;
   };
 }
 

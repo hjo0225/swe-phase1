@@ -157,4 +157,9 @@ describe('KimiProvider', () => {
     const missing = fakeFetch({ '/models': { status: 200, payload: models } });
     await expect(make(missing.fetch, 'kimi-k3').testConnection(signal)).rejects.toMatchObject({ kind: 'MODEL_NOT_FOUND' });
   });
+
+  it('does not support embeddings', async () => {
+    const { fetch } = fakeFetch({});
+    await expect(make(fetch).embed({ inputs: ['a'], signal })).rejects.toMatchObject({ kind: 'UNSUPPORTED' });
+  });
 });

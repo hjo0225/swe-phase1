@@ -12,7 +12,7 @@ import type {
 import { resolveLinkTarget } from '../../../../shared/notes/wiki-link';
 import { DomainError } from '../../../platform/errors';
 import { MarkdownContent } from '../../domain/markdown-content';
-import { NoteName, uniqueName } from '../../domain/names';
+import { NoteName, numberedName, uniqueName } from '../../domain/names';
 import { snippetOf } from '../../domain/note-text';
 import { FolderPath, NotePath } from '../../domain/note-path';
 import { SearchQuery } from '../../domain/search-query';
@@ -101,6 +101,47 @@ export class VaultNoteService {
       throw new DomainError('FOLDER_NOT_FOUND', `Folder ${folder.value} not found`);
     }
     return this.relocate(row, NotePath.of(row.path).inFolder(folder).value);
+  }
+
+  /** 보관함 밖 `.md` 파일을 폴더로 옮겨 와 노트로 만든다. 같은 이름이 있으면 `이름 (2)`. */
+  importFile(input: { sourcePath: string; folder: string }): NoteDetail {
+    const { fs, index, nextId } = this.deps;
+    const fileName = input.sourcePath.split(/[\\/]/).pop() ?? '';
+    const absolute = /^([a-zA-Z]:[\\/]|[\\/])/.test(input.sourcePath);
+    if (!absolute || !/\.md$/i.test(fileName)) {
+      throw new DomainError('NOTE_IMPORT_INVALID', `Not an importable markdown file: ${fileName}`);
+    }
+    const folder = FolderPath.of(input.folder);
+    if (!folder.isRoot && !fs.exists(folder.value)) throw new DomainError('FOLDER_NOT_FOUND', `Folder ${folder.value} not found`);
+    const taken = new Set(
+      fs
+        .listMarkdownFiles()
+        .map((f) => NotePath.of(f.path))
+        .filter((p) => p.folder.toLowerCase() === folder.value.toLowerCase())
+        .map((p) => p.name),
+    );
+    const path = NotePath.in(folder, NoteName.of(numberedName(fileName.replace(/\.md$/i, ''), taken)));
+    // 복사 → 내용 검사 → 원본 지우기. 중간에 실패하면 복사본을 지워서 «아무것도 안 옮김» 상태로 되돌린다.
+    try {
+      fs.copyIn(input.sourcePath, path.value);
+    } catch {
+      throw new DomainError('NOTE_IMPORT_INVALID', `Could not import ${fileName}`);
+    }
+    let entry: ReturnType<typeof readEntry>;
+    try {
+      entry = readEntry(fs, path.value, nextId())!; // 크기(2MB) 같은 내용 규칙도 여기서 검사된다
+      fs.removeExternal(input.sourcePath);
+    } catch (error) {
+      fs.remove(path.value);
+      const code = (error as { code?: string }).code;
+      if (code === 'EBUSY' || code === 'EPERM' || code === 'EACCES') {
+        throw new DomainError('NOTE_IMPORT_LOCKED', `${fileName} is open in another program`);
+      }
+      throw error;
+    }
+    // 감시 이벤트보다 먼저 색인을 맞춰 두면 자기 변경을 외부 변경으로 보지 않는다.
+    index.upsert(entry!);
+    return this.detail(entry, fs.read(path.value));
   }
 
   delete(id: string): { deleted: true } {

@@ -28,6 +28,9 @@ export const OPENAI_MODELS: readonly ModelDescriptor[] = [
   { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini', capabilities: all },
 ];
 
+/** 노트 제목 분류용 임베딩 모델. 짧은 한국어 제목에서 small보다 넓은 주제를 잘 갈랐다 (organize 계획서 측정). */
+export const EMBEDDING_MODEL = 'text-embedding-3-large';
+
 interface OpenAIProviderConfig {
   apiKey: string;
   model: string;
@@ -53,6 +56,15 @@ export class OpenAIProvider implements LLMProvider {
 
   async testConnection(signal: AbortSignal): Promise<void> {
     await this.call(() => this.client.models.retrieve(this.model, { signal }));
+  }
+
+  async embed({ inputs, signal }: { inputs: string[]; signal: AbortSignal }): Promise<number[][]> {
+    if (inputs.length === 0) return [];
+    const response = await this.call(() =>
+      // encoding_format을 정하지 않으면 SDK가 base64로 받아 바꾸는데, 숫자 배열로 바로 받는다.
+      this.client.embeddings.create({ model: EMBEDDING_MODEL, input: inputs, encoding_format: 'float' }, { signal }),
+    );
+    return [...response.data].sort((a, b) => a.index - b.index).map((item) => item.embedding);
   }
 
   async generateText({ system, user, signal }: { system: string; user: string; signal: AbortSignal }): Promise<string> {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
+import { usePlaceNote } from '../../organize/api/organize-queries';
 import { useRenameNote } from '../api/note-queries';
 import styles from './NotePage.module.css';
 
@@ -7,6 +8,8 @@ const RENAME_ERRORS: Partial<Record<string, string>> = {
   NOTE_TITLE_TAKEN: '같은 폴더에 같은 이름의 노트가 있습니다',
   NOTE_TITLE_INVALID: '파일 이름으로 쓸 수 없는 제목입니다 (\\ / : * ? " < > | 제외, 200자 이하)',
 };
+/** Blink가 새 노트에 붙이는 임시 제목 (`제목 없음`, `제목 없음 1` …) */
+const PLACEHOLDER_TITLE = /^제목 없음( \d+)?$/;
 
 /** 제목 = 파일 이름 (D-16). 입력을 마칠 때(Enter·blur) 이름을 바꾸고, 실패하면 원래 이름으로 되돌린다. */
 export function TitleInput({ noteId, title }: { noteId: string; title: string }) {
@@ -14,6 +17,7 @@ export function TitleInput({ noteId, title }: { noteId: string; title: string })
   const [committed, setCommitted] = useState(title);
   const [error, setError] = useState<string | null>(null);
   const rename = useRenameNote();
+  const place = usePlaceNote();
 
   const commit = () => {
     const next = draft.trim();
@@ -25,6 +29,8 @@ export function TitleInput({ noteId, title }: { noteId: string; title: string })
       { id: noteId, title: next },
       {
         onSuccess: (result) => {
+          // 처음 제목을 붙인 순간 한 번만 자동 배치한다. 그 뒤 제목을 바꿔도 움직이지 않는다.
+          if (PLACEHOLDER_TITLE.test(committed) && !PLACEHOLDER_TITLE.test(result.note.title)) place.mutate(noteId);
           setCommitted(result.note.title);
           setDraft(result.note.title);
           setError(null);

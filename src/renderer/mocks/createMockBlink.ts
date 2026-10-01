@@ -3,6 +3,7 @@ import type { ProviderId, ProviderSettingsView } from '../../shared/ipc/ai-provi
 import type { AIJobView, JobResultDto } from '../../shared/ipc/assist';
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
 import type { LinkedNote, NoteSummary, VaultChangedEvent, VaultInfo } from '../../shared/ipc/notes';
+import type { OrganizePlan } from '../../shared/ipc/organize';
 import type { BlinkErrorCode, IpcResult } from '../../shared/ipc/result';
 import { extractLinkTargets, linkTargetFor, resolveLinkTarget, rewriteLinkTargets } from '../../shared/notes/wiki-link';
 
@@ -17,6 +18,10 @@ export interface MockBlinkOptions {
   vaultOpen?: boolean;
   /** 테스트가 "밖에서 바뀜"을 흉내 낼 수 있게 Mock이 채운다. */
   controls?: Partial<MockControls>;
+  /** organize:preview가 돌려줄 계획. 없으면 «나눌 만한 묶음 없음». */
+  organizePreview?: (folder: string) => OrganizePlan;
+  /** organize:preview를 이 오류 코드로 실패시킨다 (AI 미설정 등) */
+  organizePreviewError?: BlinkErrorCode;
 }
 
 export interface MockControls {
@@ -412,6 +417,60 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         jobListeners.add(listener);
         return () => jobListeners.delete(listener);
       },
+    },
+    organize: {
+      preview: ({ folder }) =>
+        options.organizePreviewError
+          ? fail<OrganizePlan>(options.organizePreviewError, 'mock preview failure')
+          : ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' }),
+      apply: (plan) => {
+        const createdFolders: string[] = [];
+        const failed: { id: string; title: string }[] = [];
+        let movedNotes = 0;
+        const ensure = (path: string) => {
+          if (folders.has(path)) return;
+          folders.add(path);
+          createdFolders.push(path);
+        };
+        // 없는 노트는 «옮기지 못함»으로 알린다 (실제 앱에서 파일이 잠긴 경우를 흉내 냄)
+        const moveTo = (planned: { id: string; title: string }, folder: string) => {
+          const note = notes.get(planned.id);
+          if (!note) {
+            failed.push({ id: planned.id, title: planned.title });
+            return;
+          }
+          note.path = inFolder(folder, note.path.split('/').pop()!);
+          movedNotes += 1;
+        };
+        for (const group of plan.newFolders) {
+          // 경로의 폴더를 위층부터 하나씩 만든다
+          const path = group.path.reduce((parent, name) => {
+            const child = inFolder(parent, name);
+            ensure(child);
+            return child;
+          }, plan.folder);
+          for (const note of group.notes) moveTo(note, path);
+        }
+        for (const move of plan.moves) {
+          ensure(move.to);
+          moveTo(move, move.to);
+        }
+        return ok({ movedNotes, createdFolders, updatedNoteIds: [], failed });
+      },
+      place: ({ id }) => {
+        const note = notes.get(id);
+        return note ? ok({ folder: folderOf(note.path), updatedNoteIds: [] }) : fail('NOTE_NOT_FOUND', id);
+      },
+      // 경로(= 파일 이름)에 `#fail`이 있으면 «다른 프로그램이 쓰는 중», `#noai`면 «AI 설정 없음»으로 실패한다
+      importFile: ({ sourcePath, folder }) => {
+        if (sourcePath.includes('#fail')) return fail('NOTE_IMPORT_LOCKED', `${sourcePath} is open in another program`);
+        if (sourcePath.includes('#noai')) return fail('AI_PROVIDER_NOT_CONFIGURED', 'No usable AI provider is configured');
+        const at = now();
+        const note: MockNote = { id: crypto.randomUUID(), path: inFolder(folder, sourcePath), content: '', createdAt: at, updatedAt: at };
+        notes.set(note.id, note);
+        return ok({ noteId: note.id, folder, updatedNoteIds: [] });
+      },
+      pathForFile: (file) => file.name,
     },
   };
 }

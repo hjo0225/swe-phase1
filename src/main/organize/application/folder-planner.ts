@@ -1,0 +1,114 @@
+import type { LLMProvider } from '../../ai-provider/application/ports';
+import { FolderName } from '../../note/domain/names';
+import { DomainError } from '../../platform/errors';
+
+/** 어디에도 안 맞는 노트가 가는 폴더 이름 (층마다 하나) */
+export const UNSORTED = '미분류';
+export const FOLDER_PLAN_SCHEMA = 'folder_paths';
+/** 분류하기 한 번에 만드는 폴더 깊이 (지금 폴더 기준) */
+export const MAX_DEPTH = 3;
+
+/** 층이 위일수록 보편적으로, 내려갈수록 구체적으로 — «넓게/좁게»라는 말 대신 예시로 넓이를 맞춘다 */
+const LEVEL_EXAMPLES = ['공부, 요리, 운동, 업무, 생활', '코딩, 영어, 수학', 'Spring, Rust, 파이썬'] as const;
+
+const SYSTEM = [
+  '너는 노트 폴더 구조를 정한다. 노트 제목을 뜻으로 군집화한 작은 묶음들이 주어진다.',
+  `- 묶음마다 들어갈 폴더 경로를 정한다. 경로는 지금 폴더 아래의 폴더 이름을 위층부터 순서대로 적은 배열이고, 길이는 1~${MAX_DEPTH}이다.`,
+  '- 위층일수록 보편적으로, 아래층일수록 구체적으로 짓는다. 층별 이름 예시와 같은 넓이로 짓는다.',
+  '- 같은 분야의 묶음은 같은 위층 폴더 아래에 모은다. 경로가 완전히 같은 묶음들은 한 폴더로 합쳐진다.',
+  '- 하위 폴더를 하나만 갖게 되는 폴더는 만들지 않는다 (그럴 땐 경로를 짧게).',
+  '- 지금 경로에 있는 이름은 다시 쓰지 않는다.',
+  '- 폴더 이름은 한 단어(고유명사 가능). \\ / : * ? " < > | 는 쓰지 않는다. «미분류»는 쓰지 않는다.',
+  '- 모든 묶음을 정확히 한 번씩 assignments에 넣는다.',
+].join('\n');
+
+const SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    assignments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { group: { type: 'string' }, path: { type: 'array', items: { type: 'string' } } },
+        required: ['group', 'path'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['assignments'],
+  additionalProperties: false,
+};
+
+const groupId = (index: number) => `G${index + 1}`;
+
+export function folderPlanRequest(input: { parentPath: string; groups: readonly (readonly string[])[] }): {
+  system: string;
+  user: string;
+} {
+  const segments = input.parentPath.split('/').filter(Boolean);
+  const level = segments.length + 1;
+  const deeper = level > LEVEL_EXAMPLES.length ? ` (${LEVEL_EXAMPLES.length}층 예시보다 더 구체적으로)` : '';
+  const user = [
+    `지금 경로: ${segments.length > 0 ? segments.join(' > ') : '(맨 위)'}`,
+    `받는 경로의 첫 칸은 ${level}층 넓이${deeper}`,
+    '층별 이름 예시:',
+    ...LEVEL_EXAMPLES.map((example, i) => `${i + 1}층: ${example}`),
+    '',
+    '묶음:',
+    ...input.groups.map((titles, i) => `${groupId(i)} (노트 ${titles.length}개): ${titles.join(' / ')}`),
+  ].join('\n');
+  return { system: SYSTEM, user };
+}
+
+/**
+ * 작은 묶음마다 폴더 경로(지금 폴더 기준, 1~3층)를 gpt에게 받는다. 묶음 순서대로 돌려준다.
+ * 쓸 수 없는 답이 오거나 AI 호출이 실패하면 ORGANIZE_NAMING_FAILED.
+ */
+export async function planFolders(
+  llm: LLMProvider,
+  input: { parentPath: string; groups: readonly (readonly string[])[] },
+  signal: AbortSignal,
+): Promise<string[][]> {
+  const { system, user } = folderPlanRequest(input);
+  let answer: unknown;
+  try {
+    answer = await llm.generateStructured({ system, user, schemaName: FOLDER_PLAN_SCHEMA, jsonSchema: SCHEMA, signal });
+  } catch {
+    // Provider 오류 메시지에는 요청 내용이 섞일 수 있어 그대로 내보내지 않는다.
+    throw new DomainError('ORGANIZE_NAMING_FAILED', 'AI could not plan the folders');
+  }
+  const paths = parsePaths(answer, input.groups.length);
+  if (!paths) throw new DomainError('ORGANIZE_NAMING_FAILED', 'AI returned an unusable folder plan');
+  return paths;
+}
+
+function parsePaths(answer: unknown, count: number): string[][] | null {
+  const assignments = (answer as { assignments?: unknown } | null)?.assignments;
+  if (!Array.isArray(assignments) || assignments.length !== count) return null;
+  const byGroup = new Map<string, string[]>();
+  for (const item of assignments) {
+    const { group, path } = (item ?? {}) as { group?: unknown; path?: unknown };
+    if (typeof group !== 'string' || byGroup.has(group) || !Array.isArray(path)) return null;
+    if (path.length < 1 || path.length > MAX_DEPTH) return null;
+    const names: string[] = [];
+    for (const raw of path) {
+      if (typeof raw !== 'string') return null;
+      let name: string;
+      try {
+        name = FolderName.of(raw).value; // 파일 이름 규칙 (금지 문자·길이·앞뒤 점)
+      } catch {
+        return null;
+      }
+      if (name === UNSORTED) return null;
+      names.push(name);
+    }
+    byGroup.set(group, names);
+  }
+  const paths: string[][] = [];
+  for (let i = 0; i < count; i += 1) {
+    const path = byGroup.get(groupId(i));
+    if (!path) return null; // 모르는 묶음 이름이 있으면 여기서 빠진 묶음이 생긴다
+    paths.push(path);
+  }
+  return paths;
+}

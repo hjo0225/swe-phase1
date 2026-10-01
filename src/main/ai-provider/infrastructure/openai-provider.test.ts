@@ -110,4 +110,24 @@ describe('OpenAIProvider', () => {
     await make(fetch).testConnection(signal);
     expect(calls[0]?.url).toBe('https://proxy.example.com/v1/models/gpt-test');
   });
+
+  it('embeds titles with the large embedding model in input order', async () => {
+    const { fetch, calls } = fakeFetch(200, {
+      object: 'list',
+      model: 'text-embedding-3-large',
+      data: [
+        { object: 'embedding', index: 1, embedding: [0, 1] },
+        { object: 'embedding', index: 0, embedding: [1, 0] },
+      ],
+      usage: { prompt_tokens: 2, total_tokens: 2 },
+    });
+    await expect(make(fetch).embed({ inputs: ['a', 'b'], signal })).resolves.toEqual([
+      [1, 0],
+      [0, 1],
+    ]);
+    expect(calls[0]).toMatchObject({
+      url: 'https://proxy.example.com/v1/embeddings',
+      body: { model: 'text-embedding-3-large', input: ['a', 'b'], encoding_format: 'float' },
+    });
+  });
 });

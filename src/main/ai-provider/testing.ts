@@ -41,6 +41,7 @@ export function fakeProvider(overrides: Partial<LLMProvider> = {}): LLMProvider 
     generateText: async () => 'generated',
     generateStructured: async () => ({}),
     researchAndGenerate: async () => ({ text: 'researched', sources: [] }),
+    embed: async ({ inputs }) => inputs.map(() => [1]),
     ...overrides,
   };
 }

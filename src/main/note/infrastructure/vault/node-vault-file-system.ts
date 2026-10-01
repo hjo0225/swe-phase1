@@ -1,4 +1,6 @@
 import {
+  constants,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -27,6 +29,10 @@ export interface VaultFileSystem {
   writeAtomic(path: string, text: string): void;
   createExclusive(path: string, text: string): void;
   rename(from: string, to: string): void;
+  /** 보관함 밖 파일(절대 경로)을 보관함 경로로 복사한다. 이미 있으면 덮지 않고 실패한다. */
+  copyIn(sourceAbsolute: string, to: string): void;
+  /** 보관함 밖 파일(절대 경로)을 지운다 — 가져오기가 끝난 원본 */
+  removeExternal(sourceAbsolute: string): void;
   remove(path: string): void;
   makeFolder(path: string): void;
   removeFolder(path: string): void;
@@ -91,6 +97,14 @@ export class NodeVaultFileSystem implements VaultFileSystem {
 
   rename(from: string, to: string): void {
     renameSync(this.absolute(from), this.absolute(to));
+  }
+
+  copyIn(sourceAbsolute: string, to: string): void {
+    copyFileSync(sourceAbsolute, this.absolute(to), constants.COPYFILE_EXCL);
+  }
+
+  removeExternal(sourceAbsolute: string): void {
+    rmSync(sourceAbsolute);
   }
 
   remove(path: string): void {

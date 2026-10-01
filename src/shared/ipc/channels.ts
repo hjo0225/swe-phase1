@@ -26,6 +26,10 @@ export const IpcChannels = {
   aiListJobs: 'ai:list-jobs',
   aiRetryJob: 'ai:retry-job',
   visualizationSavePng: 'visualization:save-png',
+  organizePreview: 'organize:preview',
+  organizeApply: 'organize:apply',
+  organizePlace: 'organize:place',
+  organizeImport: 'organize:import',
 } as const;
 
 /** Main → Renderer 푸시 이벤트. */

@@ -29,6 +29,18 @@ export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory 
         async testConnection() {
           if (config.apiKey === 'bad-key') throw new ProviderError('AUTH', 'fake auth failure');
         },
+        // 단어마다 정해진 칸에 1을 더한 가짜 임베딩 — 같은 단어가 많은 제목끼리 가깝다
+        async embed({ inputs }) {
+          return inputs.map((text) => {
+            const vector = new Array<number>(64).fill(0);
+            for (const word of text.toLowerCase().split(/\s+/).filter(Boolean)) {
+              let hash = 0;
+              for (const ch of word) hash = (hash * 31 + ch.charCodeAt(0)) % 64;
+              vector[hash] = (vector[hash] ?? 0) + 1;
+            }
+            return vector;
+          });
+        },
         async generateText({ user, signal }) {
           await wait(signal);
           guard(user);
@@ -42,9 +54,14 @@ export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory 
             sources: [{ title: 'Electron 문서', url: 'https://www.electronjs.org/docs/latest' }],
           };
         },
-        async generateStructured({ user, signal }) {
+        async generateStructured({ user, schemaName, signal }) {
           await wait(signal);
           guard(user);
+          // organize의 폴더 경로 정하기 (FOLDER_PLAN_SCHEMA) — 묶음마다 «묶음N» 폴더 하나
+          if (schemaName === 'folder_paths') {
+            const groups = user.split('\n').filter((line) => /^G\d+ /.test(line));
+            return { assignments: groups.map((line, i) => ({ group: line.split(' ')[0]!, path: [`묶음${i + 1}`] })) };
+          }
           return {
             version: 1,
             type: 'process',

@@ -1,13 +1,25 @@
 import { ChevronRight, FileText, Folder, FolderOpen, MoreHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { NavLink } from 'react-router';
+import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import type { NoteSummary, VaultTree } from '../../../../shared/ipc/notes';
+import { useImportNotes } from '../../organize/api/organize-queries';
+import { OrganizeDialog } from '../../organize/components/OrganizeDialog';
 import { useCreateNote, useMoveNote, useNoteTree } from '../api/note-queries';
 import { FolderDialog, type FolderDialogState } from './FolderDialogs';
 import styles from './NoteTree.module.css';
 
 const EXPANDED_KEY = 'blink.expandedFolders';
 const DRAG_TYPE = 'application/x-blink-note';
+const UNSORTED = '미분류';
+const IMPORT_ERRORS: Partial<Record<string, string>> = {
+  NOTE_IMPORT_LOCKED: '파일이 다른 프로그램에서 열려 있습니다. 닫고 다시 넣어 주세요',
+  NOTE_IMPORT_INVALID: '가져올 수 없는 파일입니다',
+  // 가져온 뒤 자동 배치에 임베딩이 필요하다 — 파일은 놓은 폴더에 들어가 있다
+  AI_PROVIDER_NOT_CONFIGURED: '설정에서 OpenAI를 연결해 주세요',
+  AI_CAPABILITY_UNSUPPORTED: '지금 AI 설정으로는 자동 정리를 할 수 없습니다. 설정에서 OpenAI를 연결해 주세요',
+  ORGANIZE_EMBEDDING_FAILED: '노트 제목을 읽지 못해 자동 정리를 못 했습니다',
+};
 
 interface FolderNode {
   path: string;
@@ -62,6 +74,9 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
   const [dialog, setDialog] = useState<FolderDialogState | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const moveNote = useMoveNote();
+  const [organizing, setOrganizing] = useState<string | null>(null);
+  const [dropMessage, setDropMessage] = useState<string | null>(null);
+  const importNotes = useImportNotes();
 
   useEffect(() => {
     try {
@@ -81,15 +96,26 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
 
   const dropProps = (folder: string) => ({
     onDragOver: (event: DragEvent) => {
-      if (!event.dataTransfer.types.includes(DRAG_TYPE)) return;
+      const types = event.dataTransfer.types;
+      if (!types.includes(DRAG_TYPE) && !types.includes('Files')) return;
       event.preventDefault();
       event.stopPropagation();
       setDropTarget(folder);
     },
     onDragLeave: () => setDropTarget((current) => (current === folder ? null : current)),
     onDrop: (event: DragEvent) => {
-      const id = event.dataTransfer.getData(DRAG_TYPE);
       setDropTarget(null);
+      const files = [...event.dataTransfer.files];
+      if (files.length > 0) {
+        // 바깥 파일: .md만 놓은 폴더로 가져와 자동 배치
+        event.preventDefault();
+        event.stopPropagation();
+        const markdown = files.filter((file) => /\.md$/i.test(file.name));
+        setDropMessage(markdown.length < files.length ? '.md 파일만 넣을 수 있습니다' : null);
+        if (markdown.length > 0) importNotes.mutate({ files: markdown, folder });
+        return;
+      }
+      const id = event.dataTransfer.getData(DRAG_TYPE);
       if (!id) return;
       event.preventDefault();
       event.stopPropagation();
@@ -114,6 +140,7 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
             onSelectFolder(node.path);
           }}
           onDialog={setDialog}
+          onOrganize={() => setOrganizing(node.path)}
         />
         {open && (
           <ul role="group" className={styles.group}>
@@ -166,6 +193,17 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
         </ul>
       )}
       {dialog && <FolderDialog state={dialog} onClose={() => setDialog(null)} />}
+      {organizing !== null && <OrganizeDialog folder={organizing} onClose={() => setOrganizing(null)} />}
+      {dropMessage && (
+        <p role="alert" className={styles.message}>
+          {dropMessage}
+        </p>
+      )}
+      {importNotes.isError && (
+        <p role="alert" className={styles.message}>
+          {(importNotes.error instanceof BlinkIpcError && IMPORT_ERRORS[importNotes.error.code]) || '파일을 가져오지 못했습니다'}
+        </p>
+      )}
       {dialog === null && moveNote.isError && <p role="alert" className={styles.message}>같은 이름의 노트가 있어 옮기지 못했습니다</p>}
     </section>
   );
@@ -180,9 +218,10 @@ interface FolderRowProps {
   dropProps: Record<string, unknown>;
   onClick(): void;
   onDialog(state: FolderDialogState): void;
+  onOrganize(): void;
 }
 
-function FolderRow({ node, depth, open, selected, dropping, dropProps, onClick, onDialog }: FolderRowProps) {
+function FolderRow({ node, depth, open, selected, dropping, dropProps, onClick, onDialog, onOrganize }: FolderRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const createNote = useCreateNote();
@@ -231,6 +270,11 @@ function FolderRow({ node, depth, open, selected, dropping, dropProps, onClick, 
             <button type="button" role="menuitem" onClick={act(() => onDialog({ kind: 'create', parent: node.path }))}>
               새 폴더
             </button>
+            {node.name !== UNSORTED && (
+              <button type="button" role="menuitem" onClick={act(onOrganize)}>
+                분류하기
+              </button>
+            )}
             <button type="button" role="menuitem" onClick={act(() => onDialog({ kind: 'rename', path: node.path }))}>
               이름 바꾸기
             </button>

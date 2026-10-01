@@ -23,6 +23,8 @@ let notes: VaultNoteService;
 let sync: IndexSync;
 let organize: OrganizeService;
 let llmConfigured: boolean;
+/** 다른 프로그램이 쓰는 파일처럼 옮기기가 EBUSY로 실패하는 노트 */
+let busyNoteId: string | null;
 /** 가짜 AI: 묶음 줄에 spring이 있으면 Spring, rust면 Rust */
 const namer = vi.fn(async ({ user }: { user: string }) => ({
   names: user
@@ -48,8 +50,15 @@ beforeEach(() => {
   sync = new IndexSync(deps);
   namer.mockClear();
   llmConfigured = true;
+  busyNoteId = null;
+  const notesPort = Object.assign(Object.create(notes) as VaultNoteService, {
+    move: (input: { id: string; folder: string }) => {
+      if (input.id === busyNoteId) throw Object.assign(new Error('resource busy or locked'), { code: 'EBUSY' });
+      return notes.move(input);
+    },
+  });
   organize = new OrganizeService({
-    notes: () => notes,
+    notes: () => notesPort,
     folders: () => folders,
     activeLLM: {
       resolve: () => {
@@ -162,6 +171,18 @@ describe('apply', () => {
     expect(organize.apply(plan)).toMatchObject({ movedNotes: 2, createdFolders: ['미분류'] });
     expect(titlesIn('미분류')).toEqual(['김치찌개 레시피']);
     expect(titlesIn('Spring')).toContain('spring boot 실무 4편');
+  });
+
+  it('keeps going when one note cannot be moved and reports it', async () => {
+    seed('', ...SPRING, ...RUST);
+    const plan = await organize.preview('');
+    busyNoteId = idOf('rust 소유권 활용');
+    const result = organize.apply(plan);
+    expect(result.movedNotes).toBe(5);
+    expect(result.failed).toEqual([{ id: busyNoteId, title: 'rust 소유권 활용' }]);
+    expect(titlesIn('Spring')).toEqual([...SPRING].sort());
+    expect(titlesIn('Rust')).toEqual(['rust 소유권 심화', 'rust 소유권 정리']);
+    expect(titlesIn('')).toEqual(['rust 소유권 활용']);
   });
 });
 

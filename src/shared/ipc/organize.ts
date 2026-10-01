@@ -25,6 +25,8 @@ export interface OrganizeApplyResult {
   createdFolders: string[];
   /** 링크가 고쳐진 다른 노트 */
   updatedNoteIds: NoteId[];
+  /** 옮기지 못한 노트 (다른 프로그램이 파일을 쓰는 중 등). 나머지는 옮겨졌다. */
+  failed: { id: NoteId; title: string }[];
 }
 
 export interface PlaceNoteResult {

@@ -130,23 +130,32 @@ export class OrganizeService {
     };
   }
 
-  /** 분류하기 2단계: 미리보기대로 옮긴다. 그사이 사라진 노트는 건너뛴다. */
+  /**
+   * 분류하기 2단계: 미리보기대로 옮긴다. 그사이 사라진 노트는 건너뛴다.
+   * 노트 하나(또는 폴더 하나)가 실패해도 멈추지 않는다 — 이미 옮긴 노트와 고친 링크를 화면이 알아야 하기 때문이다.
+   */
   apply(plan: OrganizePlan): OrganizeApplyResult {
     const createdFolders: string[] = [];
     const updatedNoteIds = new Set<string>();
+    const failed: OrganizeApplyResult['failed'] = [];
     let movedNotes = 0;
-    const moveInto = (id: string, folder: string) => {
-      const result = this.moveNumbered(id, folder);
-      if (!result) return;
-      movedNotes += 1;
-      for (const updated of result.updatedNoteIds) updatedNoteIds.add(updated);
+    const moveInto = (note: PlannedNote, folder: () => string) => {
+      try {
+        const result = this.moveNumbered(note.id, folder());
+        if (!result) return;
+        movedNotes += 1;
+        for (const updated of result.updatedNoteIds) updatedNoteIds.add(updated);
+      } catch {
+        failed.push({ id: note.id, title: note.title });
+      }
     };
     for (const group of plan.newFolders) {
-      const path = this.ensureFolder(plan.folder, group.name, createdFolders);
-      for (const note of group.notes) moveInto(note.id, path);
+      let path: string | null = null;
+      const folder = () => (path ??= this.ensureFolder(plan.folder, group.name, createdFolders));
+      for (const note of group.notes) moveInto(note, folder);
     }
-    for (const move of plan.moves) moveInto(move.id, this.ensureFolder(parentOf(move.to), nameOf(move.to), createdFolders));
-    return { movedNotes, createdFolders, updatedNoteIds: [...updatedNoteIds] };
+    for (const move of plan.moves) moveInto(move, () => this.ensureFolder(parentOf(move.to), nameOf(move.to), createdFolders));
+    return { movedNotes, createdFolders, updatedNoteIds: [...updatedNoteIds], failed };
   }
 
   /** 새 노트 자동 배치: 지금 폴더를 맨 위로 보고 한 층씩 내려간다. 맞는 하위 폴더가 없으면 그 층의 「미분류」. */

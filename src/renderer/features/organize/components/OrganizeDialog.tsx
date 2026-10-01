@@ -31,6 +31,7 @@ export function OrganizeDialog({ folder, onClose }: { folder: string; onClose():
   const empty = plan !== undefined && plan.newFolders.length === 0 && plan.moves.length === 0;
   const error = preview.error ?? apply.error;
   const errorText = error ? (error instanceof BlinkIpcError && ERRORS[error.code]) || '분류하지 못했습니다' : null;
+  const failed = apply.data?.failed ?? [];
 
   return (
     <Dialog
@@ -44,8 +45,9 @@ export function OrganizeDialog({ folder, onClose }: { folder: string; onClose():
           <button
             type="button"
             className="button-primary"
-            disabled={!plan || empty || apply.isPending}
-            onClick={() => plan && apply.mutate(plan, { onSuccess: onClose })}
+            disabled={!plan || empty || apply.isPending || apply.isSuccess}
+            // 옮기지 못한 노트가 있으면 닫지 않고 알려 준다
+            onClick={() => plan && apply.mutate(plan, { onSuccess: (result) => result.failed.length === 0 && onClose() })}
           >
             옮기기
           </button>
@@ -54,6 +56,9 @@ export function OrganizeDialog({ folder, onClose }: { folder: string; onClose():
     >
       {preview.isPending && <p>분류하는 중…</p>}
       {errorText && <p role="alert">{errorText}</p>}
+      {failed.length > 0 && (
+        <p role="alert">{`노트 ${failed.length}개는 옮기지 못했습니다: ${failed.map((n) => n.title).join(', ')}`}</p>
+      )}
       {plan && empty && <p>{SKIPPED[plan.skipped ?? 'NO_CLEAR_GROUPS']}</p>}
       {plan && !empty && (
         <ul aria-label="분류 미리보기">

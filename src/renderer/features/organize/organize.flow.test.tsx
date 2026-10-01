@@ -95,4 +95,44 @@ describe('organize flow', () => {
     expect(await screen.findByText('.md 파일만 넣을 수 있습니다')).toBeInTheDocument();
     expect(importFile).not.toHaveBeenCalled();
   });
+
+  it('says which notes could not be moved and still shows the ones that were', async () => {
+    const a = await seedNote('spring boot 실무 1편');
+    plan = (folder) => ({
+      folder,
+      newFolders: [
+        {
+          name: 'Spring',
+          notes: [
+            { id: a.id, title: a.title, from: '' },
+            { id: '22222222-2222-4222-8222-222222222222', title: '잠긴 노트', from: '' },
+          ],
+        },
+      ],
+      moves: [],
+      skipped: null,
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
+    const dialog = await screen.findByRole('dialog', { name: '분류하기 — 보관함 맨 위' });
+    await user.click(await within(dialog).findByRole('button', { name: '옮기기' }));
+
+    expect(await within(dialog).findByText('노트 1개는 옮기지 못했습니다: 잠긴 노트')).toBeInTheDocument();
+    expect(await sidebarTree().findByRole('treeitem', { name: 'Spring' })).toBeInTheDocument();
+  });
+
+  it('shows the notes imported before a dropped file failed', async () => {
+    render(<App />);
+    const region = await screen.findByRole('region', { name: '노트 목록' });
+    const files = [new File([''], 'a 노트.md'), new File([''], 'b #fail.md')];
+    const dataTransfer = { types: ['Files'], files, getData: () => '' };
+
+    fireEvent.dragOver(region, { dataTransfer });
+    fireEvent.drop(region, { dataTransfer });
+
+    expect(await screen.findByText('파일이 다른 프로그램에서 열려 있습니다. 닫고 다시 넣어 주세요')).toBeInTheDocument();
+    expect(await sidebarTree().findByText('a 노트')).toBeInTheDocument();
+  });
 });

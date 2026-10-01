@@ -421,34 +421,46 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' }),
       apply: (plan) => {
         const createdFolders: string[] = [];
+        const failed: { id: string; title: string }[] = [];
         let movedNotes = 0;
         const ensure = (path: string) => {
           if (folders.has(path)) return;
           folders.add(path);
           createdFolders.push(path);
         };
-        const moveTo = (id: string, folder: string) => {
-          const note = notes.get(id);
-          if (!note) return;
+        // 없는 노트는 «옮기지 못함»으로 알린다 (실제 앱에서 파일이 잠긴 경우를 흉내 냄)
+        const moveTo = (planned: { id: string; title: string }, folder: string) => {
+          const note = notes.get(planned.id);
+          if (!note) {
+            failed.push({ id: planned.id, title: planned.title });
+            return;
+          }
           note.path = inFolder(folder, note.path.split('/').pop()!);
           movedNotes += 1;
         };
         for (const group of plan.newFolders) {
           const path = inFolder(plan.folder, group.name);
           ensure(path);
-          for (const note of group.notes) moveTo(note.id, path);
+          for (const note of group.notes) moveTo(note, path);
         }
         for (const move of plan.moves) {
           ensure(move.to);
-          moveTo(move.id, move.to);
+          moveTo(move, move.to);
         }
-        return ok({ movedNotes, createdFolders, updatedNoteIds: [] });
+        return ok({ movedNotes, createdFolders, updatedNoteIds: [], failed });
       },
       place: ({ id }) => {
         const note = notes.get(id);
         return note ? ok({ folder: folderOf(note.path), updatedNoteIds: [] }) : fail('NOTE_NOT_FOUND', id);
       },
-      importFile: ({ sourcePath }) => fail('NOTE_IMPORT_INVALID', `Mock cannot read ${sourcePath}`),
+      // 경로(= 파일 이름)에 `#fail`이 있으면 «다른 프로그램이 쓰는 중»으로 실패한다
+      importFile: ({ sourcePath, folder }) => {
+        if (sourcePath.includes('#fail')) return fail('NOTE_IMPORT_LOCKED', `${sourcePath} is open in another program`);
+        const at = now();
+        const note: MockNote = { id: crypto.randomUUID(), path: inFolder(folder, sourcePath), content: '', createdAt: at, updatedAt: at };
+        notes.set(note.id, note);
+        return ok({ noteId: note.id, folder, updatedNoteIds: [] });
+      },
       pathForFile: (file) => file.name,
     },
   };

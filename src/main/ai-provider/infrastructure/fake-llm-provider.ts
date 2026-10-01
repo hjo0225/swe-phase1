@@ -42,9 +42,14 @@ export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory 
             sources: [{ title: 'Electron 문서', url: 'https://www.electronjs.org/docs/latest' }],
           };
         },
-        async generateStructured({ user, signal }) {
+        async generateStructured({ user, schemaName, signal }) {
           await wait(signal);
           guard(user);
+          // organize의 폴더 이름 짓기 (FOLDER_NAMES_SCHEMA) — 묶음 수만큼 «묶음1», «묶음2»…
+          if (schemaName === 'folder_names') {
+            const count = user.split('\n').filter((line) => line.startsWith('묶음 ')).length;
+            return { names: Array.from({ length: count }, (_, i) => `묶음${i + 1}`) };
+          }
           return {
             version: 1,
             type: 'process',

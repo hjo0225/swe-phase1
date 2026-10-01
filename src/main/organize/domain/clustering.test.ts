@@ -36,15 +36,12 @@ describe('bestClustering', () => {
     expect(result.score).toBeGreaterThan(MIN_SILHOUETTE);
   });
 
-  it('caps the number of groups at √(n/2) so upper levels stay broad', () => {
-    // 8개 = 4주제 × 2개라도 상한이 √(8÷2) = 2라서 2묶음
+  it('tries up to half the notes: 8 titles in 4 pairs become 4 groups', () => {
+    // 작은 묶음을 최대한 찾는다 — 넓은 위층은 gpt가 합친다
     const pairs = cosineSimilarity([0, 1, 2, 3].flatMap((t) => topic(t, 2, t * 2)));
-    expect(bestClustering(pairs)!.k).toBe(2);
-    // 32개 = 4주제 × 8개면 상한이 √(32÷2) = 4라서 4묶음
-    const blobs = cosineSimilarity([0, 1, 2, 3].flatMap((t) => topic(t, 8, t * 8)));
-    const result = bestClustering(blobs)!;
+    const result = bestClustering(pairs)!;
     expect(result.k).toBe(4);
-    expect(new Set(result.labels.slice(0, 8)).size).toBe(1);
+    expect(result.labels).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
   });
 
   it('returns null with fewer than 3 notes', () => {

@@ -42,3 +42,28 @@
 ### E4: 화면 문구
 - Modify: `OrganizeDialog.tsx`, `NoteTree.tsx` — `AI_PROVIDER_NOT_CONFIGURED`·`AI_CAPABILITY_UNSUPPORTED`·`ORGANIZE_EMBEDDING_FAILED` 문구
 - Tests: `organize.flow.test.tsx` «tells the user to connect OpenAI when importing without it»
+
+---
+
+# 변경 2: 잘게 묶고, 위로 합치기는 gpt가 (2026-10-01)
+
+**왜:** 상한 √(n÷2)로는 폴더 수가 모자라 k-means가 Rust를 헬스·러닝과 묶었다 (k-means는 «전체가 덜 흩어지는 곳»으로 붙인다: Spring에 붙이면 15.87, 러닝에 붙이면 15.14). 군집화 나무에서 gpt에게 «살릴 층»만 고르게 하면 나무의 잘못(운동+코딩 갈림길)을 그대로 살렸다. 작은 묶음 9개를 gpt에게 주고 경로를 자유롭게 정하게 했더니 `공부/{rust, spring, 자료구조, 파이썬}`, `생활/{기록, 일정}`, `요리/{레시피, 베이킹}`, `운동`이 나왔다 ($0.0015, 2.4초).
+
+## Global Constraints (바뀌는 것만)
+- k 범위: 2 ~ max(2, ⌊n ÷ 2⌋) (√ 상한 되돌림). `MIN_SILHOUETTE = 0.05` 유지 (상한 n÷2로 재측정: 관계없는 제목 0.029~0.032, 노트 100개 0.158).
+- 작은 묶음마다 gpt가 폴더 경로(1~3층, 지금 폴더 기준)를 정한다. 같은 경로 = 같은 폴더. AI 호출은 분류하기 한 번에 한 번.
+- 검사: 모든 묶음 정확히 한 번, 깊이 1~3, 이름은 `FolderName` 규칙 + «미분류» 금지. 틀리면 `ORGANIZE_NAMING_FAILED` («폴더를 정리하지 못했습니다»).
+- `OrganizePlan.newFolders`의 `name: string` → `path: string[]` (지금 폴더 기준 상대 경로).
+
+## Tasks
+### F1: 상한 되돌리기
+- `clustering.ts` — 상한 ⌊n÷2⌋. Test: «tries up to half the notes: 8 titles in 4 pairs become 4 groups»
+
+### F2: gpt가 폴더 경로를 정함
+- `folder-namer.ts` → `folder-planner.ts`: `folderPlanRequest()`, `planFolders(llm, { parentPath, groups }, signal): Promise<string[][]>`
+- Tests: 경로·층 예시가 질문에 들어감, 묶음 순서대로 경로 반환, 빠짐·중복·모르는 묶음·4층·금지 문자·«미분류»·빈 경로 거절, AI 실패 → `ORGANIZE_NAMING_FAILED`
+- 가짜 AI(`BLINK_FAKE_LLM`): `folder_paths` 스키마면 묶음마다 `["묶음N"]`
+
+### F3: 서비스·계약·화면
+- `organize.ts` 타입, `schemas.ts`(path 배열 1~3), `organize-service.ts`(경로대로 폴더 만들기), 미리보기 표시 `새 폴더 공부 / spring`, Mock 적용
+- Tests: «creates nested folders from the planned paths and merges groups with the same path»

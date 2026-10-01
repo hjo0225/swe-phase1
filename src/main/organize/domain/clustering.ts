@@ -17,13 +17,14 @@ export interface Clustering {
 }
 
 /**
- * k = 2 ~ max(2, ⌊√(노트 수 ÷ 2)⌋)를 전부 돌려 실루엣이 가장 높은 묶음.
- * 실루엣은 잘게 쪼갤수록 점수가 오르는 경향이 있어서, 상한을 작게 두어야 위층이 넓게 나오고 안에서 다시 누를 때 세세하게 나뉜다.
+ * k = 2 ~ max(2, ⌊노트 수 ÷ 2⌋)를 전부 돌려 실루엣이 가장 높은 묶음 — 자연스러운 작은 묶음을 찾는다.
+ * ÷2보다 크면 1개짜리 묶음이 반드시 생긴다. 넓은 위층은 여기서가 아니라 gpt가 묶음들을 합쳐서 만든다
+ * (상한을 √(n÷2)로 줄였더니 폴더 수가 모자라 Rust가 헬스·러닝과 묶였다).
  */
 export function bestClustering(sim: Similarity, options: { minScore?: number; seed?: number } = {}): Clustering | null {
   const n = sim.length;
   if (n < MIN_NOTES) return null;
-  const maxK = Math.max(2, Math.floor(Math.sqrt(n / 2)));
+  const maxK = Math.max(2, Math.floor(n / 2));
   let best: Clustering | null = null;
   for (let k = 2; k <= maxK; k += 1) {
     const raw = kmeans(sim, k, options.seed ?? 42);

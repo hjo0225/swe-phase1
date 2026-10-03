@@ -8,13 +8,28 @@ export const FOLDER_PLAN_SCHEMA = 'folder_paths';
 /** 분류하기 한 번에 만드는 폴더 깊이 (지금 폴더 기준) */
 export const MAX_DEPTH = 3;
 
-/** 층이 위일수록 보편적으로, 내려갈수록 구체적으로 — «넓게/좁게»라는 말 대신 예시로 넓이를 맞춘다 */
-/** 예시는 두 언어로 준다 — 한국어 예시만 주면 영어 제목에도 한국어 폴더 이름을 짓는다 */
-const LEVEL_EXAMPLES = [
-  '공부, 요리, 운동, 업무, 생활 (English: Study, Cooking, Exercise, Work, Life)',
-  '코딩, 영어, 수학 (English: Coding, English, Math)',
-  'Spring, Rust, 파이썬 (English: Spring, Rust, Python)',
-] as const;
+/**
+ * 층이 위일수록 보편적으로, 내려갈수록 구체적으로 — «넓게/좁게»라는 말 대신 예시로 넓이를 맞춘다.
+ * 모델은 지시보다 예시의 언어를 따른다(영어 제목에도 한국어 폴더를 지었다). 그래서 제목의 언어를 코드로 정해
+ * 그 언어의 예시만 준다.
+ */
+const LEVEL_EXAMPLES = {
+  ko: ['공부, 요리, 운동, 업무, 생활', '코딩, 영어, 수학', 'Spring, Rust, 파이썬'],
+  en: ['Study, Cooking, Exercise, Work, Life', 'Coding, English, Math', 'Spring, Rust, Python'],
+} as const;
+const LANGUAGE_LINE = {
+  ko: '폴더 이름은 한국어로 짓는다 (고유명사는 그대로).',
+  en: 'Folder names must be in English (keep proper nouns as they are).',
+} as const;
+
+type TitleLanguage = keyof typeof LEVEL_EXAMPLES;
+
+/** 한글이 든 제목이 절반 이상이면 한국어, 아니면 영어 */
+export function titleLanguage(groups: readonly (readonly string[])[]): TitleLanguage {
+  const titles = groups.flat();
+  const korean = titles.filter((title) => /[가-힣]/.test(title)).length;
+  return titles.length > 0 && korean * 2 < titles.length ? 'en' : 'ko';
+}
 
 const SYSTEM = [
   '너는 노트 폴더 구조를 정한다. 노트 제목을 뜻으로 군집화한 작은 묶음들이 주어진다.',
@@ -24,7 +39,6 @@ const SYSTEM = [
   '- 하위 폴더를 하나만 갖게 되는 폴더는 만들지 않는다 (그럴 땐 경로를 짧게).',
   '- 지금 경로에 있는 이름은 다시 쓰지 않는다.',
   '- 폴더 이름은 한 단어(고유명사 가능). \\ / : * ? " < > | 는 쓰지 않는다. «미분류»는 쓰지 않는다.',
-  '- Name folders in the same language as the note titles: English titles get English folder names, Korean titles get Korean names. These instructions are in Korean, but that must not decide the language.',
   '- 모든 묶음을 정확히 한 번씩 assignments에 넣는다.',
 ].join('\n');
 
@@ -53,12 +67,15 @@ export function folderPlanRequest(input: { parentPath: string; groups: readonly 
 } {
   const segments = input.parentPath.split('/').filter(Boolean);
   const level = segments.length + 1;
-  const deeper = level > LEVEL_EXAMPLES.length ? ` (${LEVEL_EXAMPLES.length}층 예시보다 더 구체적으로)` : '';
+  const language = titleLanguage(input.groups);
+  const examples = LEVEL_EXAMPLES[language];
+  const deeper = level > examples.length ? ` (${examples.length}층 예시보다 더 구체적으로)` : '';
   const user = [
     `지금 경로: ${segments.length > 0 ? segments.join(' > ') : '(맨 위)'}`,
     `받는 경로의 첫 칸은 ${level}층 넓이${deeper}`,
     '층별 이름 예시:',
-    ...LEVEL_EXAMPLES.map((example, i) => `${i + 1}층: ${example}`),
+    ...examples.map((example, i) => `${i + 1}층: ${example}`),
+    LANGUAGE_LINE[language],
     '',
     '묶음:',
     ...input.groups.map((titles, i) => `${groupId(i)} (노트 ${titles.length}개): ${titles.join(' / ')}`),

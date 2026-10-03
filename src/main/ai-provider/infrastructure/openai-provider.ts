@@ -126,7 +126,7 @@ export class OpenAIProvider implements LLMProvider {
     const consulted: { title: string; url: string }[] = [];
     for (const item of response.output) {
       if (item.type === 'web_search_call' && item.action.type === 'search') {
-        for (const source of item.action.sources ?? []) consulted.push({ title: siteName(source.url), url: source.url });
+        for (const source of item.action.sources ?? []) consulted.push({ title: sourceName(source.url), url: source.url });
       }
       if (item.type !== 'message') continue;
       for (const part of item.content) {
@@ -169,10 +169,11 @@ export function toProviderError(error: unknown): Error {
   return new ProviderError('UNAVAILABLE', 'Unexpected provider failure');
 }
 
-/** 제목이 없는 검색 출처의 표시 이름: 도메인 (www. 제외) */
-function siteName(url: string): string {
+/** 제목이 없는 검색 출처의 표시 이름: 도메인/경로 (www.·쿼리·끝 / 제외). 같은 사이트의 여러 페이지가 구분된다. */
+function sourceName(url: string): string {
   try {
-    return new URL(url).hostname.replace(/^www\./, '');
+    const { hostname, pathname } = new URL(url);
+    return hostname.replace(/^www\./, '') + pathname.replace(/\/+$/, '');
   } catch {
     return url;
   }

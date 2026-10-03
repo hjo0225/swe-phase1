@@ -16,10 +16,17 @@ describe('folderPlanRequest', () => {
     expect(user).toContain('G2 (노트 1개): rust 소유권 정리');
   });
 
-  it('asks for folder names in the language of the note titles, with examples in both languages', () => {
-    const { system, user } = folderPlanRequest({ parentPath: '', groups: GROUPS });
-    expect(system).toMatch(/same language as the note titles/i);
-    expect(user).toContain('1층: 공부, 요리, 운동, 업무, 생활 (English: Study, Cooking, Exercise, Work, Life)');
+  it('gives English examples and asks for English folder names when the titles are English', () => {
+    const { user } = folderPlanRequest({ parentPath: '', groups: [['Rust ownership', 'Rust traits'], ['Banana bread']] });
+    expect(user).toContain('1층: Study, Cooking, Exercise, Work, Life');
+    expect(user).toContain('Folder names must be in English');
+    expect(user).not.toContain('공부, 요리');
+  });
+
+  it('keeps Korean examples when most titles are Korean', () => {
+    const { user } = folderPlanRequest({ parentPath: '', groups: GROUPS });
+    expect(user).toContain('폴더 이름은 한국어로 짓는다');
+    expect(user).not.toContain('Folder names must be in English');
   });
 
   it('marks the top level and levels deeper than the examples', () => {

@@ -94,7 +94,7 @@ describe('OpenAIProvider', () => {
             type: 'search',
             query: 'Electron framework',
             sources: [
-              { type: 'url', url: 'https://www.electronjs.org/docs/latest' },
+              { type: 'url', url: 'https://www.electronjs.org/docs/latest/?utm_source=openai' },
               { type: 'url', url: 'https://en.wikipedia.org/wiki/Electron_(software_framework)' },
             ],
           },
@@ -105,8 +105,11 @@ describe('OpenAIProvider', () => {
     const { fetch, calls } = fakeFetch(200, withSearch);
     const result = await make(fetch).researchAndGenerate({ system: 'S', user: 'U', signal });
     expect(result.sources).toEqual([
-      { title: 'electronjs.org', url: 'https://www.electronjs.org/docs/latest' },
-      { title: 'en.wikipedia.org', url: 'https://en.wikipedia.org/wiki/Electron_(software_framework)' },
+      { title: 'electronjs.org/docs/latest', url: 'https://www.electronjs.org/docs/latest/?utm_source=openai' },
+      {
+        title: 'en.wikipedia.org/wiki/Electron_(software_framework)',
+        url: 'https://en.wikipedia.org/wiki/Electron_(software_framework)',
+      },
     ]);
     // 검색이 참고한 출처는 요청해야 돌아온다
     expect(calls[0]?.body).toMatchObject({ include: ['web_search_call.action.sources'] });

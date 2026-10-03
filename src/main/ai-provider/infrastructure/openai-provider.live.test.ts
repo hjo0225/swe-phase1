@@ -60,6 +60,38 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(spec.type).toBe(type);
   }, TIMEOUT);
 
+  describe('answers in the language of the selected text (English input → English output)', () => {
+    const HANGUL = /[가-힣]/;
+    it('organize', async () => {
+      const result = await new OrganizeExecutor().execute(
+        InputSnapshot.of('talked about which ai api to use, probably electron for the app, keep notes local first, prototype by next friday'),
+        llm(),
+        signal(),
+      );
+      const markdown = (result as { markdown: string }).markdown;
+      console.log('[ORGANIZE EN]' + String.fromCharCode(10) + markdown);
+      expect(markdown).not.toMatch(HANGUL);
+    }, TIMEOUT);
+
+    it('expand (with sources)', async () => {
+      const result = await new ExpandExecutor().execute(InputSnapshot.of('Electron is a framework for building desktop apps.'), llm(), signal());
+      const markdown = (result as { markdown: string }).markdown;
+      console.log('[EXPAND EN]' + String.fromCharCode(10) + markdown);
+      expect(markdown.split('**')[0]).not.toMatch(HANGUL);
+    }, TIMEOUT);
+
+    it('visualize', async () => {
+      const result = await new VisualizeExecutor().execute(
+        InputSnapshot.of('How a Blink AI job works: you select text, Blink sends it as a background job, the selection pulses while the AI works, and the result is applied in one step when it is done.'),
+        llm(),
+        signal(),
+      );
+      const json = JSON.stringify((result as { spec: unknown }).spec);
+      console.log('[VISUALIZE EN] ' + json);
+      expect(json).not.toMatch(HANGUL);
+    }, TIMEOUT);
+  });
+
   it('embeds titles so that related ones are closer', async () => {
     const [spring, spring2, stew] = await llm().embed({
       inputs: ['spring boot 실무 이해 1편', 'spring 트랜잭션 정리', '김치찌개 끓이는 법'],

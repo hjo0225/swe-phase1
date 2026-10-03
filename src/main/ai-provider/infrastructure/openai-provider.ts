@@ -110,21 +110,34 @@ export class OpenAIProvider implements LLMProvider {
   }): Promise<{ text: string; sources: { title: string; url: string }[] }> {
     const response = await this.call(() =>
       this.client.responses.create(
-        { model: this.model, instructions: system, input: user, tools: [{ type: 'web_search' }], tool_choice: 'required' },
+        {
+          model: this.model,
+          instructions: system,
+          input: user,
+          tools: [{ type: 'web_search' }],
+          tool_choice: 'required',
+          // 답에 인용을 달지 않아도 검색이 참고한 출처를 받을 수 있게 한다
+          include: ['web_search_call.action.sources'],
+        },
         { signal },
       ),
     );
-    const sources: { title: string; url: string }[] = [];
+    const cited: { title: string; url: string }[] = [];
+    const consulted: { title: string; url: string }[] = [];
     for (const item of response.output) {
+      if (item.type === 'web_search_call' && item.action.type === 'search') {
+        for (const source of item.action.sources ?? []) consulted.push({ title: siteName(source.url), url: source.url });
+      }
       if (item.type !== 'message') continue;
       for (const part of item.content) {
         if (part.type !== 'output_text') continue;
         for (const annotation of part.annotations) {
-          if (annotation.type === 'url_citation') sources.push({ title: annotation.title, url: annotation.url });
+          if (annotation.type === 'url_citation') cited.push({ title: annotation.title, url: annotation.url });
         }
       }
     }
-    return { text: textOf(response), sources };
+    // 본문 인용이 가장 정확하다. 모델이 인용을 달지 않은 답(영어 답에서 자주)은 검색이 참고한 출처로 대신한다.
+    return { text: textOf(response), sources: cited.length > 0 ? cited : consulted };
   }
 
   private async call<T>(request: () => Promise<T>): Promise<T> {
@@ -154,4 +167,13 @@ export function toProviderError(error: unknown): Error {
   if (error instanceof APIConnectionError) return new ProviderError('UNAVAILABLE', 'Connection failed');
   if (error instanceof APIError) return new ProviderError('UNAVAILABLE', `Provider error (${String(error.status)})`);
   return new ProviderError('UNAVAILABLE', 'Unexpected provider failure');
+}
+
+/** 제목이 없는 검색 출처의 표시 이름: 도메인 (www. 제외) */
+function siteName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
 }

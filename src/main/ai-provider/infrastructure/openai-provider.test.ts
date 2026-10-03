@@ -81,6 +81,37 @@ describe('OpenAIProvider', () => {
     expect(calls[0]?.body).toMatchObject({ tools: [{ type: 'web_search' }], tool_choice: 'required' });
   });
 
+  it('falls back to the sources the web search consulted when the answer has no inline citations', async () => {
+    const response = message('Electron is an open-source framework.');
+    const withSearch = {
+      ...response,
+      output: [
+        {
+          type: 'web_search_call',
+          id: 'ws_1',
+          status: 'completed',
+          action: {
+            type: 'search',
+            query: 'Electron framework',
+            sources: [
+              { type: 'url', url: 'https://www.electronjs.org/docs/latest' },
+              { type: 'url', url: 'https://en.wikipedia.org/wiki/Electron_(software_framework)' },
+            ],
+          },
+        },
+        ...response.output,
+      ],
+    };
+    const { fetch, calls } = fakeFetch(200, withSearch);
+    const result = await make(fetch).researchAndGenerate({ system: 'S', user: 'U', signal });
+    expect(result.sources).toEqual([
+      { title: 'electronjs.org', url: 'https://www.electronjs.org/docs/latest' },
+      { title: 'en.wikipedia.org', url: 'https://en.wikipedia.org/wiki/Electron_(software_framework)' },
+    ]);
+    // 검색이 참고한 출처는 요청해야 돌아온다
+    expect(calls[0]?.body).toMatchObject({ include: ['web_search_call.action.sources'] });
+  });
+
   it.each([
     [401, 'AUTH'],
     [403, 'AUTH'],

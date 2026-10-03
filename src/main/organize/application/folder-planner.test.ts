@@ -16,6 +16,12 @@ describe('folderPlanRequest', () => {
     expect(user).toContain('G2 (노트 1개): rust 소유권 정리');
   });
 
+  it('asks for folder names in the language of the note titles, with examples in both languages', () => {
+    const { system, user } = folderPlanRequest({ parentPath: '', groups: GROUPS });
+    expect(system).toMatch(/same language as the note titles/i);
+    expect(user).toContain('1층: 공부, 요리, 운동, 업무, 생활 (English: Study, Cooking, Exercise, Work, Life)');
+  });
+
   it('marks the top level and levels deeper than the examples', () => {
     expect(folderPlanRequest({ parentPath: '', groups: GROUPS }).user).toContain('지금 경로: (맨 위)');
     expect(folderPlanRequest({ parentPath: 'a/b/c', groups: GROUPS }).user).toContain('4층 넓이 (3층 예시보다 더 구체적으로)');

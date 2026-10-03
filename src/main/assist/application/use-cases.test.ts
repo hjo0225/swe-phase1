@@ -123,7 +123,8 @@ describe('assist use cases', () => {
       expect(result).toEqual({ kind: 'MARKDOWN', markdown: '## 회의 결과\n- API 논의' });
       const [{ system, user }] = generateText.mock.calls[0] as [{ system: string; user: string }];
       expect(user).toBe('회의했고 api 얘기함');
-      expect(system).toContain('추가하지 않는다');
+      expect(system).toContain('Do not add facts');
+      expect(system).toContain('same language as the selected text');
     });
   });
 });

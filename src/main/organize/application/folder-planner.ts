@@ -9,7 +9,12 @@ export const FOLDER_PLAN_SCHEMA = 'folder_paths';
 export const MAX_DEPTH = 3;
 
 /** 층이 위일수록 보편적으로, 내려갈수록 구체적으로 — «넓게/좁게»라는 말 대신 예시로 넓이를 맞춘다 */
-const LEVEL_EXAMPLES = ['공부, 요리, 운동, 업무, 생활', '코딩, 영어, 수학', 'Spring, Rust, 파이썬'] as const;
+/** 예시는 두 언어로 준다 — 한국어 예시만 주면 영어 제목에도 한국어 폴더 이름을 짓는다 */
+const LEVEL_EXAMPLES = [
+  '공부, 요리, 운동, 업무, 생활 (English: Study, Cooking, Exercise, Work, Life)',
+  '코딩, 영어, 수학 (English: Coding, English, Math)',
+  'Spring, Rust, 파이썬 (English: Spring, Rust, Python)',
+] as const;
 
 const SYSTEM = [
   '너는 노트 폴더 구조를 정한다. 노트 제목을 뜻으로 군집화한 작은 묶음들이 주어진다.',
@@ -19,6 +24,7 @@ const SYSTEM = [
   '- 하위 폴더를 하나만 갖게 되는 폴더는 만들지 않는다 (그럴 땐 경로를 짧게).',
   '- 지금 경로에 있는 이름은 다시 쓰지 않는다.',
   '- 폴더 이름은 한 단어(고유명사 가능). \\ / : * ? " < > | 는 쓰지 않는다. «미분류»는 쓰지 않는다.',
+  '- Name folders in the same language as the note titles: English titles get English folder names, Korean titles get Korean names. These instructions are in Korean, but that must not decide the language.',
   '- 모든 묶음을 정확히 한 번씩 assignments에 넣는다.',
 ].join('\n');
 

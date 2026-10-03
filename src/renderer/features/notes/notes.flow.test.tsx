@@ -253,4 +253,20 @@ describe('vault picker', () => {
     expect(await screen.findByRole('button', { name: '보관함: Mock' })).toBeInTheDocument();
     expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
   });
+
+  it('shows a decorative folder, the open button and what Blink promises', async () => {
+    const { container } = render(<App />);
+
+    expect(await screen.findByRole('heading', { name: '보관함 열기' })).toBeInTheDocument();
+    // 폴더 그림은 꾸밈이라 보조 기술에는 숨긴다
+    const art = container.querySelector('[data-folder-art]');
+    expect(art).toHaveAttribute('aria-hidden', 'true');
+    const promises = screen.getByRole('list', { name: 'Blink의 약속' });
+    expect(within(promises).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Markdown 파일 그대로 저장',
+      'AI는 선택한 부분에만',
+    ]);
+    // 최근 보관함은 첫 화면이 아니라 사이드바 보관함 전환에서 고른다
+    expect(screen.queryByRole('heading', { name: '최근 보관함' })).not.toBeInTheDocument();
+  });
 });

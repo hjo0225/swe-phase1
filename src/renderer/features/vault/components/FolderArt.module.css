@@ -1,0 +1,100 @@
+/* 열릴 때 살짝 튕기듯 (원본의 spring 대신) */
+.art {
+  --spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+  position: relative;
+  width: 236px;
+  height: 156px;
+  perspective: 600px;
+}
+
+/* 폴더 뒤판 + 탭 */
+.back {
+  position: absolute;
+  inset: 18px 12px 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--blue-300) 0%, var(--blue-400) 100%);
+  box-shadow: inset 0 0 18px rgba(16, 50, 104, 0.18);
+}
+
+.back::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 0;
+  width: 84px;
+  height: 24px;
+  border-radius: 10px 14px 0 0;
+  background: var(--blue-300);
+}
+
+/* 노트 종이: 제목 줄 하나 + 본문 줄들 */
+.page {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  width: 96px;
+  height: 116px;
+  margin-left: -48px;
+  border-radius: 10px;
+  background:
+    linear-gradient(var(--blue-200), var(--blue-200)) 12px 14px / 46px 5px no-repeat,
+    repeating-linear-gradient(180deg, var(--ink-100) 0 4px, transparent 4px 11px) 12px 30px / 72px 72px no-repeat,
+    linear-gradient(180deg, #fff 0%, var(--blue-50) 100%);
+  box-shadow: 0 6px 16px rgba(16, 50, 104, 0.14);
+  transition: transform 520ms var(--spring);
+}
+
+.left {
+  transform: translate(-34px, 4px) rotate(-4deg);
+}
+
+.center {
+  z-index: 1;
+  transform: translate(0, 0) rotate(0deg);
+  transition-delay: 40ms;
+}
+
+.right {
+  transform: translate(36px, 3px) rotate(4deg);
+  transition-delay: 80ms;
+}
+
+/* 앞판: 반투명 유리, 열리면 아래를 축으로 앞으로 젖혀진다 */
+.front {
+  position: absolute;
+  z-index: 2;
+  inset: 58px 6px 0;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(229, 241, 255, 0.55) 0%, rgba(155, 200, 250, 0.55) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 24px rgba(47, 109, 219, 0.18);
+  backdrop-filter: blur(6px);
+  transform-origin: bottom center;
+  transition: transform 480ms var(--spring);
+}
+
+/* 열림 (부모가 data-open을 준다) */
+.art[data-open] .left {
+  transform: translate(-64px, -30px) rotate(-10deg);
+}
+
+.art[data-open] .center {
+  transform: translate(2px, -44px) rotate(1deg);
+}
+
+.art[data-open] .right {
+  transform: translate(68px, -34px) rotate(10deg);
+}
+
+.art[data-open] .front {
+  transform: rotateX(-38deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .front {
+    transition: none;
+  }
+}

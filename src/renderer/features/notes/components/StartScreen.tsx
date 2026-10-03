@@ -1,29 +1,15 @@
-import { Plus } from 'lucide-react';
-import { Navigate } from 'react-router';
-import { useCreateNote, useNoteList } from '../api/note-queries';
-import styles from './NotePage.module.css';
+import { Navigate, useLocation } from 'react-router';
+import { useNoteList } from '../api/note-queries';
 
-/** `#/`: 노트가 있으면 가장 최근 노트로, 없으면 빈 상태. */
+/** `#/`: 노트가 있으면 가장 최근 노트로. 없으면 오른쪽을 비워 둔다 (만들기는 사이드바에서). */
 export function StartScreen() {
   const { data: notes } = useNoteList();
-  const createNote = useCreateNote();
+  const { search } = useLocation(); // ?settings가 있으면 옮겨 간 노트 위에서도 설정이 열려 있게
 
   if (!notes) return null;
   const latest = notes.reduce<(typeof notes)[number] | undefined>(
     (best, note) => (!best || note.updatedAt > best.updatedAt ? note : best),
     undefined,
   );
-  if (latest) return <Navigate to={`/notes/${latest.id}`} replace />;
-
-  return (
-    <section className={`paper ${styles.page}`}>
-      <h1 className={styles.stateTitle}>첫 노트를 만들어 보세요</h1>
-      <p className={styles.stateBody}>생각을 적고, 선택한 부분을 AI로 구체화·정리·시각화할 수 있습니다.</p>
-      <div>
-        <button type="button" className="button-primary" disabled={createNote.isPending} onClick={() => createNote.mutate(undefined)}>
-          <Plus size={16} strokeWidth={1.75} />새 노트
-        </button>
-      </div>
-    </section>
-  );
+  return latest ? <Navigate to={{ pathname: `/notes/${latest.id}`, search }} replace /> : null;
 }

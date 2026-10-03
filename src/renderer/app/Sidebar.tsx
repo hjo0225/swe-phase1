@@ -1,6 +1,6 @@
 import { FolderPlus, Loader2, Search, Settings, Sparkles, SquarePen } from 'lucide-react';
 import { useState } from 'react';
-import { NavLink } from 'react-router';
+import { Link } from 'react-router';
 import { useCreateNote } from '../features/notes/api/note-queries';
 import { FolderDialog } from '../features/notes/components/FolderDialogs';
 import { NoteTree } from '../features/notes/components/NoteTree';
@@ -92,9 +92,10 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
         <div className={styles.vault} inert={organizing}>
           <VaultSwitcher placement="up" />
         </div>
-        <NavLink to="/settings/ai" className={styles.settingsLink} aria-label="설정" data-tip="설정">
+        {/* 지금 화면은 그대로 두고 설정 모달을 연다 */}
+        <Link to={{ search: '?settings' }} className={styles.settingsLink} aria-label="설정" data-tip="설정">
           <Settings size={17} strokeWidth={1.75} />
-        </NavLink>
+        </Link>
       </div>
 
       {creatingFolder && (

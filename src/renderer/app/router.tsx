@@ -1,5 +1,4 @@
 import { Navigate, type RouteObject } from 'react-router';
-import { SettingsPage } from '../features/ai-settings/components/SettingsPage';
 import { NotePage } from '../features/notes/components/NotePage';
 import { StartScreen } from '../features/notes/components/StartScreen';
 import { AppShell } from './AppShell';
@@ -12,7 +11,8 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <StartScreen /> },
       { path: 'notes/:noteId', element: <NotePage /> },
-      { path: 'settings/ai', element: <SettingsPage /> },
+      // 예전 주소: 처음 화면 위에 설정 모달을 연다
+      { path: 'settings/ai', element: <Navigate to={{ pathname: '/', search: '?settings' }} replace /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

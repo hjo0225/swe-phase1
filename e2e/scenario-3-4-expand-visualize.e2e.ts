@@ -13,6 +13,7 @@ async function configureAndWrite(page: Page, body: string) {
   await form.getByLabel('API Key').fill('sk-e2e-test');
   await form.getByRole('button', { name: '저장' }).click();
   await page.getByText('OpenAI · GPT-5.4 mini (권장)').waitFor();
+  await page.getByRole('dialog', { name: 'AI 설정' }).getByRole('button', { name: '닫기' }).click();
 
   await page.getByRole('button', { name: '새 노트' }).first().click();
   await setTitle(page, 'Electron');

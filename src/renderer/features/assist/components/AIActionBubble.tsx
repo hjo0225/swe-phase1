@@ -51,7 +51,7 @@ export function AIActionBubble({ editor, noteId }: { editor: Editor; noteId: str
               title={title}
               onMouseDown={(event) => event.preventDefault()} // 편집기 선택 유지
               onClick={() =>
-                void requestJob(editor, { noteId, type }, { queryClient, openSettings: () => void navigate('/settings/ai') })
+                void requestJob(editor, { noteId, type }, { queryClient, openSettings: () => void navigate({ search: '?settings' }) })
               }
             >
               {capabilities && missing.length > 0 ? (

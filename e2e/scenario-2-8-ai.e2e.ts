@@ -23,6 +23,7 @@ describe('Scenarios 8 & 2: AI settings and organize', () => {
       await form.getByText('연결되었습니다').waitFor();
       await form.getByRole('button', { name: '저장' }).click();
       await page.getByText('OpenAI · GPT-5.4 mini (권장)').waitFor();
+      await page.getByRole('dialog', { name: 'AI 설정' }).getByRole('button', { name: '닫기' }).click();
       if (shots) await page.screenshot({ path: `${shots}/scenario-8.png` });
 
       // Scenario 2: 텍스트 선택 → 정리 → Pulse → 다른 부분 작성 → 결과 한 번에 적용

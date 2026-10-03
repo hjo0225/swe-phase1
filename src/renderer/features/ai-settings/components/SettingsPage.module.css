@@ -1,16 +1,8 @@
-.page {
-  width: 100%;
-  max-width: 760px;
-  align-self: flex-start;
-  padding: 40px 64px 48px;
+.panel {
+  display: flex;
+  flex-direction: column;
 }
 
-.title {
-  margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 650;
-  color: var(--ink-900);
-}
 
 .lead {
   margin: 0 0 28px;

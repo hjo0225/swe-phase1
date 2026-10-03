@@ -24,9 +24,6 @@ export function VaultPicker() {
         <h1 id="vault-picker-title" className={styles.title}>
           보관함 열기
         </h1>
-        <p className={styles.body}>
-          노트를 둘 폴더를 고르세요. 노트는 그 폴더 안에 .md 파일로 저장되고, 폴더 구조가 그대로 사이드바에 보입니다.
-        </p>
         <button
           type="button"
           className="button-primary"

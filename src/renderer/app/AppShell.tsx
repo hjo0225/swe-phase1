@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet, useSearchParams } from 'react-router';
+import { SettingsModal } from '../features/ai-settings/components/SettingsPage';
 import { useJobEvents } from '../features/assist/api/job-queries';
 import { ActiveEditorProvider } from '../features/editor/ActiveEditorContext';
 import { noteKeys } from '../features/notes/api/note-queries';
@@ -14,6 +15,17 @@ import { Sidebar } from './Sidebar';
 export function AppShell() {
   const queryClient = useQueryClient();
   const [searchOpen, setSearchOpen] = useState(false);
+  // 설정은 주소의 ?settings로 연다 — 지금 보던 노트는 뒤에 그대로 남는다
+  const [searchParams, setSearchParams] = useSearchParams();
+  const settingsOpen = searchParams.has('settings');
+  const closeSettings = () =>
+    setSearchParams(
+      (params) => {
+        params.delete('settings');
+        return params;
+      },
+      { replace: true },
+    );
   useJobEvents();
 
   // 저장이 끝나면 트리(미리보기·수정 시각)와 링크를 갱신한다. 열린 노트의 상세는 편집기가 진실이므로 건드리지 않는다.
@@ -69,6 +81,7 @@ export function AppShell() {
         </main>
       </div>
       {searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} />}
+      {settingsOpen && <SettingsModal onClose={closeSettings} />}
       <Toaster />
     </ActiveEditorProvider>
   );

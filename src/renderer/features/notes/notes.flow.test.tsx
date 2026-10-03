@@ -30,7 +30,8 @@ describe('notes flow (vault)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: '첫 노트를 만들어 보세요' })).toBeInTheDocument();
+    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toBeEmptyDOMElement(); // 노트가 없으면 오른쪽은 비어 있다
     await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
 
     expect(await titleInput()).toHaveValue('제목 없음');
@@ -83,7 +84,7 @@ describe('notes flow (vault)', () => {
   it('shows the saved content when returning to a note created in this session', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByRole('heading', { name: '첫 노트를 만들어 보세요' });
+    await screen.findByText('아직 노트가 없습니다');
 
     await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
     await user.click(await body());
@@ -116,7 +117,8 @@ describe('notes flow (vault)', () => {
     const dialog = screen.getByRole('dialog', { name: '노트를 삭제할까요?' });
     await user.click(within(dialog).getByRole('button', { name: '삭제' }));
 
-    expect(await screen.findByRole('heading', { name: '첫 노트를 만들어 보세요' })).toBeInTheDocument();
+    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('main')).toBeEmptyDOMElement());
     await expect(getBlink().notes.get({ id })).rejects.toMatchObject({ code: 'NOTE_NOT_FOUND' });
   });
 
@@ -142,7 +144,7 @@ describe('notes flow (vault)', () => {
   it('creates a folder from the sidebar and new notes inside the selected folder', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByRole('heading', { name: '첫 노트를 만들어 보세요' });
+    await screen.findByText('아직 노트가 없습니다');
 
     await user.click(screen.getByRole('button', { name: '새 폴더' }));
     await user.type(screen.getByRole('textbox', { name: '폴더 이름' }), '프로젝트{Enter}');
@@ -249,6 +251,6 @@ describe('vault picker', () => {
     await user.click(await screen.findByRole('button', { name: /폴더 열기/ }));
 
     expect(await screen.findByRole('button', { name: '보관함: Mock' })).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: '첫 노트를 만들어 보세요' })).toBeInTheDocument();
+    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
   });
 });

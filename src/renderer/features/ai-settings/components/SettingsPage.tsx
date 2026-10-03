@@ -9,6 +9,7 @@ import { toast } from '../../../shared/ui/toast';
 import { CONNECTION_FAILURE_MESSAGE } from '../../assist/model/messages';
 import { useProviderSettings, useTestProvider, useUpdateProvider } from '../api/settings-queries';
 import { AIStatusChip } from './AIStatusChip';
+import { Modal } from '../../../shared/ui/Modal';
 import styles from './SettingsPage.module.css';
 
 /** 비워 두면 쓰는 주소. Kimi 중국 계정은 https://api.moonshot.cn/v1 을 적는다. */
@@ -30,13 +31,12 @@ const FIELD_ERROR: Partial<Record<string, string>> = {
   PROVIDER_SECURE_STORAGE_UNAVAILABLE: '보안 저장소를 사용할 수 없어 Key를 저장하지 못했습니다',
 };
 
-/** UC-AIP-001~003 */
-export function SettingsPage() {
+/** UC-AIP-001~003. 설정 모달(SettingsModal) 안의 내용 */
+export function SettingsPanel() {
   const { data, isPending, isError, refetch } = useProviderSettings();
   const { data: appInfo } = useQuery({ queryKey: ['app', 'info'], queryFn: () => getBlink().app.getInfo(), staleTime: Infinity });
   return (
-    <section className={`paper ${styles.page}`}>
-      <h1 className={styles.title}>AI 설정</h1>
+    <section className={styles.panel}>
       <p className={styles.lead}>사용할 AI Provider와 모델, 본인의 API Key를 설정합니다. Key는 이 PC의 보안 저장소에 암호화되어 저장됩니다.</p>
       {/* 지금 쓰는 AI는 설정 화면에서만 보여 준다 */}
       <div className={styles.current}>
@@ -223,4 +223,13 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
 function messageOf(error: unknown): string {
   if (error instanceof BlinkIpcError) return FIELD_ERROR[error.code] ?? '저장하지 못했습니다';
   return '저장하지 못했습니다';
+}
+
+/** 사이드바 ⚙·AI 메뉴의 «설정 필요»에서 지금 화면 위로 연다 (주소에 ?settings). */
+export function SettingsModal({ onClose }: { onClose(): void }) {
+  return (
+    <Modal title="AI 설정" onClose={onClose}>
+      <SettingsPanel />
+    </Modal>
+  );
 }

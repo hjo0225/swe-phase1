@@ -1,10 +1,10 @@
-import { ChevronDown, FolderOpen } from 'lucide-react';
+import { ChevronsUpDown, FolderOpen } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useCurrentVault, useOpenVault, useRecentVaults } from '../api/vault-queries';
 import styles from './VaultSwitcher.module.css';
 
-/** 사이드바 위쪽: 현재 보관함 이름 · 최근 보관함으로 바꾸기 · 다른 폴더 열기. */
-export function VaultSwitcher() {
+/** 사이드바 맨 아래: 현재 보관함 이름 · 최근 보관함으로 바꾸기 · 다른 폴더 열기. placement='up'이면 메뉴가 위로 열린다. */
+export function VaultSwitcher({ placement = 'down' }: { placement?: 'down' | 'up' }) {
   const { data: vault } = useCurrentVault();
   const { data: recent = [] } = useRecentVaults();
   const openVault = useOpenVault();
@@ -39,10 +39,10 @@ export function VaultSwitcher() {
       >
         <FolderOpen size={15} strokeWidth={1.75} aria-hidden />
         <span className={styles.name}>{vault?.name}</span>
-        <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
+        <ChevronsUpDown size={14} strokeWidth={1.75} aria-hidden />
       </button>
       {open && (
-        <div role="menu" className={`glass-elevated ${styles.menu}`}>
+        <div role="menu" className={`glass-elevated ${styles.menu}`} data-placement={placement}>
           {others.map((v) => (
             <button key={v.root} type="button" role="menuitem" title={v.root} onClick={() => choose(v.root)}>
               {v.name}

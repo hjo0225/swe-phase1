@@ -159,3 +159,11 @@
   font-weight: 600;
   color: var(--ink-500);
 }
+
+.appInfo {
+  margin: 32px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--divider);
+  font-size: 12px;
+  color: var(--ink-500);
+}

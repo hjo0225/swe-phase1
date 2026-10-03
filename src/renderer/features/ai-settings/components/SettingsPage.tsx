@@ -1,8 +1,10 @@
+import { useQuery } from '@tanstack/react-query';
 import { Check, KeyRound, ShieldAlert, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import type { Capabilities } from '../../../../shared/assist/capabilities';
 import type { ProviderId, ProviderSettingsView, TestProviderResult } from '../../../../shared/ipc/ai-provider';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
+import { getBlink } from '../../../shared/api/blink';
 import { toast } from '../../../shared/ui/toast';
 import { CONNECTION_FAILURE_MESSAGE } from '../../assist/model/messages';
 import { useProviderSettings, useTestProvider, useUpdateProvider } from '../api/settings-queries';
@@ -31,6 +33,7 @@ const FIELD_ERROR: Partial<Record<string, string>> = {
 /** UC-AIP-001~003 */
 export function SettingsPage() {
   const { data, isPending, isError, refetch } = useProviderSettings();
+  const { data: appInfo } = useQuery({ queryKey: ['app', 'info'], queryFn: () => getBlink().app.getInfo(), staleTime: Infinity });
   return (
     <section className={`paper ${styles.page}`}>
       <h1 className={styles.title}>AI 설정</h1>
@@ -47,6 +50,8 @@ export function SettingsPage() {
         </button>
       )}
       {data && <AIProviderForm view={data} />}
+      {/* 앱 버전은 설정 화면에서만 보인다 */}
+      <p className={styles.appInfo}>{appInfo ? `Blink v${appInfo.version}` : ''}</p>
     </section>
   );
 }

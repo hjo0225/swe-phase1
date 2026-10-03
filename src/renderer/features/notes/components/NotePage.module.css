@@ -12,17 +12,18 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1000px;
-  min-height: calc(100% - 8px);
-  align-self: flex-start;
+  /* 사이드바와 같은 높이로 고정하고 종이 안에서 스크롤한다 — 위아래 끝이 늘 사이드바와 맞는다 */
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(70, 130, 210, 0.25) transparent;
   padding-bottom: 64px;
 }
 
 /* 머리줄 + 서식 도구막대: 스크롤해도 위에 붙어 있다 (21st Rich Text Editor) */
 .chrome {
   position: sticky;
-  /* 스크롤 영역의 위쪽 여백(AppShell .main padding-top)만큼 올라가 붙어야 그 틈으로 본문이 비치지 않는다 */
-  top: -24px;
+  top: 0;
   z-index: 10;
   display: flex;
   flex-direction: column;

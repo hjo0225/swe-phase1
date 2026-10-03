@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { FolderPlus, Loader2, Search, Settings, Sparkles, SquarePen } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router';
@@ -9,17 +8,11 @@ import { useOrganizing } from '../features/organize/api/organize-queries';
 import { OrganizeDialog } from '../features/organize/components/OrganizeDialog';
 import { VaultSwitcher } from '../features/vault/components/VaultSwitcher';
 import wordmark from '../assets/blink-wordmark.svg';
-import { getBlink } from '../shared/api/blink';
 import styles from './Sidebar.module.css';
 
 const modifierKey = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl';
 
 export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
-  const { data: appInfo } = useQuery({
-    queryKey: ['app', 'info'],
-    queryFn: () => getBlink().app.getInfo(),
-    staleTime: Infinity,
-  });
   const createNote = useCreateNote();
   // 새 노트·새 폴더가 생길 위치. '' = 보관함 맨 위
   const [selectedFolder, setSelectedFolder] = useState('');
@@ -50,9 +43,9 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
         className={styles.editable}
         data-locked={organizing || undefined}
       >
-        {/* 트리 머리: 보관함 이름(전환) + 만들기·분류 (21st Tree View) */}
+        {/* 트리 머리: 만들기·분류 (21st Tree View) */}
         <div className={styles.treeHeader}>
-          <VaultSwitcher />
+          <span className={styles.treeLabel}>노트</span>
           <div className={styles.treeActions}>
             <button
               type="button"
@@ -94,11 +87,13 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
         </div>
       )}
 
+      {/* 맨 아래: 보관함 전환(분류 중에는 잠김) + 설정. 앱 버전은 설정 화면에서만 보인다 */}
       <div className={styles.footer}>
-        <NavLink to="/settings/ai" className={styles.navItem}>
-          <Settings size={16} strokeWidth={1.75} />
-          설정
-          <span className={styles.version}>{appInfo ? `v${appInfo.version}` : ''}</span>
+        <div className={styles.vault} inert={organizing}>
+          <VaultSwitcher placement="up" />
+        </div>
+        <NavLink to="/settings/ai" className={styles.settingsLink} aria-label="설정" data-tip="설정">
+          <Settings size={17} strokeWidth={1.75} />
         </NavLink>
       </div>
 

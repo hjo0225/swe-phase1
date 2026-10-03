@@ -11,5 +11,6 @@
   overflow: auto;
   display: flex;
   justify-content: center;
-  padding: 24px 32px;
+  /* 노트 종이가 사이드바와 같은 높이·간격(12px)으로 붙도록 여백을 두지 않는다 */
+  padding: 0;
 }

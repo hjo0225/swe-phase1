@@ -12,12 +12,22 @@ describe('App shell', () => {
     resetAutosaveForTests();
   });
 
-  it('renders the sidebar with settings link and app version', async () => {
+  it('puts the vault switcher and settings at the bottom of the sidebar, without the app version', async () => {
     window.location.hash = '#/';
     render(<App />);
-    expect(await screen.findByRole('navigation', { name: 'Blink' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /설정/ })).toHaveAttribute('href', '#/settings/ai');
-    expect(await screen.findByText('vmock')).toBeInTheDocument();
+    const sidebar = await screen.findByRole('navigation', { name: 'Blink' });
+    expect(within(sidebar).getByRole('link', { name: /설정/ })).toHaveAttribute('href', '#/settings/ai');
+    // 보관함 전환은 트리 아래(맨 아래 줄)에 있다
+    const tree = within(sidebar).getByRole('region', { name: '노트 목록' });
+    const vault = await within(sidebar).findByRole('button', { name: '보관함: Mock' });
+    expect(tree.compareDocumentPosition(vault) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(sidebar).queryByText(/^v/)).not.toBeInTheDocument();
+  });
+
+  it('shows the app version on the settings screen', async () => {
+    window.location.hash = '#/settings/ai';
+    render(<App />);
+    expect(await screen.findByText('Blink vmock')).toBeInTheDocument();
   });
 
   it('shows the AI provider status only on the settings screen, not in the sidebar', async () => {

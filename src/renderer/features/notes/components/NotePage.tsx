@@ -104,7 +104,7 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
   useAssistBridge(note.id, editor);
 
   return (
-    <article className={`paper ${styles.sheet}`}>
+    <article className={`paper ${styles.sheet}`} data-scroll-root>
       {/* 21st Rich Text Editor: 위치·저장 상태 머리줄 + 서식 도구막대. 스크롤해도 위에 붙어 있다. */}
       <div className={styles.chrome}>
         <header className={styles.header}>

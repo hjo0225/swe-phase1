@@ -1,8 +1,16 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ImportNoteResult, OrganizePlan } from '../../../../shared/ipc/organize';
 import { getBlink } from '../../../shared/api/blink';
 import { noteKeys, notifyRelinked } from '../../notes/api/note-queries';
 import { getAutosave } from '../../notes/autosave/autosave';
+
+/** AI 분류 작업의 공통 키 — 하나라도 돌고 있으면 사이드바를 잠근다 (Main은 OrganizeLock으로 실제로 막는다). */
+const ORGANIZE = 'organize';
+
+/** AI가 미리보기·옮기기·자동 배치·가져오기 중인지 */
+export function useOrganizing(): boolean {
+  return useIsMutating({ mutationKey: [ORGANIZE] }) > 0;
+}
 
 /** 노트가 옮겨진 뒤: 트리·링크를 다시 읽고, 링크가 고쳐진 열린 노트에 알린다. */
 function useAfterMoves() {
@@ -15,7 +23,7 @@ function useAfterMoves() {
 }
 
 export function useOrganizePreview() {
-  return useMutation({ mutationFn: (folder: string) => getBlink().organize.preview({ folder }) });
+  return useMutation({ mutationKey: [ORGANIZE, 'preview'], mutationFn: (folder: string) => getBlink().organize.preview({ folder }) });
 }
 
 /**
@@ -25,6 +33,7 @@ export function useOrganizePreview() {
 export function useOrganizeApply() {
   const afterMoves = useAfterMoves();
   return useMutation({
+    mutationKey: [ORGANIZE, 'apply'],
     mutationFn: async (plan: OrganizePlan) => {
       await getAutosave().flushAll();
       return getBlink().organize.apply(plan);
@@ -36,6 +45,7 @@ export function useOrganizeApply() {
 export function usePlaceNote() {
   const afterMoves = useAfterMoves();
   return useMutation({
+    mutationKey: [ORGANIZE, 'place'],
     mutationFn: async (id: string) => {
       await getAutosave().flushAll();
       return getBlink().organize.place({ id });
@@ -51,6 +61,7 @@ export function usePlaceNote() {
 export function useImportNotes() {
   const afterMoves = useAfterMoves();
   return useMutation({
+    mutationKey: [ORGANIZE, 'import'],
     mutationFn: async (input: { files: File[]; folder: string }) => {
       const blink = getBlink();
       const results: ImportNoteResult[] = [];

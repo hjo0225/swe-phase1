@@ -41,6 +41,45 @@ describe('organize flow', () => {
     expect(await sidebarTree().findByRole('treeitem', { name: '공부' })).toBeInTheDocument();
   });
 
+  it('locks the sidebar while AI is classifying, even after the dialog is closed', async () => {
+    await seedNote('spring boot 실무 1편');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    resetBlinkForTests({ organizePreview: (folder) => plan(folder), organizeGate: () => gate });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '취소' }));
+
+    const locked = await screen.findByRole('group', { name: '보관함 편집' });
+    expect(locked).toHaveAttribute('inert');
+    expect(locked).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status', { name: 'AI 분류 상태' })).toHaveTextContent('AI가 폴더를 정리하는 중');
+
+    release();
+    await waitFor(() => expect(locked).not.toHaveAttribute('inert'));
+    expect(screen.queryByRole('status', { name: 'AI 분류 상태' })).not.toBeInTheDocument();
+  });
+
+  it('locks the sidebar while a new note is being placed after its first title', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    resetBlinkForTests({ organizePreview: (folder) => plan(folder), organizeGate: () => gate });
+    const note = await getBlink().notes.create({}); // 제목 없음 → 처음 제목을 붙이면 자동 배치
+    window.location.hash = `#/notes/${note.id}`;
+    const user = userEvent.setup();
+    render(<App />);
+
+    const title = await screen.findByRole('textbox', { name: '노트 제목' });
+    await user.clear(title);
+    await user.type(title, '김치찌개 레시피{Enter}');
+
+    expect(await screen.findByRole('group', { name: '보관함 편집' })).toHaveAttribute('inert');
+    release();
+    await waitFor(() => expect(screen.getByRole('group', { name: '보관함 편집' })).not.toHaveAttribute('inert'));
+  });
+
   it('tells the user when there is nothing to group', async () => {
     await seedNote('김치찌개 레시피');
     const user = userEvent.setup();

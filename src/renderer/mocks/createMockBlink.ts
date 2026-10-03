@@ -22,6 +22,8 @@ export interface MockBlinkOptions {
   organizePreview?: (folder: string) => OrganizePlan;
   /** organize:preview를 이 오류 코드로 실패시킨다 (AI 미설정 등) */
   organizePreviewError?: BlinkErrorCode;
+  /** 분류 작업(미리보기·자동 배치)이 이 Promise가 끝날 때까지 기다린다 — «AI가 일하는 중» 상태 시험용 */
+  organizeGate?: () => Promise<void>;
 }
 
 export interface MockControls {
@@ -419,10 +421,12 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       },
     },
     organize: {
-      preview: ({ folder }) =>
-        options.organizePreviewError
+      preview: async ({ folder }) => {
+        await options.organizeGate?.();
+        return options.organizePreviewError
           ? fail<OrganizePlan>(options.organizePreviewError, 'mock preview failure')
-          : ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' }),
+          : ok<OrganizePlan>(options.organizePreview?.(folder) ?? { folder, newFolders: [], moves: [], skipped: 'NO_CLEAR_GROUPS' });
+      },
       apply: (plan) => {
         const createdFolders: string[] = [];
         const failed: { id: string; title: string }[] = [];
@@ -457,7 +461,8 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         }
         return ok({ movedNotes, createdFolders, updatedNoteIds: [], failed });
       },
-      place: ({ id }) => {
+      place: async ({ id }) => {
+        await options.organizeGate?.();
         const note = notes.get(id);
         return note ? ok({ folder: folderOf(note.path), updatedNoteIds: [] }) : fail('NOTE_NOT_FOUND', id);
       },

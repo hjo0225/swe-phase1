@@ -13,6 +13,8 @@ export type NoteErrorCode =
   | 'VAULT_NOT_OPEN'
   | 'VAULT_NOT_FOUND'
   | 'VAULT_NOT_ACCESSIBLE'
+  /** AI가 보관함을 분류하는 중이라 구조를 바꿀 수 없다 */
+  | 'VAULT_BUSY'
   | 'NOTE_IMPORT_INVALID'
   | 'NOTE_IMPORT_LOCKED';
 export type AssistErrorCode =

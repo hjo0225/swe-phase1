@@ -30,7 +30,8 @@ export function createFakeLLMProviderFactory(delayMs = 800): LLMProviderFactory 
           if (config.apiKey === 'bad-key') throw new ProviderError('AUTH', 'fake auth failure');
         },
         // 단어마다 정해진 칸에 1을 더한 가짜 임베딩 — 같은 단어가 많은 제목끼리 가깝다
-        async embed({ inputs }) {
+        async embed({ inputs, signal }) {
+          await wait(signal); // 실제 임베딩처럼 네트워크 왕복을 흉내 낸다
           return inputs.map((text) => {
             const vector = new Array<number>(64).fill(0);
             for (const word of text.toLowerCase().split(/\s+/).filter(Boolean)) {

@@ -12,6 +12,7 @@ import { NodeVaultFileSystem } from '../../note/infrastructure/vault/node-vault-
 import { SqliteNoteIndex } from '../../note/infrastructure/vault/sqlite-note-index';
 import { openVaultIndex, type VaultIndexDatabase } from '../../note/infrastructure/vault/vault-index-db';
 import { DomainError } from '../../platform/errors';
+import { OrganizeLock } from './organize-lock';
 import { OrganizeService } from './organize-service';
 
 const SPRING = ['spring boot 실무 1편', 'spring boot 실무 2편', 'spring boot 실무 3편'];
@@ -23,6 +24,7 @@ let db: VaultIndexDatabase;
 let notes: VaultNoteService;
 let sync: IndexSync;
 let organize: OrganizeService;
+let lock: OrganizeLock;
 let llmConfigured: boolean;
 /** 다른 프로그램이 쓰는 파일처럼 옮기기가 EBUSY로 실패하는 노트 */
 let busyNoteId: string | null;
@@ -89,7 +91,9 @@ beforeEach(() => {
       return notes.move(input);
     },
   });
+  lock = new OrganizeLock();
   organize = new OrganizeService({
+    lock,
     notes: () => notesPort,
     folders: () => folders,
     activeLLM: {
@@ -202,6 +206,41 @@ describe('preview', () => {
     embedError = new ProviderError('RATE_LIMIT', 'slow down');
     seed('', ...SPRING, ...RUST);
     expect(await codeOf(() => organize.preview(''))).toBe('ORGANIZE_EMBEDDING_FAILED');
+  });
+});
+
+describe('organize lock (사이드바 잠금)', () => {
+  const seed = () => {
+    for (const t of [...SPRING, ...RUST]) writeFileSync(join(root, `${t}.md`), '');
+    sync.full();
+  };
+
+  it('holds the lock while the AI works and releases it afterwards', async () => {
+    seed();
+    let busyDuringAI = false;
+    embedder.mockImplementationOnce(async ({ inputs }: { inputs: string[] }) => {
+      busyDuringAI = lock.busy;
+      return inputs.map(() => [1, 0]);
+    });
+    await organize.preview('');
+    expect(busyDuringAI).toBe(true);
+    expect(lock.busy).toBe(false);
+  });
+
+  it('releases the lock when the AI fails', async () => {
+    seed();
+    embedError = new Error('network');
+    await expect(organize.preview('')).rejects.toBeInstanceOf(DomainError);
+    expect(lock.busy).toBe(false);
+  });
+
+  it('refuses to start while another organize task runs', async () => {
+    seed();
+    let release!: () => void;
+    const running = lock.run(() => new Promise<void>((resolve) => (release = resolve)));
+    await expect(organize.preview('')).rejects.toMatchObject({ code: 'VAULT_BUSY' });
+    release();
+    await running;
   });
 });
 

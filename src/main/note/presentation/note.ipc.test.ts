@@ -6,6 +6,7 @@ import type { NoteDetail } from '../../../shared/ipc/notes';
 import { VaultManager, type NoteVaultSession } from '../application/vault/vault-manager';
 import { JsonAppConfigStore } from '../infrastructure/vault/app-config-store';
 import { openNoteVault } from '../infrastructure/vault/open-note-vault';
+import { OrganizeLock } from '../../organize/application/organize-lock';
 import { noteIpcHandlers } from './note.ipc';
 
 describe('noteIpcHandlers', () => {
@@ -14,6 +15,7 @@ describe('noteIpcHandlers', () => {
   let vaults: VaultManager<NoteVaultSession>;
   let handlers: ReturnType<typeof noteIpcHandlers>;
   let chosen: string | null;
+  let lock: OrganizeLock;
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'blink-note-ipc-'));
@@ -28,7 +30,8 @@ describe('noteIpcHandlers', () => {
       onChanged: () => {},
     });
     chosen = vault;
-    handlers = noteIpcHandlers({ vaults, chooseFolder: async () => chosen });
+    lock = new OrganizeLock();
+    handlers = noteIpcHandlers({ vaults, chooseFolder: async () => chosen, lock });
   });
   afterEach(() => {
     vaults.close();
@@ -92,6 +95,32 @@ describe('noteIpcHandlers', () => {
       note: { title: '회의', path: '프로젝트/회의.md' },
     });
     await expect(data('note:get', { id: created.id })).resolves.toMatchObject({ content: '# 회의' });
+  });
+
+  it('refuses to change the vault structure while AI is organizing, but still saves note bodies', async () => {
+    await data('vault:open', { root: vault });
+    await data('folder:create', { name: '폴더' });
+    const note = await data<NoteDetail>('note:create', {});
+    let release!: () => void;
+    const organizing = lock.run(() => new Promise<void>((resolve) => (release = resolve)));
+
+    const busy = { ok: false, error: { code: 'VAULT_BUSY' } };
+    await expect(call('note:create', {})).resolves.toMatchObject(busy);
+    await expect(call('note:rename', { id: note.id, title: '새 이름' })).resolves.toMatchObject(busy);
+    await expect(call('note:move', { id: note.id, folder: '폴더' })).resolves.toMatchObject(busy);
+    await expect(call('note:delete', { id: note.id })).resolves.toMatchObject(busy);
+    await expect(call('folder:create', { name: '다른 폴더' })).resolves.toMatchObject(busy);
+    await expect(call('folder:rename', { path: '폴더', name: '바뀐 폴더' })).resolves.toMatchObject(busy);
+    await expect(call('folder:delete', { path: '폴더' })).resolves.toMatchObject(busy);
+    await expect(call('vault:open', { root: vault })).resolves.toMatchObject(busy);
+    await expect(call('vault:choose')).resolves.toMatchObject(busy);
+    // 본문 저장과 읽기는 계속 된다
+    await expect(data('note:update', { id: note.id, content: '계속 쓴다' })).resolves.toMatchObject({ changed: true });
+    await expect(data('note:tree')).resolves.toMatchObject({ folders: ['폴더'] });
+
+    release();
+    await organizing;
+    await expect(data('note:rename', { id: note.id, title: '새 이름' })).resolves.toMatchObject({ note: { title: '새 이름' } });
   });
 
   it('rejects malformed requests before touching the vault', async () => {

@@ -6,6 +6,7 @@ import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import { toast } from '../../../shared/ui/toast';
 import { CONNECTION_FAILURE_MESSAGE } from '../../assist/model/messages';
 import { useProviderSettings, useTestProvider, useUpdateProvider } from '../api/settings-queries';
+import { AIStatusChip } from './AIStatusChip';
 import styles from './SettingsPage.module.css';
 
 /** 비워 두면 쓰는 주소. Kimi 중국 계정은 https://api.moonshot.cn/v1 을 적는다. */
@@ -34,6 +35,11 @@ export function SettingsPage() {
     <section className={`paper ${styles.page}`}>
       <h1 className={styles.title}>AI 설정</h1>
       <p className={styles.lead}>사용할 AI Provider와 모델, 본인의 API Key를 설정합니다. Key는 이 PC의 보안 저장소에 암호화되어 저장됩니다.</p>
+      {/* 지금 쓰는 AI는 설정 화면에서만 보여 준다 */}
+      <div className={styles.current}>
+        <span className={styles.currentLabel}>사용 중</span>
+        <AIStatusChip />
+      </div>
       {isPending && <div className={styles.skeleton} aria-busy="true" />}
       {isError && (
         <button type="button" className="button-secondary" onClick={() => void refetch()}>

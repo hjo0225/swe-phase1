@@ -1,7 +1,7 @@
 import { useProviderSettings } from '../api/settings-queries';
 import styles from './AIStatusChip.module.css';
 
-/** Sidebar: 설정 완료면 Mint 점 + Provider·모델, 아니면 "AI 설정 필요". */
+/** 설정 화면 «사용 중»: 설정 완료면 Mint 점 + Provider·모델, 아니면 "AI 설정 필요". */
 export function AIStatusChip() {
   const { data } = useProviderSettings();
   const active = data?.active;

@@ -13,6 +13,7 @@ import { DomainError } from '../../platform/errors';
 import { bestClustering, MIN_NOTES, MIN_SILHOUETTE } from '../domain/clustering';
 import { closerNewGroup, fittingFolder, folderRadius } from '../domain/placement';
 import { cosineSimilarity, subMatrix } from '../domain/similarity';
+import { OrganizeLock } from './organize-lock';
 import { planFolders, UNSORTED } from './folder-planner';
 
 const NAMING_TIMEOUT_MS = 60_000;
@@ -32,6 +33,8 @@ export interface OrganizeFolderPort {
 }
 
 export interface OrganizeDeps {
+  /** 분류하는 동안 보관함 구조 변경을 막는 잠금 (note IPC와 함께 쓴다). 기본은 이 서비스만의 잠금 */
+  lock?: OrganizeLock;
   /** 열린 보관함의 노트 — 보관함이 바뀔 수 있어 매번 가져온다 */
   notes(): OrganizeNotePort;
   folders(): OrganizeFolderPort;
@@ -57,10 +60,18 @@ const planned = (note: NoteSummary): PlannedNote => ({ id: note.id, title: note.
 
 /** 노트 제목으로 폴더를 나누고 새 노트를 맞는 폴더에 넣는다 (소웨공/Phase1_파일분류_계획서.md). */
 export class OrganizeService {
-  constructor(private readonly deps: OrganizeDeps) {}
+  private readonly lock: OrganizeLock;
+
+  constructor(private readonly deps: OrganizeDeps) {
+    this.lock = deps.lock ?? new OrganizeLock();
+  }
 
   /** 분류하기 1단계: 옮길 계획만 만든다. 아무것도 옮기지 않는다. */
-  async preview(folder: string): Promise<OrganizePlan> {
+  preview(folder: string): Promise<OrganizePlan> {
+    return this.lock.run(() => this.planPreview(folder));
+  }
+
+  private async planPreview(folder: string): Promise<OrganizePlan> {
     const tree = this.deps.notes().tree();
     if (folder !== '' && !tree.folders.some((f) => same(f, folder))) {
       throw new DomainError('FOLDER_NOT_FOUND', `Folder ${folder} not found`);
@@ -152,6 +163,8 @@ export class OrganizeService {
    * 노트 하나(또는 폴더 하나)가 실패해도 멈추지 않는다 — 이미 옮긴 노트와 고친 링크를 화면이 알아야 하기 때문이다.
    */
   apply(plan: OrganizePlan): OrganizeApplyResult {
+    // 동기로 끝까지 돌아 그사이 다른 요청이 끼어들 수 없다 — 다른 분류 작업이 돌고 있는지만 본다.
+    this.lock.assertIdle();
     const createdFolders: string[] = [];
     const updatedNoteIds = new Set<string>();
     const failed: OrganizeApplyResult['failed'] = [];
@@ -177,7 +190,11 @@ export class OrganizeService {
   }
 
   /** 새 노트 자동 배치: 지금 폴더를 맨 위로 보고 한 층씩 내려간다. 맞는 하위 폴더가 없으면 그 층의 「미분류」. */
-  async place(noteId: string): Promise<PlaceNoteResult> {
+  place(noteId: string): Promise<PlaceNoteResult> {
+    return this.lock.run(() => this.placeNote(noteId));
+  }
+
+  private async placeNote(noteId: string): Promise<PlaceNoteResult> {
     const tree = this.deps.notes().tree();
     const note = tree.notes.find((n) => n.id === noteId);
     if (!note) throw new DomainError('NOTE_NOT_FOUND', `Note ${noteId} not found`);
@@ -213,10 +230,12 @@ export class OrganizeService {
   }
 
   /** 끌어다 놓은 바깥 `.md`: 놓은 폴더로 가져온 뒤 그 폴더부터 자동 배치 */
-  async importFile(input: { sourcePath: string; folder: string }): Promise<ImportNoteResult> {
-    const note = this.deps.notes().importFile(input);
-    const placed = await this.place(note.id);
-    return { noteId: note.id, folder: placed.folder, updatedNoteIds: placed.updatedNoteIds };
+  importFile(input: { sourcePath: string; folder: string }): Promise<ImportNoteResult> {
+    return this.lock.run(async () => {
+      const note = this.deps.notes().importFile(input);
+      const placed = await this.placeNote(note.id);
+      return { noteId: note.id, folder: placed.folder, updatedNoteIds: placed.updatedNoteIds };
+    });
   }
 
   /** 제목들을 «사용 중» AI로 임베딩한다. 설정이 없으면 AI_PROVIDER_NOT_CONFIGURED, 임베딩을 못 하는 공급자면 AI_CAPABILITY_UNSUPPORTED. */

@@ -28,6 +28,7 @@ import { VaultManager } from './note/application/vault/vault-manager';
 import { JsonAppConfigStore } from './note/infrastructure/vault/app-config-store';
 import { openNoteVault, type OpenedNoteVault } from './note/infrastructure/vault/open-note-vault';
 import { noteIpcHandlers } from './note/presentation/note.ipc';
+import { OrganizeLock } from './organize/application/organize-lock';
 import { OrganizeService } from './organize/application/organize-service';
 import { organizeIpcHandlers } from './organize/presentation/organize.ipc';
 import { systemClock, uuid } from './platform/clock';
@@ -91,7 +92,9 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
   const llmFactory = useFakeLLM ? createFakeLLMProviderFactory() : createLLMProviderFactory();
   const providerSettings = new ProviderSettingsService(providerRepo, cipher, llmFactory, systemClock);
   const activeLLM = new ActiveLLM(providerRepo, cipher, llmFactory);
+  const organizeLock = new OrganizeLock();
   const organize = new OrganizeService({
+    lock: organizeLock,
     notes: () => vaults.session().notes,
     folders: () => vaults.session().folders,
     activeLLM,
@@ -126,7 +129,7 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
     {
       [IpcChannels.appGetInfo]: createIpcHandler(EmptyRequest, () => ({ version: app.getVersion() })),
       [IpcChannels.appReadyToClose]: createIpcHandler(EmptyRequest, () => releaseClose()),
-      ...noteIpcHandlers({ vaults, chooseFolder }),
+      ...noteIpcHandlers({ vaults, chooseFolder, lock: organizeLock }),
       ...settingsIpcHandlers(providerSettings),
       ...aiIpcHandlers({
         create: new CreateAIJob({ repo: jobRepo, notes: { exists: (id) => vaults.session().notes.exists(id) }, activeLLM, runner, clock: systemClock }),

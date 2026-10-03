@@ -6,6 +6,7 @@ import styles from './NotePage.module.css';
 
 const RENAME_ERRORS: Partial<Record<string, string>> = {
   NOTE_TITLE_TAKEN: '같은 폴더에 같은 이름의 노트가 있습니다',
+  VAULT_BUSY: 'AI가 폴더를 정리하는 중이라 지금은 이름을 바꿀 수 없습니다',
   NOTE_TITLE_INVALID: '파일 이름으로 쓸 수 없는 제목입니다 (\\ / : * ? " < > | 제외, 200자 이하)',
 };
 /** Blink가 새 노트에 붙이는 임시 제목 (`제목 없음`, `제목 없음 1` …) */

@@ -81,3 +81,51 @@
 .newNote {
   flex: 1;
 }
+
+/* 보관함을 바꾸는 영역(전환·만들기·트리). AI가 분류하는 동안 inert로 잠긴다 */
+.editable {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  transition: opacity var(--dur-hover) ease-out;
+}
+
+.editable[data-locked] {
+  opacity: 0.5;
+  filter: saturate(0.6);
+  cursor: progress;
+}
+
+.organizing {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--mint-200);
+  border-radius: var(--radius-sm);
+  background: var(--mint-50);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-700);
+}
+
+.spinner {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--mint-600);
+  animation: sidebar-spin 1s linear infinite;
+}
+
+@keyframes sidebar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

@@ -8,44 +8,59 @@
   outline: none;
   white-space: pre-wrap; /* ProseMirror 권장: 연속 공백·줄바꿈 보존 */
   min-height: 320px;
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 16.5px;
+  line-height: 1.8;
   color: var(--ink-800);
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
+/* 읽기 좋은 본문 (21st Article): 문단 사이를 넉넉히, 제목은 위를 넓게 띄워 단락을 나눈다 */
 .prose :global(p) {
-  margin: 0 0 0.6em;
+  margin: 0 0 0.9em;
 }
 
 .prose :global(h1),
 .prose :global(h2),
 .prose :global(h3) {
   color: var(--ink-900);
+  letter-spacing: -0.01em;
   line-height: 1.35;
-  margin: 1.2em 0 0.4em;
+  margin: 1.7em 0 0.55em;
+  scroll-margin-top: 120px; /* 목차로 이동할 때 머리줄에 가리지 않게 */
+}
+
+.prose > :global(:first-child) {
+  margin-top: 0;
 }
 
 .prose :global(h1) {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
 }
 
 .prose :global(h2) {
-  font-size: 20px;
-  font-weight: 650;
+  font-size: 21px;
+  font-weight: 700;
 }
 
 .prose :global(h3) {
-  font-size: 17px;
+  font-size: 17.5px;
   font-weight: 650;
 }
 
 .prose :global(ul),
 .prose :global(ol) {
-  margin: 0 0 0.6em;
+  margin: 0 0 0.9em;
   padding-left: 1.4em;
+}
+
+.prose :global(li) {
+  margin: 0.2em 0;
+}
+
+.prose :global(li::marker) {
+  color: var(--blue-400);
 }
 
 .prose :global(li > p) {
@@ -53,10 +68,10 @@
 }
 
 .prose :global(blockquote) {
-  margin: 0 0 0.6em;
-  padding-left: 14px;
-  border-left: 3px solid var(--blue-200);
-  color: var(--ink-700);
+  margin: 0 0 0.9em;
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--blue-300);
+  color: var(--ink-600);
 }
 
 .prose :global(code) {

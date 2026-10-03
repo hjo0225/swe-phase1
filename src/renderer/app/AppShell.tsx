@@ -64,7 +64,7 @@ export function AppShell() {
     <ActiveEditorProvider>
       <div className={`app-background ${styles.shell}`}>
         <Sidebar onOpenSearch={() => setSearchOpen(true)} />
-        <main className={styles.main}>
+        <main className={styles.main} data-scroll-root>
           <Outlet />
         </main>
       </div>

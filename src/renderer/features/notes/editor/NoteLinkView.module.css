@@ -21,18 +21,6 @@
   background: var(--blue-100);
 }
 
-.link::before,
-.broken::before {
-  content: '[[';
-  opacity: 0.4;
-}
-
-.link::after,
-.broken::after {
-  content: ']]';
-  opacity: 0.4;
-}
-
 .broken {
   color: var(--ink-500);
   text-decoration: line-through;

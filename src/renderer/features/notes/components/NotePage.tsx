@@ -9,10 +9,13 @@ import { Dialog } from '../../../shared/ui/Dialog';
 import { AIActionBubble } from '../../assist/components/AIActionBubble';
 import { useAssistBridge } from '../../assist/components/use-assist-bridge';
 import { useActiveEditor } from '../../editor/ActiveEditorContext';
+import { FormattingToolbar } from '../../editor/FormattingToolbar';
 import { NoteEditor } from '../../editor/NoteEditor';
+import { NoteToc } from '../../editor/NoteToc';
 import { onNotesRelinked, useDeleteNote, useNoteDetail } from '../api/note-queries';
 import { getAutosave, type NotePayload } from '../autosave/autosave';
 import { BacklinksPanel } from './BacklinksPanel';
+import { NoteBreadcrumb, NoteStats } from './NoteChrome';
 import styles from './NotePage.module.css';
 import { SaveIndicator } from './SaveIndicator';
 import { TitleInput } from './TitleInput';
@@ -101,33 +104,47 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
   useAssistBridge(note.id, editor);
 
   return (
-    <article className={`paper ${styles.page}`}>
-      <header className={styles.header}>
-        <TitleInput noteId={note.id} title={note.title} />
-        <div className={styles.headerActions}>
-          <SaveIndicator noteId={note.id} />
-          <button type="button" className="button-icon" aria-label="노트 삭제" onClick={() => setConfirmingDelete(true)}>
-            <Trash2 size={16} strokeWidth={1.75} />
-          </button>
-        </div>
-      </header>
+    <article className={`paper ${styles.sheet}`}>
+      {/* 21st Rich Text Editor: 위치·저장 상태 머리줄 + 서식 도구막대. 스크롤해도 위에 붙어 있다. */}
+      <div className={styles.chrome}>
+        <header className={styles.header}>
+          <NoteBreadcrumb note={note} />
+          <div className={styles.headerActions}>
+            <SaveIndicator noteId={note.id} />
+            <button type="button" className="button-icon" aria-label="노트 삭제" onClick={() => setConfirmingDelete(true)}>
+              <Trash2 size={16} strokeWidth={1.75} />
+            </button>
+          </div>
+        </header>
+        {editor && <FormattingToolbar editor={editor} />}
+      </div>
 
-      {changedOutside && (
-        <div role="status" className={styles.banner}>
-          <span>이 노트가 다른 곳에서 바뀌었습니다.</span>
-          <button type="button" className="button-secondary" onClick={onReload}>
-            <RefreshCw size={14} strokeWidth={1.75} />
-            다시 불러오기
-          </button>
-          <button type="button" className={styles.bannerDismiss} onClick={() => setChangedOutside(false)}>
-            내 편집 유지
-          </button>
-        </div>
-      )}
+      <div className={styles.body}>
+        <div className={styles.content}>
+          {/* 21st Article: 큰 제목과 그 아래 정보 줄 */}
+          <TitleInput noteId={note.id} title={note.title} />
+          <NoteStats note={note} editor={editor} />
 
-      <NoteEditor initialMarkdown={note.content} onReady={onReady} onChange={() => queue.markDirty(payload)} />
-      {editor && <AIActionBubble editor={editor} noteId={note.id} />}
-      <BacklinksPanel noteId={note.id} />
+          {changedOutside && (
+            <div role="status" className={styles.banner}>
+              <span>이 노트가 다른 곳에서 바뀌었습니다.</span>
+              <button type="button" className="button-secondary" onClick={onReload}>
+                <RefreshCw size={14} strokeWidth={1.75} />
+                다시 불러오기
+              </button>
+              <button type="button" className={styles.bannerDismiss} onClick={() => setChangedOutside(false)}>
+                내 편집 유지
+              </button>
+            </div>
+          )}
+
+          <NoteEditor initialMarkdown={note.content} onReady={onReady} onChange={() => queue.markDirty(payload)} />
+          {editor && <AIActionBubble editor={editor} noteId={note.id} />}
+          <BacklinksPanel noteId={note.id} />
+        </div>
+        {/* 21st Table of Contents: 제목이 둘 이상일 때만 */}
+        <aside className={styles.tocColumn}>{editor && <NoteToc editor={editor} />}</aside>
+      </div>
 
       {confirmingDelete && (
         <Dialog

@@ -155,6 +155,19 @@ describe('notes flow (vault)', () => {
     expect(sidebarTree().getByRole('treeitem', { name: '프로젝트' })).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('shows where the note lives, how long it is, and a table of contents for its headings', async () => {
+    const note = await seedNote('계획', '# 목표\n\n분기 목표를 정한다.\n\n## 일정\n\n다음 주까지', '회의');
+    window.location.hash = `#/notes/${note.id}`;
+    render(<App />);
+
+    const crumbs = await screen.findByRole('navigation', { name: '노트 위치' });
+    expect(crumbs).toHaveTextContent('Mock회의계획');
+    expect(await screen.findByText(/수정 · \d+자 · 약 1분$/)).toBeInTheDocument();
+    const toc = await screen.findByRole('navigation', { name: '이 노트의 목차' });
+    expect(within(toc).getAllByRole('link').map((a) => a.textContent)).toEqual(['목표', '일정']);
+    expect(screen.getByRole('toolbar', { name: '서식' })).toBeInTheDocument();
+  });
+
   it('renames and deletes a folder from its menu', async () => {
     const user = userEvent.setup();
     await seedNote('계획', '', '회의');

@@ -14,7 +14,7 @@ import { Infographic } from '../visualization/editor/infographic-node';
 export function createEditorExtensions(options: { placeholder?: string } = {}): Extensions {
   return [
     StarterKit.configure({ link: { openOnClick: false, autolink: true } }),
-    Placeholder.configure({ placeholder: options.placeholder ?? '생각을 적어 보세요' }),
+    Placeholder.configure({ placeholder: options.placeholder ?? 'Start writing…' }),
     // AI 결과(Markdown)를 편집기 스키마로 파싱한다. HTML로 직접 넣지 않는다.
     Markdown,
     NoteLink,

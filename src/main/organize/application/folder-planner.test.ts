@@ -65,7 +65,8 @@ describe('planFolders', () => {
     ['a path deeper than 3', { assignments: [{ group: 'G1', path: ['a', 'b', 'c', 'd'] }, { group: 'G2', path: ['B'] }] }],
     ['an empty path', { assignments: [{ group: 'G1', path: [] }, { group: 'G2', path: ['B'] }] }],
     ['a forbidden character', { assignments: [{ group: 'G1', path: ['A/B'] }, { group: 'G2', path: ['B'] }] }],
-    ['the unsorted folder name', { assignments: [{ group: 'G1', path: ['미분류'] }, { group: 'G2', path: ['B'] }] }],
+    ['the unsorted folder name', { assignments: [{ group: 'G1', path: ['Unsorted'] }, { group: 'G2', path: ['B'] }] }],
+    ['the earlier unsorted folder name', { assignments: [{ group: 'G1', path: ['미분류'] }, { group: 'G2', path: ['B'] }] }],
     ['something that is not an object', 'Spring'],
   ])('rejects %s', async (_case, answer) => {
     await expect(run(answer)).rejects.toMatchObject({ code: 'ORGANIZE_NAMING_FAILED' });

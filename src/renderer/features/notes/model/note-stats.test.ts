@@ -15,8 +15,8 @@ describe('note stats (제목 아래 정보 줄)', () => {
   it('builds the line from the update time, length and reading time', () => {
     const now = new Date(2026, 9, 3, 18, 0);
     expect(formatNoteStats({ updatedAt: new Date(2026, 9, 3, 17, 58).toISOString(), characters: 1240 }, now)).toBe(
-      '2분 전 수정 · 1,240자 · 약 3분',
+      'Edited 2 min ago · 1,240 chars · 3 min read',
     );
-    expect(formatNoteStats({ updatedAt: new Date(2026, 8, 30, 9, 5).toISOString(), characters: 0 }, now)).toBe('9월 30일 수정');
+    expect(formatNoteStats({ updatedAt: new Date(2026, 8, 30, 9, 5).toISOString(), characters: 0 }, now)).toBe('Edited Sep 30');
   });
 });

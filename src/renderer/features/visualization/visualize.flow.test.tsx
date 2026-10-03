@@ -9,7 +9,7 @@ import { seedNote } from '../../test/seed-note';
 import { resetToastsForTests } from '../../shared/ui/toast';
 import { resetAutosaveForTests } from '../notes/autosave/autosave';
 
-const editorOf = () => (screen.getByRole('textbox', { name: '노트 본문' }) as HTMLElement & { editor: Editor }).editor;
+const editorOf = () => (screen.getByRole('textbox', { name: 'Note body' }) as HTMLElement & { editor: Editor }).editor;
 
 async function runAction(text: string, target: string, action: RegExp) {
   const user = userEvent.setup();
@@ -17,14 +17,14 @@ async function runAction(text: string, target: string, action: RegExp) {
   const note = await seedNote('메모', text);
   window.location.hash = `#/notes/${note.id}`;
   render(<App />);
-  await screen.findByRole('textbox', { name: '노트 본문' });
+  await screen.findByRole('textbox', { name: 'Note body' });
   const editor = editorOf();
   const from = 1 + editor.state.doc.textContent.indexOf(target);
   act(() => {
     editor.commands.focus();
     editor.commands.setTextSelection({ from, to: from + target.length });
   });
-  const bubble = await screen.findByRole('toolbar', { name: 'AI 작업' });
+  const bubble = await screen.findByRole('toolbar', { name: 'AI actions' });
   await waitFor(() => expect(within(bubble).getByRole('button', { name: action })).toBeEnabled());
   await user.click(within(bubble).getByRole('button', { name: action }));
   return { user, note };
@@ -41,17 +41,17 @@ describe('visualize and expand', () => {
   });
 
   it('keeps the original text and inserts the infographic below it', async () => {
-    const { user, note } = await runAction('노트를 쓰면 AI가 분석해서 결과를 만든다', '노트를 쓰면 AI가 분석해서 결과를 만든다', /시각화/);
+    const { user, note } = await runAction('노트를 쓰면 AI가 분석해서 결과를 만든다', '노트를 쓰면 AI가 분석해서 결과를 만든다', /Visualize/);
 
     const figure = await screen.findByRole('figure', { name: '처리 과정' }, { timeout: 3000 });
-    const body = screen.getByRole('textbox', { name: '노트 본문' });
+    const body = screen.getByRole('textbox', { name: 'Note body' });
     expect(body).toHaveTextContent('노트를 쓰면 AI가 분석해서 결과를 만든다');
     expect(body.querySelector('.ai-processing')).toBeNull();
     expect(within(figure).getByText('입력')).toBeInTheDocument();
     expect(within(figure).getByText('결과')).toBeInTheDocument();
 
     // PNG 저장 버튼은 Main으로 PNG를 보낸다 (Mock은 경로를 돌려준다)
-    expect(within(figure).getByRole('button', { name: 'PNG로 저장' })).toBeInTheDocument();
+    expect(within(figure).getByRole('button', { name: 'Save as PNG' })).toBeInTheDocument();
 
     // 인포그래픽은 .md 본문에 blink-infographic 코드 블록(Spec JSON)으로 저장된다 (D-18)
     await waitFor(
@@ -60,15 +60,15 @@ describe('visualize and expand', () => {
       { timeout: 3000 },
     );
 
-    await user.click(within(figure).getByRole('button', { name: '인포그래픽 삭제' }));
+    await user.click(within(figure).getByRole('button', { name: 'Delete infographic' }));
     expect(screen.queryByRole('figure', { name: '처리 과정' })).not.toBeInTheDocument();
   });
 
   it('replaces the selection with researched text followed by its sources', async () => {
-    await runAction('Electron은 데스크톱 앱 프레임워크다', 'Electron은 데스크톱 앱 프레임워크다', /구체화/);
-    const body = screen.getByRole('textbox', { name: '노트 본문' });
+    await runAction('Electron은 데스크톱 앱 프레임워크다', 'Electron은 데스크톱 앱 프레임워크다', /Expand/);
+    const body = screen.getByRole('textbox', { name: 'Note body' });
     await waitFor(() => expect(body).toHaveTextContent('(구체화됨)'), { timeout: 3000 });
-    expect(within(body).getByText('출처')).toBeInTheDocument();
+    expect(within(body).getByText('Sources')).toBeInTheDocument();
     expect(within(body).getByRole('link', { name: '예시 출처' })).toHaveAttribute('href', 'https://example.com/');
   });
 
@@ -76,6 +76,6 @@ describe('visualize and expand', () => {
     const note = await seedNote('깨진 인포그래픽', '```blink-infographic\n{"type":"nope"}\n```');
     window.location.hash = `#/notes/${note.id}`;
     render(<App />);
-    expect(await screen.findByText('표시할 수 없는 인포그래픽입니다')).toBeInTheDocument();
+    expect(await screen.findByText('This infographic can\'t be displayed')).toBeInTheDocument();
   });
 });

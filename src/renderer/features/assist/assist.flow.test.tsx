@@ -10,13 +10,13 @@ import { resetToastsForTests } from '../../shared/ui/toast';
 import { resetAutosaveForTests } from '../notes/autosave/autosave';
 
 
-const editorOf = () => (screen.getByRole('textbox', { name: '노트 본문' }) as HTMLElement & { editor: Editor }).editor;
+const editorOf = () => (screen.getByRole('textbox', { name: 'Note body' }) as HTMLElement & { editor: Editor }).editor;
 
 async function openNoteWith(text: string) {
   const note = await seedNote('메모', text);
   window.location.hash = `#/notes/${note.id}`;
   render(<App />);
-  await screen.findByRole('textbox', { name: '노트 본문' });
+  await screen.findByRole('textbox', { name: 'Note body' });
   return note;
 }
 
@@ -46,16 +46,16 @@ describe('AI settings', () => {
     window.location.hash = '#/settings/ai';
     render(<App />);
 
-    const form = await screen.findByRole('form', { name: 'AI 설정' });
-    await user.selectOptions(within(form).getByRole('combobox', { name: '모델' }), 'gpt-5.4-mini');
+    const form = await screen.findByRole('form', { name: 'AI settings' });
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Model' }), 'gpt-5.4-mini');
     await user.type(within(form).getByLabelText('API Key'), 'sk-test');
-    await user.click(within(form).getByRole('button', { name: '연결 테스트' }));
-    expect(await within(form).findByText('연결되었습니다')).toBeInTheDocument();
+    await user.click(within(form).getByRole('button', { name: 'Test connection' }));
+    expect(await within(form).findByText('Connected')).toBeInTheDocument();
 
-    await user.click(within(form).getByRole('button', { name: '저장' }));
-    expect(await screen.findByText('OpenAI · GPT-5.4 mini (권장)')).toBeInTheDocument();
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('OpenAI · GPT-5.4 mini (recommended)')).toBeInTheDocument();
     expect(within(form).getByLabelText('API Key')).toHaveValue('');
-    expect(within(form).getByLabelText('API Key')).toHaveAttribute('placeholder', '저장됨 · 바꾸려면 새 Key 입력');
+    expect(within(form).getByLabelText('API Key')).toHaveAttribute('placeholder', 'Saved · enter a new key to replace it');
   });
 
   it('switches the active provider to Kimi', async () => {
@@ -63,25 +63,25 @@ describe('AI settings', () => {
     window.location.hash = '#/settings/ai';
     render(<App />);
 
-    const form = await screen.findByRole('form', { name: 'AI 설정' });
+    const form = await screen.findByRole('form', { name: 'AI settings' });
     await user.selectOptions(within(form).getByRole('combobox', { name: 'Provider' }), 'kimi');
-    await user.selectOptions(within(form).getByRole('combobox', { name: '모델' }), 'kimi-k2.6');
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Model' }), 'kimi-k2.6');
     expect(within(form).getByPlaceholderText(/api\.moonshot\.ai/)).toBeInTheDocument();
     await user.type(within(form).getByLabelText('API Key'), 'sk-kimi');
-    await user.click(within(form).getByRole('button', { name: '저장' }));
+    await user.click(within(form).getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByText('Kimi · Kimi K2.6 (권장)')).toBeInTheDocument();
+    expect(await screen.findByText('Kimi · Kimi K2.6 (recommended)')).toBeInTheDocument();
   });
 
   it('reports a failed connection test', async () => {
     const user = userEvent.setup();
     window.location.hash = '#/settings/ai';
     render(<App />);
-    const form = await screen.findByRole('form', { name: 'AI 설정' });
-    await user.selectOptions(within(form).getByRole('combobox', { name: '모델' }), 'gpt-5.4-mini');
+    const form = await screen.findByRole('form', { name: 'AI settings' });
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Model' }), 'gpt-5.4-mini');
     await user.type(within(form).getByLabelText('API Key'), 'bad-key');
-    await user.click(within(form).getByRole('button', { name: '연결 테스트' }));
-    expect(await within(form).findByText('API Key를 확인하세요')).toBeInTheDocument();
+    await user.click(within(form).getByRole('button', { name: 'Test connection' }));
+    expect(await within(form).findByText('Check your API key')).toBeInTheDocument();
   });
 });
 
@@ -98,18 +98,18 @@ describe('AI actions on selected text', () => {
   it('disables actions until AI is configured', async () => {
     await openNoteWith('회의했고 api 얘기함');
     select('회의했고');
-    const bubble = await screen.findByRole('toolbar', { name: 'AI 작업' });
-    expect(within(bubble).getByRole('button', { name: /정리/ })).toBeDisabled();
-    expect(within(bubble).getByText('AI 설정 필요')).toBeInTheDocument();
+    const bubble = await screen.findByRole('toolbar', { name: 'AI actions' });
+    expect(within(bubble).getByRole('button', { name: /Organize/ })).toBeDisabled();
+    expect(within(bubble).getByText('AI not set up')).toBeInTheDocument();
   });
 
   it('locks 구체화 when the model has no web search', async () => {
     await configure('gpt-5.4-nano');
     await openNoteWith('Electron은 프레임워크다');
     select('Electron');
-    const bubble = await screen.findByRole('toolbar', { name: 'AI 작업' });
-    await waitFor(() => expect(within(bubble).getByRole('button', { name: /구체화/ })).toBeDisabled());
-    expect(within(bubble).getByRole('button', { name: /정리/ })).toBeEnabled();
+    const bubble = await screen.findByRole('toolbar', { name: 'AI actions' });
+    await waitFor(() => expect(within(bubble).getByRole('button', { name: /Expand/ })).toBeDisabled());
+    expect(within(bubble).getByRole('button', { name: /Organize/ })).toBeEnabled();
   });
 
   it('organizes the selection: pulse while running, then one atomic replacement that gets saved', async () => {
@@ -118,11 +118,11 @@ describe('AI actions on selected text', () => {
     const note = await openNoteWith('앞 문장. 회의했고 api 얘기함. 뒤 문장.');
     select('회의했고 api 얘기함');
 
-    const bubble = await screen.findByRole('toolbar', { name: 'AI 작업' });
-    await waitFor(() => expect(within(bubble).getByRole('button', { name: /정리/ })).toBeEnabled());
-    await user.click(within(bubble).getByRole('button', { name: /정리/ }));
+    const bubble = await screen.findByRole('toolbar', { name: 'AI actions' });
+    await waitFor(() => expect(within(bubble).getByRole('button', { name: /Organize/ })).toBeEnabled());
+    await user.click(within(bubble).getByRole('button', { name: /Organize/ }));
 
-    const body = screen.getByRole('textbox', { name: '노트 본문' });
+    const body = screen.getByRole('textbox', { name: 'Note body' });
     await waitFor(() => expect(body.querySelector('.ai-processing')).toHaveTextContent('회의했고 api 얘기함'));
 
     await waitFor(() => expect(body).toHaveTextContent('정리된 메모'), { timeout: 3000 });
@@ -140,13 +140,13 @@ describe('AI actions on selected text', () => {
     await openNoteWith('느린 요청 #fail:TIMEOUT 입니다');
     select('느린 요청 #fail:TIMEOUT');
 
-    await user.click(within(await screen.findByRole('toolbar', { name: 'AI 작업' })).getByRole('button', { name: /정리/ }));
-    const chip = await screen.findByRole('group', { name: 'AI 작업 실패' }, { timeout: 3000 });
-    expect(chip).toHaveTextContent('응답이 너무 오래 걸렸습니다');
-    expect(screen.getByRole('textbox', { name: '노트 본문' })).toHaveTextContent('느린 요청 #fail:TIMEOUT');
+    await user.click(within(await screen.findByRole('toolbar', { name: 'AI actions' })).getByRole('button', { name: /Organize/ }));
+    const chip = await screen.findByRole('group', { name: 'AI job failed' }, { timeout: 3000 });
+    expect(chip).toHaveTextContent('The response took too long');
+    expect(screen.getByRole('textbox', { name: 'Note body' })).toHaveTextContent('느린 요청 #fail:TIMEOUT');
 
-    await user.click(within(chip).getByRole('button', { name: '재시도' }));
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '노트 본문' })).toHaveTextContent('정리된 메모'), {
+    await user.click(within(chip).getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Note body' })).toHaveTextContent('정리된 메모'), {
       timeout: 3000,
     });
   });
@@ -157,19 +157,19 @@ describe('AI actions on selected text', () => {
     const other = await seedNote('다른 노트', '다른 내용');
     const note = await openNoteWith('나중에 적용될 메모');
     select('나중에 적용될 메모');
-    await user.click(within(await screen.findByRole('toolbar', { name: 'AI 작업' })).getByRole('button', { name: /정리/ }));
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '노트 본문' }).querySelector('.ai-processing')).not.toBeNull());
+    await user.click(within(await screen.findByRole('toolbar', { name: 'AI actions' })).getByRole('button', { name: /Organize/ }));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Note body' }).querySelector('.ai-processing')).not.toBeNull());
 
     // 처리 중에 다른 노트로 이동 → 완료 → 원래 노트로 복귀
-    await user.click(within(screen.getByRole('region', { name: '노트 목록' })).getByText('다른 노트'));
+    await user.click(within(screen.getByRole('region', { name: 'Note list' })).getByText('다른 노트'));
     await waitFor(() => expect(window.location.hash).toBe(`#/notes/${other.id}`));
     await waitFor(
       async () => expect((await getBlink().ai.listJobs({ noteId: note.id })).items[0]?.status).toBe('COMPLETED'),
       { timeout: 3000 },
     );
-    await user.click(within(screen.getByRole('region', { name: '노트 목록' })).getByText('메모'));
+    await user.click(within(screen.getByRole('region', { name: 'Note list' })).getByText('메모'));
 
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '노트 본문' })).toHaveTextContent('정리된 메모'), {
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Note body' })).toHaveTextContent('정리된 메모'), {
       timeout: 3000,
     });
   });

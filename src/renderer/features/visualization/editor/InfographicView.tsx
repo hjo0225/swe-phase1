@@ -27,9 +27,9 @@ export function InfographicView({ node, deleteNode, selected }: ReactNodeViewPro
     try {
       const png = await svgToPng(svgRef.current);
       const result = await getBlink().visualization.savePng({ png, suggestedFileName: spec.title });
-      if (result.saved) toast.show('PNG로 저장했습니다');
+      if (result.saved) toast.show('Saved as PNG');
     } catch (error) {
-      toast.show(error instanceof BlinkIpcError ? '파일을 저장하지 못했습니다' : 'PNG를 만들지 못했습니다');
+      toast.show(error instanceof BlinkIpcError ? 'Couldn\'t save the file' : 'Couldn\'t create the PNG');
     } finally {
       setSaving(false);
     }
@@ -40,7 +40,7 @@ export function InfographicView({ node, deleteNode, selected }: ReactNodeViewPro
       as="figure"
       className={`glass ${styles.figure}`}
       data-selected={selected}
-      aria-label={spec?.title ?? '인포그래픽'}
+      aria-label={spec?.title ?? 'Infographic'}
       contentEditable={false}
     >
       {spec ? (
@@ -48,16 +48,16 @@ export function InfographicView({ node, deleteNode, selected }: ReactNodeViewPro
           <InfographicSvg ref={svgRef} spec={spec} />
         </div>
       ) : (
-        <p className={styles.invalid}>표시할 수 없는 인포그래픽입니다</p>
+        <p className={styles.invalid}>This infographic can't be displayed</p>
       )}
       <div className={styles.toolbar}>
         {spec && (
           <button type="button" disabled={saving} onClick={() => void savePng()}>
             <Download size={14} strokeWidth={1.75} aria-hidden />
-            PNG로 저장
+            Save as PNG
           </button>
         )}
-        <button type="button" aria-label="인포그래픽 삭제" onClick={() => deleteNode()}>
+        <button type="button" aria-label="Delete infographic" onClick={() => deleteNode()}>
           <Trash2 size={14} strokeWidth={1.75} aria-hidden />
         </button>
       </div>

@@ -16,7 +16,7 @@ const ACTIONS: { type: JobType; Icon: LucideIcon }[] = [
   { type: 'VISUALIZE', Icon: Workflow },
 ];
 
-const CAPABILITY_HINT = { webSearch: '웹 검색', structuredOutput: '구조화 출력', generate: '텍스트 생성' } as const;
+const CAPABILITY_HINT = { webSearch: 'web search', structuredOutput: 'structured output', generate: 'text generation' } as const;
 
 /** 텍스트를 선택하면 뜨는 [구체화] [정리] [시각화]. 누르면 즉시 닫히고 선택 범위가 Pulse로 바뀐다. */
 export function AIActionBubble({ editor, noteId }: { editor: Editor; noteId: string }) {
@@ -33,14 +33,14 @@ export function AIActionBubble({ editor, noteId }: { editor: Editor; noteId: str
         return !empty && !state.doc.rangeHasMark(from, to, state.schema.marks[PENDING_MARK]!);
       }}
     >
-      <div role="toolbar" aria-label="AI 작업" className={`floating-chip ${styles.bubble}`}>
+      <div role="toolbar" aria-label="AI actions" className={`floating-chip ${styles.bubble}`}>
         {ACTIONS.map(({ type, Icon }) => {
           const missing = capabilities ? missingCapabilities(type, capabilities) : [];
           const disabled = !capabilities || missing.length > 0;
           const title = !capabilities
-            ? 'AI 설정이 필요합니다'
+            ? 'Set up AI first'
             : missing.length > 0
-              ? `현재 모델은 ${missing.map((c) => CAPABILITY_HINT[c]).join(', ')}을 지원하지 않습니다`
+              ? `The current model doesn't support ${missing.map((c) => CAPABILITY_HINT[c]).join(', ')}`
               : undefined;
           return (
             <button
@@ -63,7 +63,7 @@ export function AIActionBubble({ editor, noteId }: { editor: Editor; noteId: str
             </button>
           );
         })}
-        {capabilities === null && <span className={styles.hint}>AI 설정 필요</span>}
+        {capabilities === null && <span className={styles.hint}>AI not set up</span>}
       </div>
     </BubbleMenu>
   );

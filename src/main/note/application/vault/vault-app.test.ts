@@ -67,16 +67,16 @@ describe('VaultNoteService', () => {
     folders.create({ name: '프로젝트' });
     const a = notes.create({ folder: '프로젝트' });
     const b = notes.create({ folder: '프로젝트' });
-    expect([a.path, b.path]).toEqual(['프로젝트/제목 없음.md', '프로젝트/제목 없음 1.md']);
-    expect(a).toMatchObject({ title: '제목 없음', content: '' });
-    expect(existsSync(file('프로젝트/제목 없음 1.md'))).toBe(true);
+    expect([a.path, b.path]).toEqual(['프로젝트/Untitled.md', '프로젝트/Untitled 1.md']);
+    expect(a).toMatchObject({ title: 'Untitled', content: '' });
+    expect(existsSync(file('프로젝트/Untitled 1.md'))).toBe(true);
     expect(() => notes.create({ folder: '없는 폴더' })).toThrow(expect.objectContaining({ code: 'FOLDER_NOT_FOUND' }));
   });
 
   it('saves markdown to the file and skips identical content', () => {
     const { id } = notes.create({});
     expect(notes.update({ id, content: '# 제목\n본문 [[다른 노트]]' }).changed).toBe(true);
-    expect(read('제목 없음.md')).toBe('# 제목\n본문 [[다른 노트]]');
+    expect(read('Untitled.md')).toBe('# 제목\n본문 [[다른 노트]]');
     expect(notes.update({ id, content: '# 제목\n본문 [[다른 노트]]' }).changed).toBe(false);
     expect(notes.get(id).content).toBe('# 제목\n본문 [[다른 노트]]');
   });
@@ -138,7 +138,7 @@ describe('VaultNoteService', () => {
   it('deletes the file', () => {
     const { id } = notes.create({});
     notes.delete(id);
-    expect(existsSync(file('제목 없음.md'))).toBe(false);
+    expect(existsSync(file('Untitled.md'))).toBe(false);
     expect(notes.exists(id)).toBe(false);
   });
 });

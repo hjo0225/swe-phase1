@@ -19,7 +19,7 @@ describe('ExpandExecutor', () => {
     );
     expect(result).toEqual({
       kind: 'RESEARCHED_MARKDOWN',
-      markdown: 'Electron은 Chromium과 Node.js 기반이다.\n\n**출처**\n- [Electron](https://www.electronjs.org/)',
+      markdown: 'Electron은 Chromium과 Node.js 기반이다.\n\n**Sources**\n- [Electron](https://www.electronjs.org/)',
       sources: [{ title: 'Electron', url: 'https://www.electronjs.org/' }],
     });
     expect(researchAndGenerate.mock.calls[0]![0]).toMatchObject({ user: 'Electron은 데스크톱 앱 프레임워크다.' });

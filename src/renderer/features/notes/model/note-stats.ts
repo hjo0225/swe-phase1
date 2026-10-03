@@ -13,11 +13,11 @@ export function readingMinutes(characters: number): number {
   return characters === 0 ? 0 : Math.max(1, Math.ceil(characters / CHARACTERS_PER_MINUTE));
 }
 
-/** 제목 아래 정보 줄: `2분 전 수정 · 1,240자 · 약 3분` (본문이 비면 수정 시각만). */
+/** 제목 아래 정보 줄: `Edited 2 min ago · 1,240 chars · 3 min read` (본문이 비면 수정 시각만). */
 export function formatNoteStats(input: { updatedAt: string; characters: number }, now: Date = new Date()): string {
-  const parts = [`${formatRelativeTime(input.updatedAt, now).replace(/^방금 전$/, '방금')} 수정`];
+  const parts = [`Edited ${formatRelativeTime(input.updatedAt, now)}`];
   if (input.characters > 0) {
-    parts.push(`${input.characters.toLocaleString('ko-KR')}자`, `약 ${readingMinutes(input.characters)}분`);
+    parts.push(`${input.characters.toLocaleString('en-US')} chars`, `${readingMinutes(input.characters)} min read`);
   }
   return parts.join(' · ');
 }

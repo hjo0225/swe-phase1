@@ -35,15 +35,15 @@ export function NotePage() {
     const notFound = detail.error instanceof BlinkIpcError && detail.error.code === 'NOTE_NOT_FOUND';
     return (
       <section className={`paper ${styles.page}`}>
-        <h1 className={styles.stateTitle}>{notFound ? '노트를 찾을 수 없습니다' : '노트를 불러오지 못했습니다'}</h1>
-        <p className={styles.stateBody}>{notFound ? '삭제되었거나 존재하지 않는 노트입니다.' : '잠시 후 다시 시도해 주세요.'}</p>
+        <h1 className={styles.stateTitle}>{notFound ? 'Note not found' : 'Couldn\'t load the note'}</h1>
+        <p className={styles.stateBody}>{notFound ? 'It was deleted or never existed.' : 'Please try again in a moment.'}</p>
         {notFound ? (
           <Link to="/" className="button-secondary">
-            목록으로
+            Back to notes
           </Link>
         ) : (
           <button type="button" className="button-secondary" onClick={() => void detail.refetch()}>
-            다시 시도
+            Try again
           </button>
         )}
       </section>
@@ -111,7 +111,7 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
           <NoteBreadcrumb note={note} />
           <div className={styles.headerActions}>
             <SaveIndicator noteId={note.id} />
-            <button type="button" className="button-icon" aria-label="노트 삭제" onClick={() => setConfirmingDelete(true)}>
+            <button type="button" className="button-icon" aria-label="Delete note" onClick={() => setConfirmingDelete(true)}>
               <Trash2 size={16} strokeWidth={1.75} />
             </button>
           </div>
@@ -127,13 +127,13 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
 
           {changedOutside && (
             <div role="status" className={styles.banner}>
-              <span>이 노트가 다른 곳에서 바뀌었습니다.</span>
+              <span>This note changed somewhere else.</span>
               <button type="button" className="button-secondary" onClick={onReload}>
                 <RefreshCw size={14} strokeWidth={1.75} />
-                다시 불러오기
+                Reload
               </button>
               <button type="button" className={styles.bannerDismiss} onClick={() => setChangedOutside(false)}>
-                내 편집 유지
+                Keep my edits
               </button>
             </div>
           )}
@@ -148,12 +148,12 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
 
       {confirmingDelete && (
         <Dialog
-          title="노트를 삭제할까요?"
+          title="Delete this note?"
           onClose={() => setConfirmingDelete(false)}
           actions={
             <>
               <button type="button" className="button-secondary" data-autofocus onClick={() => setConfirmingDelete(false)}>
-                취소
+                Cancel
               </button>
               <button
                 type="button"
@@ -161,12 +161,12 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
                 disabled={deleteNote.isPending}
                 onClick={() => deleteNote.mutate(note.id)}
               >
-                삭제
+                Delete
               </button>
             </>
           }
         >
-          삭제한 노트는 되돌릴 수 없습니다. 보관함 폴더의 .md 파일도 지워집니다.
+          Deleted notes can't be restored. The .md file in your vault folder is deleted too.
         </Dialog>
       )}
     </article>

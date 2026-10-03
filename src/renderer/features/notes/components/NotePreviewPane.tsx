@@ -26,7 +26,7 @@ export function NotePreviewPane({ noteId, onImportAll, onImportSelection }: Note
       editable: false,
       content: note?.content ?? '',
       contentType: 'markdown',
-      editorProps: { attributes: { 'aria-label': '미리보기', class: styles.previewProse ?? '' } },
+      editorProps: { attributes: { 'aria-label': 'Preview', class: styles.previewProse ?? '' } },
       onSelectionUpdate: ({ editor: e }) => setHasSelection(!e.state.selection.empty),
     },
     [note],
@@ -41,14 +41,14 @@ export function NotePreviewPane({ noteId, onImportAll, onImportSelection }: Note
   };
 
   return (
-    <section className={styles.preview} aria-label="노트 미리보기">
+    <section className={styles.preview} aria-label="Note preview">
       <EditorContent editor={editor} className={styles.previewBody} />
       <div className={styles.previewActions}>
         <button type="button" className="button-secondary" disabled={!hasSelection} onClick={importSelection}>
-          선택 영역 가져오기
+          Import selection
         </button>
         <button type="button" className="button-secondary" onClick={onImportAll}>
-          전체 가져오기
+          Import all
         </button>
       </div>
     </section>

@@ -175,15 +175,15 @@ function failureChip(jobId: string, storage: AiPendingStorage): HTMLElement {
   chip.className = 'ai-failure-chip';
   chip.contentEditable = 'false';
   chip.setAttribute('role', 'group');
-  chip.setAttribute('aria-label', 'AI 작업 실패');
+  chip.setAttribute('aria-label', 'AI job failed');
 
   const label = document.createElement('span');
-  label.textContent = storage.failureLabel?.(jobId) ?? 'AI 작업에 실패했습니다';
+  label.textContent = storage.failureLabel?.(jobId) ?? 'The AI job failed';
   chip.append(label);
 
   for (const [text, handler] of [
-    ['재시도', storage.onRetry],
-    ['닫기', storage.onDismiss],
+    ['Retry', storage.onRetry],
+    ['Close', storage.onDismiss],
   ] as const) {
     const button = document.createElement('button');
     button.type = 'button';

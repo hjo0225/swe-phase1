@@ -14,7 +14,8 @@ import { bestClustering, MIN_NOTES, MIN_SILHOUETTE } from '../domain/clustering'
 import { closerNewGroup, fittingFolder, folderRadius } from '../domain/placement';
 import { cosineSimilarity, subMatrix } from '../domain/similarity';
 import { OrganizeLock } from './organize-lock';
-import { planFolders, UNSORTED } from './folder-planner';
+import { isUnsortedFolder, UNSORTED_FOLDER } from '../../../shared/notes/default-names';
+import { planFolders } from './folder-planner';
 
 const NAMING_TIMEOUT_MS = 60_000;
 const EMBEDDING_TIMEOUT_MS = 60_000;
@@ -50,9 +51,12 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 /** path가 folder이거나 그 안(하위 포함)인지. 맨 위('')는 모든 폴더를 품는다. */
 const isUnder = (path: string, folder: string) =>
   folder === '' || same(path, folder) || path.toLowerCase().startsWith(`${folder.toLowerCase()}/`);
-/** 폴더 바로 아래 하위 폴더 (「미분류」 제외) */
+/** 폴더 바로 아래 하위 폴더 («남는 노트» 폴더 제외) */
 const childFolders = (tree: VaultTree, folder: string) =>
-  tree.folders.filter((f) => same(parentOf(f), folder) && nameOf(f) !== UNSORTED);
+  tree.folders.filter((f) => same(parentOf(f), folder) && !isUnsortedFolder(nameOf(f)));
+/** 그 층의 «남는 노트» 폴더 경로. 예전 버전이 만든 «미분류»가 있으면 그것을 계속 쓴다. */
+const unsortedIn = (tree: VaultTree, folder: string) =>
+  tree.folders.find((f) => same(parentOf(f), folder) && isUnsortedFolder(nameOf(f))) ?? join(folder, UNSORTED_FOLDER);
 /** 폴더(하위 포함) 안의 노트 */
 const notesUnder = (tree: VaultTree, folder: string, exceptId?: string) =>
   tree.notes.filter((n) => n.id !== exceptId && isUnder(n.folder, folder));
@@ -76,9 +80,9 @@ export class OrganizeService {
     if (folder !== '' && !tree.folders.some((f) => same(f, folder))) {
       throw new DomainError('FOLDER_NOT_FOUND', `Folder ${folder} not found`);
     }
-    if (nameOf(folder) === UNSORTED) throw new DomainError('VALIDATION_FAILED', 'The unsorted folder is not classified');
+    if (isUnsortedFolder(nameOf(folder))) throw new DomainError('VALIDATION_FAILED', 'The unsorted folder is not classified');
 
-    const unsorted = join(folder, UNSORTED);
+    const unsorted = unsortedIn(tree, folder);
     const candidates = tree.notes.filter((n) => same(n.folder, folder) || same(n.folder, unsorted));
     const subfolders = childFolders(tree, folder);
     const members = subfolders.map((path) => notesUnder(tree, path));
@@ -198,7 +202,7 @@ export class OrganizeService {
     const tree = this.deps.notes().tree();
     const note = tree.notes.find((n) => n.id === noteId);
     if (!note) throw new DomainError('NOTE_NOT_FOUND', `Note ${noteId} not found`);
-    let level = nameOf(note.folder) === UNSORTED ? parentOf(note.folder) : note.folder;
+    let level = isUnsortedFolder(nameOf(note.folder)) ? parentOf(note.folder) : note.folder;
     if (childFolders(tree, level).length === 0) return { folder: note.folder, updatedNoteIds: [] }; // 견줄 폴더가 없으면 AI도 부르지 않는다
 
     // 내려가며 견줄 노트 전부를 한 번에 임베딩한다 (층마다 부르지 않게)
@@ -218,7 +222,7 @@ export class OrganizeService {
       });
       const fit = fittingFolder(sim, 0, shapes);
       if (!fit) {
-        level = join(level, UNSORTED);
+        level = unsortedIn(tree, level);
         break;
       }
       level = fit;

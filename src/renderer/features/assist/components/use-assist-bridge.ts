@@ -27,7 +27,7 @@ export function useAssistBridge(noteId: string, editor: Editor | null): void {
     const storage = editor.storage.aiPending;
     storage.failureLabel = (jobId) => {
       const code = jobsRef.current.get(jobId)?.failure?.code;
-      return code ? JOB_FAILURE_MESSAGE[code] : 'AI 작업에 실패했습니다';
+      return code ? JOB_FAILURE_MESSAGE[code] : 'The AI job failed';
     };
     storage.onDismiss = (jobId) => removePending(editor, jobId);
     storage.onRetry = (jobId) => {
@@ -36,7 +36,7 @@ export function useAssistBridge(noteId: string, editor: Editor | null): void {
       if (!job || !range) return;
       if (range.text !== job.inputText) {
         removePending(editor, jobId);
-        toast.show('원문이 바뀌어 다시 시도할 수 없습니다');
+        toast.show('The original text changed, so it can\'t be retried');
         return;
       }
       getBlink()
@@ -59,7 +59,7 @@ export function useAssistBridge(noteId: string, editor: Editor | null): void {
       const plan = planCommit(editor.state.doc, jobId, jobsRef.current.get(jobId), requestingJobs);
       if (plan.kind === 'replace' || plan.kind === 'insertBelow' || plan.kind === 'discard') {
         applyCommit(editor, plan);
-        if (plan.kind === 'discard' && plan.reason === 'changed') toast.show('원문이 바뀌어 AI 결과를 적용하지 않았습니다');
+        if (plan.kind === 'discard' && plan.reason === 'changed') toast.show('The original text changed, so the AI result wasn\'t applied');
       }
     }
   }, [editor, jobs]);

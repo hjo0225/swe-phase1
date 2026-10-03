@@ -31,7 +31,7 @@ export function VaultSwitcher({ placement = 'down' }: { placement?: 'down' | 'up
       <button
         type="button"
         className={styles.trigger}
-        aria-label={`보관함: ${vault?.name ?? ''}`}
+        aria-label={`Vault: ${vault?.name ?? ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         title={vault?.root}
@@ -50,7 +50,7 @@ export function VaultSwitcher({ placement = 'down' }: { placement?: 'down' | 'up
           ))}
           {others.length > 0 && <hr />}
           <button type="button" role="menuitem" onClick={() => choose()}>
-            다른 폴더 열기…
+            Open another folder…
           </button>
         </div>
       )}

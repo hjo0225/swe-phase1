@@ -13,10 +13,10 @@ export function NoteBreadcrumb({ note }: { note: NoteDetail }) {
   const current = notes?.find((n) => n.id === note.id);
   const path = current?.path ?? note.path;
   const folders = path.split('/').slice(0, -1);
-  const crumbs = [vault?.name ?? '보관함', ...folders];
+  const crumbs = [vault?.name ?? 'Vault', ...folders];
 
   return (
-    <nav aria-label="노트 위치" className={styles.breadcrumb}>
+    <nav aria-label="Note location" className={styles.breadcrumb}>
       <FileText size={15} strokeWidth={1.75} aria-hidden className={styles.breadcrumbIcon} />
       <ol>
         {crumbs.map((name, i) => (

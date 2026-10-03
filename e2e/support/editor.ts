@@ -2,10 +2,10 @@ import type { Page } from 'playwright-core';
 
 /** 제목 = 파일 이름. 입력을 마치면(Enter) 이름이 바뀌고 사이드바 트리에 보인다. */
 export async function setTitle(page: Page, title: string): Promise<void> {
-  const input = page.getByRole('textbox', { name: '노트 제목' });
+  const input = page.getByRole('textbox', { name: 'Note title' });
   await input.fill(title);
   await input.press('Enter');
-  await page.getByRole('region', { name: '노트 목록' }).getByRole('link', { name: title, exact: true }).waitFor();
+  await page.getByRole('region', { name: 'Note list' }).getByRole('link', { name: title, exact: true }).waitFor();
 }
 
 /**
@@ -16,7 +16,7 @@ export async function setTitle(page: Page, title: string): Promise<void> {
 export async function selectText(page: Page, target: string): Promise<void> {
   const found = await page.evaluate((text) => {
     type PMNode = { isText: boolean; text?: string };
-    const dom = document.querySelector('[aria-label="노트 본문"]') as HTMLElement & {
+    const dom = document.querySelector('[aria-label="Note body"]') as HTMLElement & {
       editor: {
         state: { doc: { descendants(f: (node: PMNode, pos: number) => boolean | void): void } };
         commands: { focus(): void; setTextSelection(range: { from: number; to: number }): void };

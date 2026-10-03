@@ -18,10 +18,10 @@ describe('App shell', () => {
     window.location.hash = '#/';
     render(<App />);
     const sidebar = await screen.findByRole('navigation', { name: 'Blink' });
-    expect(within(sidebar).getByRole('link', { name: /설정/ })).toHaveAttribute('href', '#/?settings');
+    expect(within(sidebar).getByRole('link', { name: /Settings/ })).toHaveAttribute('href', '#/?settings');
     // 보관함 전환은 트리 아래(맨 아래 줄)에 있다
-    const tree = within(sidebar).getByRole('region', { name: '노트 목록' });
-    const vault = await within(sidebar).findByRole('button', { name: '보관함: Mock' });
+    const tree = within(sidebar).getByRole('region', { name: 'Note list' });
+    const vault = await within(sidebar).findByRole('button', { name: 'Vault: Mock' });
     expect(tree.compareDocumentPosition(vault) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(sidebar).queryByText(/^v/)).not.toBeInTheDocument();
   });
@@ -36,11 +36,11 @@ describe('App shell', () => {
     window.location.hash = '#/';
     render(<App />);
     const sidebar = await screen.findByRole('navigation', { name: 'Blink' });
-    expect(within(sidebar).queryByText('AI 설정 필요')).not.toBeInTheDocument();
+    expect(within(sidebar).queryByText('AI not set up')).not.toBeInTheDocument();
 
     window.location.hash = '#/settings/ai';
-    expect(await screen.findByText('사용 중')).toBeInTheDocument();
-    expect(screen.getByText('AI 설정 필요')).toBeInTheDocument();
+    expect(await screen.findByText('In use')).toBeInTheDocument();
+    expect(screen.getByText('AI not set up')).toBeInTheDocument();
   });
 
   it('opens AI settings as a modal over the current note and closes it with the button, Escape or the backdrop', async () => {
@@ -48,32 +48,32 @@ describe('App shell', () => {
     const note = await seedNote('메모', '본문');
     window.location.hash = `#/notes/${note.id}`;
     render(<App />);
-    await screen.findByRole('textbox', { name: '노트 본문' });
+    await screen.findByRole('textbox', { name: 'Note body' });
 
-    await user.click(screen.getByRole('link', { name: '설정' }));
-    const modal = await screen.findByRole('dialog', { name: 'AI 설정' });
+    await user.click(screen.getByRole('link', { name: 'Settings' }));
+    const modal = await screen.findByRole('dialog', { name: 'AI settings' });
     expect(window.location.hash).toBe(`#/notes/${note.id}?settings`);
-    expect(screen.getByRole('textbox', { name: '노트 본문' })).toBeInTheDocument(); // 노트는 뒤에 그대로
-    await user.click(within(modal).getByRole('button', { name: '닫기' }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'AI 설정' })).not.toBeInTheDocument());
+    expect(screen.getByRole('textbox', { name: 'Note body' })).toBeInTheDocument(); // 노트는 뒤에 그대로
+    await user.click(within(modal).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'AI settings' })).not.toBeInTheDocument());
     expect(window.location.hash).toBe(`#/notes/${note.id}`);
 
-    await user.click(screen.getByRole('link', { name: '설정' }));
-    await screen.findByRole('dialog', { name: 'AI 설정' });
+    await user.click(screen.getByRole('link', { name: 'Settings' }));
+    await screen.findByRole('dialog', { name: 'AI settings' });
     await user.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'AI 설정' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'AI settings' })).not.toBeInTheDocument());
   });
 
   it('still opens the settings modal from the old #/settings/ai address', async () => {
     window.location.hash = '#/settings/ai';
     render(<App />);
-    expect(await screen.findByRole('dialog', { name: 'AI 설정' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'AI settings' })).toBeInTheDocument();
   });
 
   it('shows nothing on the right when the vault has no notes', async () => {
     window.location.hash = '#/nope';
     render(<App />);
-    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
+    expect(await screen.findByText('No notes yet')).toBeInTheDocument();
     expect(screen.getByRole('main')).toBeEmptyDOMElement();
   });
 });

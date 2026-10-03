@@ -9,9 +9,9 @@ export function BacklinksPanel({ noteId }: { noteId: string }) {
   if (!data || data.incoming.length === 0) return null;
 
   return (
-    <section className={styles.backlinks} aria-label="이 노트를 참조하는 노트">
+    <section className={styles.backlinks} aria-label="Linked from">
       <h2 className={styles.backlinksTitle}>
-        <Link2 size={14} strokeWidth={1.75} aria-hidden />이 노트를 참조하는 노트
+        <Link2 size={14} strokeWidth={1.75} aria-hidden />Linked from
       </h2>
       <ul>
         {data.incoming.map((note) => (

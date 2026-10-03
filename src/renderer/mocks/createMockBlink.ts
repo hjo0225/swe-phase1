@@ -63,7 +63,7 @@ function mockResult(job: AIJobView): JobResultDto {
     case 'EXPAND':
       return {
         kind: 'RESEARCHED_MARKDOWN',
-        markdown: `${job.inputText.trim()} (구체화됨)\n\n**출처**\n- [예시 출처](https://example.com/)`,
+        markdown: `${job.inputText.trim()} (구체화됨)\n\n**Sources**\n- [예시 출처](https://example.com/)`,
         sources: [{ title: '예시 출처', url: 'https://example.com/' }],
       };
     case 'VISUALIZE':
@@ -182,11 +182,11 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
   const noSearch: Capabilities = { generate: true, structuredOutput: true, webSearch: false };
   const catalog: Record<ProviderId, { id: string; label: string; capabilities: Capabilities }[]> = {
     openai: [
-      { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini (권장)', capabilities: all },
-      { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano (구체화 미지원)', capabilities: noSearch },
+      { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini (recommended)', capabilities: all },
+      { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano (no Expand)', capabilities: noSearch },
     ],
     kimi: [
-      { id: 'kimi-k2.6', label: 'Kimi K2.6 (권장)', capabilities: all },
+      { id: 'kimi-k2.6', label: 'Kimi K2.6 (recommended)', capabilities: all },
       { id: 'kimi-k3', label: 'Kimi K3', capabilities: all },
     ],
   };
@@ -247,8 +247,8 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       create: ({ folder = '' }) => {
         if (!vault) return notOpen();
         if (!folderExists(folder)) return fail('FOLDER_NOT_FOUND', folder);
-        let name = '제목 없음';
-        for (let n = 2; pathTaken(inFolder(folder, `${name}.md`)); n++) name = `제목 없음 ${n}`;
+        let name = 'Untitled';
+        for (let n = 2; pathTaken(inFolder(folder, `${name}.md`)); n++) name = `Untitled ${n}`;
         const at = now();
         const note: MockNote = { id: crypto.randomUUID(), path: inFolder(folder, `${name}.md`), content: '', createdAt: at, updatedAt: at };
         notes.set(note.id, note);

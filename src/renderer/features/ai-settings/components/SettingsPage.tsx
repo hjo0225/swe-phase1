@@ -14,21 +14,21 @@ import styles from './SettingsPage.module.css';
 
 /** 비워 두면 쓰는 주소. Kimi 중국 계정은 https://api.moonshot.cn/v1 을 적는다. */
 const DEFAULT_BASE_URL_HINT: Record<ProviderId, string> = {
-  openai: '기본값: https://api.openai.com/v1',
-  kimi: '기본값: https://api.moonshot.ai/v1 (중국: api.moonshot.cn)',
+  openai: 'Default: https://api.openai.com/v1',
+  kimi: 'Default: https://api.moonshot.ai/v1 (China: api.moonshot.cn)',
 };
 
 const CAPABILITY_ROWS: { key: keyof Capabilities; label: string; enables: string }[] = [
-  { key: 'generate', label: '텍스트 생성', enables: '정리' },
-  { key: 'structuredOutput', label: '구조화 출력', enables: '시각화' },
-  { key: 'webSearch', label: '웹 검색', enables: '구체화' },
+  { key: 'generate', label: 'Text generation', enables: 'Organize' },
+  { key: 'structuredOutput', label: 'Structured output', enables: 'Visualize' },
+  { key: 'webSearch', label: 'Web search', enables: 'Expand' },
 ];
 
 const FIELD_ERROR: Partial<Record<string, string>> = {
-  PROVIDER_API_KEY_REQUIRED: 'API Key를 입력하세요',
-  PROVIDER_MODEL_NOT_SUPPORTED: '지원하지 않는 모델입니다',
-  PROVIDER_BASE_URL_INVALID: 'https:// 주소(또는 http://localhost)를 입력하세요',
-  PROVIDER_SECURE_STORAGE_UNAVAILABLE: '보안 저장소를 사용할 수 없어 Key를 저장하지 못했습니다',
+  PROVIDER_API_KEY_REQUIRED: 'Enter an API key',
+  PROVIDER_MODEL_NOT_SUPPORTED: 'This model is not supported',
+  PROVIDER_BASE_URL_INVALID: 'Enter an https:// address (or http://localhost)',
+  PROVIDER_SECURE_STORAGE_UNAVAILABLE: 'Couldn\'t save the key because secure storage is unavailable',
 };
 
 /** UC-AIP-001~003. 설정 모달(SettingsModal) 안의 내용 */
@@ -37,16 +37,16 @@ export function SettingsPanel() {
   const { data: appInfo } = useQuery({ queryKey: ['app', 'info'], queryFn: () => getBlink().app.getInfo(), staleTime: Infinity });
   return (
     <section className={styles.panel}>
-      <p className={styles.lead}>사용할 AI Provider와 모델, 본인의 API Key를 설정합니다. Key는 이 PC의 보안 저장소에 암호화되어 저장됩니다.</p>
+      <p className={styles.lead}>Choose your AI provider and model, and add your own API key. The key is encrypted in this computer's secure storage.</p>
       {/* 지금 쓰는 AI는 설정 화면에서만 보여 준다 */}
       <div className={styles.current}>
-        <span className={styles.currentLabel}>사용 중</span>
+        <span className={styles.currentLabel}>In use</span>
         <AIStatusChip />
       </div>
       {isPending && <div className={styles.skeleton} aria-busy="true" />}
       {isError && (
         <button type="button" className="button-secondary" onClick={() => void refetch()}>
-          설정을 불러오지 못했습니다 · 다시 시도
+          Couldn't load settings · Try again
         </button>
       )}
       {data && <AIProviderForm view={data} />}
@@ -106,7 +106,7 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
       {
         onSuccess: () => {
           setApiKey(''); // 평문 Key를 화면 상태에 남기지 않는다
-          toast.show('AI 설정을 저장했습니다');
+          toast.show('AI settings saved');
         },
         onError: (e) => setError(messageOf(e)),
       },
@@ -114,10 +114,10 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
   };
 
   return (
-    <form aria-label="AI 설정" className={styles.form} onSubmit={onSubmit}>
+    <form aria-label="AI settings" className={styles.form} onSubmit={onSubmit}>
       {!view.secureStorageAvailable && (
         <div role="alert" className={styles.warning}>
-          <ShieldAlert size={16} strokeWidth={1.75} aria-hidden />이 PC에서는 보안 저장소를 사용할 수 없어 API Key를 저장할 수 없습니다.
+          <ShieldAlert size={16} strokeWidth={1.75} aria-hidden />Secure storage isn't available on this computer, so the API key can't be saved.
         </div>
       )}
 
@@ -127,7 +127,7 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
           {view.providers.map((p) => (
             <option key={p.provider} value={p.provider} disabled={p.models.length === 0}>
               {p.label}
-              {p.models.length === 0 ? ' (준비 중)' : ''}
+              {p.models.length === 0 ? ' (coming soon)' : ''}
             </option>
           ))}
         </select>
@@ -142,17 +142,17 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
             autoComplete="off"
             value={apiKey}
             disabled={!view.secureStorageAvailable}
-            placeholder={entry.hasApiKey ? '저장됨 · 바꾸려면 새 Key 입력' : 'sk-...'}
+            placeholder={entry.hasApiKey ? 'Saved · enter a new key to replace it' : 'sk-...'}
             onChange={(e) => setApiKey(e.target.value)}
           />
         </div>
       </label>
 
       <label className={styles.field}>
-        <span>모델</span>
-        <select aria-label="모델" value={model} onChange={(e) => setModel(e.target.value)}>
+        <span>Model</span>
+        <select aria-label="Model" value={model} onChange={(e) => setModel(e.target.value)}>
           <option value="" disabled>
-            모델 선택
+            Choose a model
           </option>
           {entry.models.map((m) => (
             <option key={m.id} value={m.id}>
@@ -163,7 +163,7 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
       </label>
 
       {selectedModel && (
-        <ul className={styles.capabilities} aria-label="모델 기능">
+        <ul className={styles.capabilities} aria-label="Model capabilities">
           {CAPABILITY_ROWS.map((row) => {
             const supported = selectedModel.capabilities[row.key];
             return (
@@ -171,7 +171,7 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
                 {supported ? <Check size={14} strokeWidth={2} aria-hidden /> : <X size={14} strokeWidth={2} aria-hidden />}
                 {row.label}
                 <span className={styles.enables}>
-                  {row.enables} {supported ? '사용 가능' : '사용 불가'}
+                  {row.enables} {supported ? 'available' : 'unavailable'}
                 </span>
               </li>
             );
@@ -180,9 +180,9 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
       )}
 
       <details className={styles.advanced} open={Boolean(entry.baseUrl)}>
-        <summary>고급 설정</summary>
+        <summary>Advanced</summary>
         <label className={styles.field}>
-          <span>Base URL (선택)</span>
+          <span>Base URL (optional)</span>
           <input
             type="url"
             value={baseUrl}
@@ -199,7 +199,7 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
       )}
       {testResult && (
         <p className={styles.testResult} data-ok={testResult.ok}>
-          {testResult.ok ? '연결되었습니다' : CONNECTION_FAILURE_MESSAGE[testResult.failure.code]}
+          {testResult.ok ? 'Connected' : CONNECTION_FAILURE_MESSAGE[testResult.failure.code]}
         </p>
       )}
 
@@ -210,10 +210,10 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
           disabled={!model || test.isPending || (!trimmedKey && !entry.hasApiKey)}
           onClick={onTest}
         >
-          {test.isPending ? '확인 중…' : '연결 테스트'}
+          {test.isPending ? 'Checking…' : 'Test connection'}
         </button>
         <button type="submit" className="button-primary" disabled={!model || update.isPending || (!trimmedKey && !entry.hasApiKey)}>
-          저장
+          Save
         </button>
       </div>
     </form>
@@ -221,14 +221,14 @@ function AIProviderForm({ view }: { view: ProviderSettingsView }) {
 }
 
 function messageOf(error: unknown): string {
-  if (error instanceof BlinkIpcError) return FIELD_ERROR[error.code] ?? '저장하지 못했습니다';
-  return '저장하지 못했습니다';
+  if (error instanceof BlinkIpcError) return FIELD_ERROR[error.code] ?? 'Couldn\'t save';
+  return 'Couldn\'t save';
 }
 
 /** 사이드바 ⚙·AI 메뉴의 «설정 필요»에서 지금 화면 위로 연다 (주소에 ?settings). */
 export function SettingsModal({ onClose }: { onClose(): void }) {
   return (
-    <Modal title="AI 설정" onClose={onClose}>
+    <Modal title="AI settings" onClose={onClose}>
       <SettingsPanel />
     </Modal>
   );

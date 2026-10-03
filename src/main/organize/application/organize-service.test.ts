@@ -152,7 +152,7 @@ describe('preview', () => {
     expect(titlesIn('')).toHaveLength(6);
   });
 
-  it('puts notes that fit an existing subfolder there and the rest into 미분류', async () => {
+  it('puts notes that fit an existing subfolder there and the rest into Unsorted', async () => {
     seed('Spring', ...SPRING);
     seed('', 'spring boot 실무 4편', '김치찌개 레시피', '스쿼트 자세');
     const plan = await organize.preview('');
@@ -160,8 +160,8 @@ describe('preview', () => {
     expect(plan.moves.map((m) => [m.title, m.to]).sort()).toEqual(
       [
         ['spring boot 실무 4편', 'Spring'],
-        ['김치찌개 레시피', '미분류'],
-        ['스쿼트 자세', '미분류'],
+        ['김치찌개 레시피', 'Unsorted'],
+        ['스쿼트 자세', 'Unsorted'],
       ].sort(),
     );
     expect(namer).not.toHaveBeenCalled();
@@ -178,9 +178,20 @@ describe('preview', () => {
     await expect(organize.preview('')).resolves.toMatchObject({ skipped: 'TOO_FEW_NOTES' });
   });
 
-  it('refuses to classify inside 미분류', async () => {
-    seed('미분류', 'a 노트');
-    expect(await codeOf(() => organize.preview('미분류'))).toBe('VALIDATION_FAILED');
+  it.each(['Unsorted', '미분류'])('refuses to classify inside the unsorted folder (%s)', async (name) => {
+    seed(name, 'a 노트');
+    expect(await codeOf(() => organize.preview(name))).toBe('VALIDATION_FAILED');
+  });
+
+  it('keeps using an unsorted folder that an earlier version named 미분류', async () => {
+    seed('Spring', ...SPRING);
+    seed('미분류', '스쿼트 자세');
+    seed('', 'spring boot 실무 4편', '김치찌개 레시피');
+    const plan = await organize.preview('');
+    expect(plan.moves.find((m) => m.title === '김치찌개 레시피')?.to).toBe('미분류');
+    organize.apply(plan);
+    expect(titlesIn('미분류')).toEqual(['김치찌개 레시피', '스쿼트 자세']);
+    expect(titlesIn('Unsorted')).toEqual([]);
   });
 
   it('embeds all titles in one request', async () => {
@@ -263,13 +274,13 @@ describe('apply', () => {
     expect(titlesIn('공부')).toEqual([...SPRING, ...RUST].sort());
   });
 
-  it('creates 미분류 when needed and skips notes deleted after the preview', async () => {
+  it('creates Unsorted when needed and skips notes deleted after the preview', async () => {
     seed('Spring', ...SPRING);
     seed('', 'spring boot 실무 4편', '김치찌개 레시피', '스쿼트 자세');
     const plan = await organize.preview('');
     notes.delete(idOf('스쿼트 자세'));
-    expect(organize.apply(plan)).toMatchObject({ movedNotes: 2, createdFolders: ['미분류'] });
-    expect(titlesIn('미분류')).toEqual(['김치찌개 레시피']);
+    expect(organize.apply(plan)).toMatchObject({ movedNotes: 2, createdFolders: ['Unsorted'] });
+    expect(titlesIn('Unsorted')).toEqual(['김치찌개 레시피']);
     expect(titlesIn('Spring')).toContain('spring boot 실무 4편');
   });
 
@@ -298,7 +309,13 @@ describe('place', () => {
     expect(titlesIn('Spring')).toContain('spring boot 실무 4편');
   });
 
-  it('sends a note that fits nowhere to 미분류 of that level', async () => {
+  it('sends a note that fits nowhere to Unsorted of that level', async () => {
+    seed('', '김치찌개 레시피');
+    expect((await organize.place(idOf('김치찌개 레시피'))).folder).toBe('Unsorted');
+  });
+
+  it('sends it to the 미분류 folder an earlier version made, instead of a second unsorted folder', async () => {
+    seed('미분류', '스쿼트 자세');
     seed('', '김치찌개 레시피');
     expect((await organize.place(idOf('김치찌개 레시피'))).folder).toBe('미분류');
   });

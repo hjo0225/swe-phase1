@@ -8,7 +8,7 @@ import { getBlink, resetBlinkForTests } from '../../shared/api/blink';
 import { seedNote } from '../../test/seed-note';
 import { resetAutosaveForTests } from '../notes/autosave/autosave';
 
-const sidebarTree = () => within(screen.getByRole('region', { name: '노트 목록' }));
+const sidebarTree = () => within(screen.getByRole('region', { name: 'Note list' }));
 let plan: (folder: string) => OrganizePlan;
 
 describe('organize flow', () => {
@@ -32,10 +32,10 @@ describe('organize flow', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
-    const dialog = await screen.findByRole('dialog', { name: '분류하기 — 보관함 맨 위' });
-    expect(await within(dialog).findByText('새 폴더 공부 / Spring')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: '옮기기' }));
+    await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Organize — Top of vault' });
+    expect(await within(dialog).findByText('New folder 공부 / Spring')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Move' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(await sidebarTree().findByRole('treeitem', { name: '공부' })).toBeInTheDocument();
@@ -49,35 +49,35 @@ describe('organize flow', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '취소' }));
+    await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }));
 
-    const locked = await screen.findByRole('group', { name: '보관함 편집' });
+    const locked = await screen.findByRole('group', { name: 'Edit vault' });
     expect(locked).toHaveAttribute('inert');
     expect(locked).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByRole('status', { name: 'AI 분류 상태' })).toHaveTextContent('AI가 폴더를 정리하는 중');
+    expect(screen.getByRole('status', { name: 'AI organize status' })).toHaveTextContent('AI is organizing folders');
 
     release();
     await waitFor(() => expect(locked).not.toHaveAttribute('inert'));
-    expect(screen.queryByRole('status', { name: 'AI 분류 상태' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'AI organize status' })).not.toBeInTheDocument();
   });
 
   it('locks the sidebar while a new note is being placed after its first title', async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
     resetBlinkForTests({ organizePreview: (folder) => plan(folder), organizeGate: () => gate });
-    const note = await getBlink().notes.create({}); // 제목 없음 → 처음 제목을 붙이면 자동 배치
+    const note = await getBlink().notes.create({}); // Untitled → 처음 제목을 붙이면 자동 배치
     window.location.hash = `#/notes/${note.id}`;
     const user = userEvent.setup();
     render(<App />);
 
-    const title = await screen.findByRole('textbox', { name: '노트 제목' });
+    const title = await screen.findByRole('textbox', { name: 'Note title' });
     await user.clear(title);
     await user.type(title, '김치찌개 레시피{Enter}');
 
-    expect(await screen.findByRole('group', { name: '보관함 편집' })).toHaveAttribute('inert');
+    expect(await screen.findByRole('group', { name: 'Edit vault' })).toHaveAttribute('inert');
     release();
-    await waitFor(() => expect(screen.getByRole('group', { name: '보관함 편집' })).not.toHaveAttribute('inert'));
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Edit vault' })).not.toHaveAttribute('inert'));
   });
 
   it('tells the user when there is nothing to group', async () => {
@@ -85,9 +85,9 @@ describe('organize flow', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
-    expect(await screen.findByText('나눌 만한 묶음이 없습니다')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '옮기기' })).toBeDisabled();
+    await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
+    expect(await screen.findByText('No clear groups to split into')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move' })).toBeDisabled();
   });
 
   it('offers 분류하기 on folders but not on 미분류', async () => {
@@ -95,12 +95,12 @@ describe('organize flow', () => {
     await seedNote('b 노트', '', '미분류');
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByRole('region', { name: '노트 목록' });
+    await screen.findByRole('region', { name: 'Note list' });
 
-    await user.click(await sidebarTree().findByRole('button', { name: '공부 폴더 메뉴' }));
-    expect(screen.getByRole('menuitem', { name: '분류하기' })).toBeInTheDocument();
-    await user.click(sidebarTree().getByRole('button', { name: '미분류 폴더 메뉴' }));
-    expect(screen.queryByRole('menuitem', { name: '분류하기' })).not.toBeInTheDocument();
+    await user.click(await sidebarTree().findByRole('button', { name: '공부 folder menu' }));
+    expect(screen.getByRole('menuitem', { name: 'Organize' })).toBeInTheDocument();
+    await user.click(sidebarTree().getByRole('button', { name: '미분류 folder menu' }));
+    expect(screen.queryByRole('menuitem', { name: 'Organize' })).not.toBeInTheDocument();
   });
 
   it('places a new note only when its first title is set', async () => {
@@ -108,8 +108,8 @@ describe('organize flow', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click((await screen.findAllByRole('button', { name: /새 노트/ }))[0]!);
-    const title = await screen.findByRole('textbox', { name: '노트 제목' });
+    await user.click((await screen.findAllByRole('button', { name: /New note/ }))[0]!);
+    const title = await screen.findByRole('textbox', { name: 'Note title' });
     await user.clear(title);
     await user.type(title, 'spring boot 실무 4편{Enter}');
     await waitFor(() => expect(place).toHaveBeenCalledTimes(1));
@@ -124,14 +124,14 @@ describe('organize flow', () => {
   it('only accepts .md files when dropping', async () => {
     const importFile = vi.spyOn(getBlink().organize, 'importFile');
     render(<App />);
-    const region = await screen.findByRole('region', { name: '노트 목록' });
+    const region = await screen.findByRole('region', { name: 'Note list' });
     const files = [new File([''], '사진.png')];
     const dataTransfer = { types: ['Files'], files, getData: () => '' };
 
     fireEvent.dragOver(region, { dataTransfer });
     fireEvent.drop(region, { dataTransfer });
 
-    expect(await screen.findByText('.md 파일만 넣을 수 있습니다')).toBeInTheDocument();
+    expect(await screen.findByText('Only .md files can be added')).toBeInTheDocument();
     expect(importFile).not.toHaveBeenCalled();
   });
 
@@ -154,36 +154,36 @@ describe('organize flow', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
-    const dialog = await screen.findByRole('dialog', { name: '분류하기 — 보관함 맨 위' });
-    await user.click(await within(dialog).findByRole('button', { name: '옮기기' }));
+    await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Organize — Top of vault' });
+    await user.click(await within(dialog).findByRole('button', { name: 'Move' }));
 
-    expect(await within(dialog).findByText('노트 1개는 옮기지 못했습니다: 잠긴 노트')).toBeInTheDocument();
+    expect(await within(dialog).findByText("1 note couldn't be moved: 잠긴 노트")).toBeInTheDocument();
     expect(await sidebarTree().findByRole('treeitem', { name: 'Spring' })).toBeInTheDocument();
   });
 
   it('shows the notes imported before a dropped file failed', async () => {
     render(<App />);
-    const region = await screen.findByRole('region', { name: '노트 목록' });
+    const region = await screen.findByRole('region', { name: 'Note list' });
     const files = [new File([''], 'a 노트.md'), new File([''], 'b #fail.md')];
     const dataTransfer = { types: ['Files'], files, getData: () => '' };
 
     fireEvent.dragOver(region, { dataTransfer });
     fireEvent.drop(region, { dataTransfer });
 
-    expect(await screen.findByText('파일이 다른 프로그램에서 열려 있습니다. 닫고 다시 넣어 주세요')).toBeInTheDocument();
+    expect(await screen.findByText('The file is open in another program. Close it and drop it again')).toBeInTheDocument();
     expect(await sidebarTree().findByText('a 노트')).toBeInTheDocument();
   });
 
   it('tells the user to connect OpenAI when importing without it', async () => {
     render(<App />);
-    const region = await screen.findByRole('region', { name: '노트 목록' });
+    const region = await screen.findByRole('region', { name: 'Note list' });
     const dataTransfer = { types: ['Files'], files: [new File([''], 'c #noai.md')], getData: () => '' };
 
     fireEvent.dragOver(region, { dataTransfer });
     fireEvent.drop(region, { dataTransfer });
 
-    expect(await screen.findByText('설정에서 OpenAI를 연결해 주세요')).toBeInTheDocument();
+    expect(await screen.findByText('Connect OpenAI in Settings')).toBeInTheDocument();
   });
 
   it('tells the user to connect OpenAI when classifying without it', async () => {
@@ -191,7 +191,7 @@ describe('organize flow', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '보관함 분류하기' }));
-    expect(await screen.findByText('설정에서 OpenAI를 연결해 주세요')).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
+    expect(await screen.findByText('Connect OpenAI in Settings')).toBeInTheDocument();
   });
 });

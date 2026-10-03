@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEven
 import { NavLink, useParams } from 'react-router';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import type { NoteSummary, VaultTree } from '../../../../shared/ipc/notes';
+import { isUnsortedFolder } from '../../../../shared/notes/default-names';
 import { useImportNotes } from '../../organize/api/organize-queries';
 import { OrganizeDialog } from '../../organize/components/OrganizeDialog';
 import { useCreateNote, useMoveNote, useNoteTree } from '../api/note-queries';
@@ -11,17 +12,16 @@ import styles from './NoteTree.module.css';
 
 const EXPANDED_KEY = 'blink.expandedFolders';
 const DRAG_TYPE = 'application/x-blink-note';
-const UNSORTED = '미분류';
 /** 한 단계 들여쓰기 폭 (안내선 간격과 같다) */
 const INDENT = 16;
 const IMPORT_ERRORS: Partial<Record<string, string>> = {
-  NOTE_IMPORT_LOCKED: '파일이 다른 프로그램에서 열려 있습니다. 닫고 다시 넣어 주세요',
-  NOTE_IMPORT_INVALID: '가져올 수 없는 파일입니다',
+  NOTE_IMPORT_LOCKED: 'The file is open in another program. Close it and drop it again',
+  NOTE_IMPORT_INVALID: 'This file can\'t be imported',
   // 가져온 뒤 자동 배치에 임베딩이 필요하다 — 파일은 놓은 폴더에 들어가 있다
-  AI_PROVIDER_NOT_CONFIGURED: '설정에서 OpenAI를 연결해 주세요',
-  AI_CAPABILITY_UNSUPPORTED: '지금 AI 설정으로는 자동 정리를 할 수 없습니다. 설정에서 OpenAI를 연결해 주세요',
-  ORGANIZE_EMBEDDING_FAILED: '노트 제목을 읽지 못해 자동 정리를 못 했습니다',
-  VAULT_BUSY: 'AI가 폴더를 정리하는 중입니다. 끝난 뒤 다시 넣어 주세요',
+  AI_PROVIDER_NOT_CONFIGURED: 'Connect OpenAI in Settings',
+  AI_CAPABILITY_UNSUPPORTED: 'Your current AI setup can\'t auto-organize. Connect OpenAI in Settings',
+  ORGANIZE_EMBEDDING_FAILED: 'Couldn\'t read the note titles, so auto-organize didn\'t run',
+  VAULT_BUSY: 'AI is organizing folders. Drop it again when it finishes',
 };
 
 interface FolderNode {
@@ -207,7 +207,7 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
         event.preventDefault();
         event.stopPropagation();
         const markdown = files.filter((file) => /\.md$/i.test(file.name));
-        setDropMessage(markdown.length < files.length ? '.md 파일만 넣을 수 있습니다' : null);
+        setDropMessage(markdown.length < files.length ? 'Only .md files can be added' : null);
         if (markdown.length > 0) importNotes.mutate({ files: markdown, folder });
         return;
       }
@@ -232,16 +232,16 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
   );
 
   return (
-    <section className={styles.tree} aria-label="노트 목록" data-dropping={dropTarget === ''} {...dropProps('')}>
+    <section className={styles.tree} aria-label="Note list" data-dropping={dropTarget === ''} {...dropProps('')}>
       {isPending && <div className={styles.skeleton} aria-hidden />}
       {isError && (
         <button type="button" className={styles.message} onClick={() => void refetch()}>
-          목록을 불러오지 못했습니다 · 다시 시도
+          Couldn't load the list · Try again
         </button>
       )}
-      {root && rows.length === 0 && <p className={styles.message}>아직 노트가 없습니다</p>}
+      {root && rows.length === 0 && <p className={styles.message}>No notes yet</p>}
       {root && rows.length > 0 && (
-        <div role="tree" aria-label="보관함" className={styles.root} onKeyDown={onKeyDown}>
+        <div role="tree" aria-label="Vault" className={styles.root} onKeyDown={onKeyDown}>
           {rows.map((row) => {
             const tabIndex = row.key === tabKey ? 0 : -1;
             if (row.kind === 'note') {
@@ -314,7 +314,7 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
                     )}
                     <span className={styles.title}>{row.label}</span>
                     {/* 버튼 이름은 폴더 이름만 — 수는 눈으로만 본다 */}
-                    <span className={styles.count} aria-hidden title={`노트 ${folder.count}개`}>
+                    <span className={styles.count} aria-hidden title={`${folder.count} ${folder.count === 1 ? 'note' : 'notes'}`}>
                       {folder.count}
                     </span>
                   </button>
@@ -344,10 +344,10 @@ export function NoteTree({ selectedFolder, onSelectFolder }: NoteTreeProps) {
       )}
       {importNotes.isError && (
         <p role="alert" className={styles.message}>
-          {(importNotes.error instanceof BlinkIpcError && IMPORT_ERRORS[importNotes.error.code]) || '파일을 가져오지 못했습니다'}
+          {(importNotes.error instanceof BlinkIpcError && IMPORT_ERRORS[importNotes.error.code]) || 'Couldn\'t import the file'}
         </p>
       )}
-      {dialog === null && moveNote.isError && <p role="alert" className={styles.message}>같은 이름의 노트가 있어 옮기지 못했습니다</p>}
+      {dialog === null && moveNote.isError && <p role="alert" className={styles.message}>A note with the same name exists, so it wasn't moved</p>}
     </section>
   );
 }
@@ -396,7 +396,7 @@ function FolderMenu({ folder, open, onOpenChange, onCreateNote, onDialog, onOrga
         type="button"
         tabIndex={-1}
         className={styles.menuButton}
-        aria-label={`${folder.name} 폴더 메뉴`}
+        aria-label={`${folder.name} folder menu`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
@@ -406,18 +406,18 @@ function FolderMenu({ folder, open, onOpenChange, onCreateNote, onDialog, onOrga
       {open && (
         <div role="menu" className={`glass-elevated ${styles.menu}`}>
           <button type="button" role="menuitem" onClick={act(onCreateNote)}>
-            새 노트
+            New note
           </button>
           <button type="button" role="menuitem" onClick={act(() => onDialog({ kind: 'create', parent: folder.path }))}>
-            새 폴더
+            New folder
           </button>
-          {folder.name !== UNSORTED && (
+          {!isUnsortedFolder(folder.name) && (
             <button type="button" role="menuitem" onClick={act(onOrganize)}>
-              분류하기
+              Organize
             </button>
           )}
           <button type="button" role="menuitem" onClick={act(() => onDialog({ kind: 'rename', path: folder.path }))}>
-            이름 바꾸기
+            Rename
           </button>
           <button
             type="button"
@@ -425,7 +425,7 @@ function FolderMenu({ folder, open, onOpenChange, onCreateNote, onDialog, onOrga
             className={styles.danger}
             onClick={act(() => onDialog({ kind: 'delete', path: folder.path, noteCount: folder.count }))}
           >
-            삭제
+            Delete
           </button>
         </div>
       )}

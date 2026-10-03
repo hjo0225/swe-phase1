@@ -50,7 +50,7 @@ describe('JobResults', () => {
       'https://x2.dev/',
     ]);
     expect(result.markdown).toBe(
-      '본문\n\n**출처**\n- [Electron](https://www.electronjs.org/)\n- [https://nodejs.org/](https://nodejs.org/)\n- [x0](https://x0.dev/)\n- [x1](https://x1.dev/)\n- [x2](https://x2.dev/)',
+      '본문\n\n**Sources**\n- [Electron](https://www.electronjs.org/)\n- [https://nodejs.org/](https://nodejs.org/)\n- [x0](https://x0.dev/)\n- [x1](https://x1.dev/)\n- [x2](https://x2.dev/)',
     );
   });
 

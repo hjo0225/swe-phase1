@@ -14,7 +14,7 @@ const all = new ModelCapabilities({ generate: true, structuredOutput: true, webS
  * moonshot-v1 계열은 2026-08-31에 종료되었다.
  */
 export const KIMI_MODELS: readonly ModelDescriptor[] = [
-  { id: 'kimi-k2.6', label: 'Kimi K2.6 (권장)', capabilities: all },
+  { id: 'kimi-k2.6', label: 'Kimi K2.6 (recommended)', capabilities: all },
   { id: 'kimi-k3', label: 'Kimi K3', capabilities: all },
 ];
 
@@ -118,7 +118,7 @@ export class KimiProvider implements LLMProvider {
     const grounded = [
       user,
       '',
-      '웹 검색 결과 (이 결과로 확인한 내용만 쓴다):',
+      'Web search results (only write what these results confirm):',
       ...results.map((r, i) => `[${i + 1}] ${r.title ?? r.url}\n${r.url}\n${r.snippet ?? ''}`.trimEnd()),
     ].join('\n');
     const text = contentOf(await this.chat(system, grounded, {}, signal));

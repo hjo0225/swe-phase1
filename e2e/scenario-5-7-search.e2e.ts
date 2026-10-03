@@ -4,18 +4,18 @@ import { createUserDataDir, launchApp } from './support/app';
 import { setTitle } from './support/editor';
 
 async function writeNote(page: Page, title: string, body: string) {
-  await page.getByRole('button', { name: '새 노트' }).first().click();
+  await page.getByRole('button', { name: 'New note' }).first().click();
   await setTitle(page, title);
-  await page.getByRole('textbox', { name: '노트 본문' }).click();
+  await page.getByRole('textbox', { name: 'Note body' }).click();
   await page.keyboard.type(body);
-  await page.getByText('저장됨').waitFor();
+  await page.getByText('Saved').waitFor();
 }
 
 async function searchFor(page: Page, query: string) {
-  await page.getByRole('textbox', { name: '노트 본문' }).click();
+  await page.getByRole('textbox', { name: 'Note body' }).click();
   await page.keyboard.press('Control+K');
-  const palette = page.getByRole('dialog', { name: '노트 검색' });
-  await palette.getByRole('searchbox', { name: '노트 검색어' }).fill(query);
+  const palette = page.getByRole('dialog', { name: 'Search notes' });
+  await palette.getByRole('searchbox', { name: 'Search query' }).fill(query);
   return palette;
 }
 
@@ -40,21 +40,21 @@ describe('Scenarios 5-7: search, link, import', () => {
       if (process.env.BLINK_E2E_SHOTS) await page.screenshot({ path: `${process.env.BLINK_E2E_SHOTS}/scenario-5.png` });
 
       // Scenario 6: 연결 → 링크 클릭 → 기존 노트로 이동
-      await hit.getByRole('button', { name: '연결' }).click();
-      const editor = page.getByRole('textbox', { name: '노트 본문' });
+      await hit.getByRole('button', { name: 'Link' }).click();
+      const editor = page.getByRole('textbox', { name: 'Note body' });
       const link = editor.getByRole('link', { name: 'Electron Architecture' });
       await link.waitFor();
       await link.click();
-      await expect.poll(() => page.getByRole('textbox', { name: '노트 제목' }).inputValue()).toBe('Electron Architecture');
+      await expect.poll(() => page.getByRole('textbox', { name: 'Note title' }).inputValue()).toBe('Electron Architecture');
       await page
-        .getByRole('region', { name: '이 노트를 참조하는 노트' })
+        .getByRole('region', { name: 'Linked from' })
         .getByRole('link', { name: '오늘 작업' })
         .click();
-      await expect.poll(() => page.getByRole('textbox', { name: '노트 제목' }).inputValue()).toBe('오늘 작업');
+      await expect.poll(() => page.getByRole('textbox', { name: 'Note title' }).inputValue()).toBe('오늘 작업');
 
       // Scenario 7: 내용 가져오기 → 현재 커서 위치에 삽입
       palette = await searchFor(page, 'electron');
-      await palette.getByRole('article', { name: 'Electron Architecture' }).getByRole('button', { name: '내용 가져오기' }).click();
+      await palette.getByRole('article', { name: 'Electron Architecture' }).getByRole('button', { name: 'Import' }).click();
       await expect.poll(() => editor.textContent()).toContain('Main Process와 Renderer Process의 차이');
       if (process.env.BLINK_E2E_SHOTS) await page.screenshot({ path: `${process.env.BLINK_E2E_SHOTS}/scenario-7.png` });
     } finally {

@@ -7,8 +7,8 @@ import { resetBlinkForTests } from '../../shared/api/blink';
 import { seedNote } from '../../test/seed-note';
 import { resetAutosaveForTests } from './autosave/autosave';
 
-const tree = () => within(screen.getByRole('tree', { name: '보관함' }));
-const focusTargets = () => [...screen.getByRole('tree', { name: '보관함' }).querySelectorAll<HTMLElement>('[data-tree-key]')];
+const tree = () => within(screen.getByRole('tree', { name: 'Vault' }));
+const focusTargets = () => [...screen.getByRole('tree', { name: 'Vault' }).querySelectorAll<HTMLElement>('[data-tree-key]')];
 
 async function seedVault() {
   await seedNote('계획', '', '회의');
@@ -16,7 +16,7 @@ async function seedVault() {
   await seedNote('로드맵', '', '회의/2026');
   await seedNote('아이디어');
   render(<App />);
-  await screen.findByRole('tree', { name: '보관함' });
+  await screen.findByRole('tree', { name: 'Vault' });
 }
 
 describe('note tree (21st Tree View 구조)', () => {
@@ -64,7 +64,7 @@ describe('note tree (21st Tree View 구조)', () => {
     await seedNote('beta');
     await seedNote('bravo');
     render(<App />);
-    await screen.findByRole('tree', { name: '보관함' });
+    await screen.findByRole('tree', { name: 'Vault' });
     focusTargets()[0]!.focus();
     await user.keyboard('b');
     expect(document.activeElement).toHaveTextContent('beta');
@@ -86,7 +86,7 @@ describe('note tree (21st Tree View 구조)', () => {
     await seedVault();
     await user.pointer({ keys: '[MouseRight]', target: tree().getByRole('button', { name: '회의' }) });
     expect(await screen.findByRole('menu')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: '이름 바꾸기' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeInTheDocument();
   });
 });
 
@@ -100,7 +100,7 @@ describe('sidebar search field', () => {
   it('opens the search palette from the field at the top of the sidebar', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /노트 검색/ }));
-    expect(await screen.findByRole('dialog', { name: '노트 검색' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /Search notes/ }));
+    expect(await screen.findByRole('dialog', { name: 'Search notes' })).toBeInTheDocument();
   });
 });

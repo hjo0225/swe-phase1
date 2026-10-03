@@ -30,19 +30,19 @@ interface Tool {
 }
 
 const TOOLS: Tool[] = [
-  { key: 'heading', label: '제목', icon: Heading2, keys: '##', pressed: (e) => e.isActive('heading', { level: 2 }), run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
-  { key: 'bold', label: '굵게', icon: Bold, keys: `${MOD}B`, pressed: (e) => e.isActive('bold'), run: (e) => e.chain().focus().toggleBold().run() },
-  { key: 'italic', label: '기울임', icon: Italic, keys: `${MOD}I`, pressed: (e) => e.isActive('italic'), run: (e) => e.chain().focus().toggleItalic().run() },
-  { key: 'strike', label: '취소선', icon: Strikethrough, keys: `${MOD}Shift+S`, pressed: (e) => e.isActive('strike'), run: (e) => e.chain().focus().toggleStrike().run() },
-  { key: 'code', label: '코드', icon: Code, keys: `${MOD}E`, pressed: (e) => e.isActive('code'), run: (e) => e.chain().focus().toggleCode().run() },
-  { key: 'bullet', label: '글머리 목록', icon: List, keys: '-', pressed: (e) => e.isActive('bulletList'), run: (e) => e.chain().focus().toggleBulletList().run() },
-  { key: 'ordered', label: '번호 목록', icon: ListOrdered, keys: '1.', pressed: (e) => e.isActive('orderedList'), run: (e) => e.chain().focus().toggleOrderedList().run() },
-  { key: 'quote', label: '인용', icon: Quote, keys: '>', pressed: (e) => e.isActive('blockquote'), run: (e) => e.chain().focus().toggleBlockquote().run() },
+  { key: 'heading', label: 'Heading', icon: Heading2, keys: '##', pressed: (e) => e.isActive('heading', { level: 2 }), run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
+  { key: 'bold', label: 'Bold', icon: Bold, keys: `${MOD}B`, pressed: (e) => e.isActive('bold'), run: (e) => e.chain().focus().toggleBold().run() },
+  { key: 'italic', label: 'Italic', icon: Italic, keys: `${MOD}I`, pressed: (e) => e.isActive('italic'), run: (e) => e.chain().focus().toggleItalic().run() },
+  { key: 'strike', label: 'Strikethrough', icon: Strikethrough, keys: `${MOD}Shift+S`, pressed: (e) => e.isActive('strike'), run: (e) => e.chain().focus().toggleStrike().run() },
+  { key: 'code', label: 'Code', icon: Code, keys: `${MOD}E`, pressed: (e) => e.isActive('code'), run: (e) => e.chain().focus().toggleCode().run() },
+  { key: 'bullet', label: 'Bulleted list', icon: List, keys: '-', pressed: (e) => e.isActive('bulletList'), run: (e) => e.chain().focus().toggleBulletList().run() },
+  { key: 'ordered', label: 'Numbered list', icon: ListOrdered, keys: '1.', pressed: (e) => e.isActive('orderedList'), run: (e) => e.chain().focus().toggleOrderedList().run() },
+  { key: 'quote', label: 'Quote', icon: Quote, keys: '>', pressed: (e) => e.isActive('blockquote'), run: (e) => e.chain().focus().toggleBlockquote().run() },
 ];
 
 const HISTORY: Tool[] = [
-  { key: 'undo', label: '되돌리기', icon: Undo2, keys: `${MOD}Z`, disabled: (e) => !e.can().undo(), run: (e) => e.chain().focus().undo().run() },
-  { key: 'redo', label: '다시 실행', icon: Redo2, keys: `${MOD}Shift+Z`, disabled: (e) => !e.can().redo(), run: (e) => e.chain().focus().redo().run() },
+  { key: 'undo', label: 'Undo', icon: Undo2, keys: `${MOD}Z`, disabled: (e) => !e.can().undo(), run: (e) => e.chain().focus().undo().run() },
+  { key: 'redo', label: 'Redo', icon: Redo2, keys: `${MOD}Shift+Z`, disabled: (e) => !e.can().redo(), run: (e) => e.chain().focus().redo().run() },
 ];
 
 /**
@@ -121,13 +121,13 @@ export function FormattingToolbar({ editor }: { editor: Editor }) {
 
   return (
     <div className={styles.wrap}>
-      <div ref={toolbarRef} role="toolbar" aria-label="서식" className={styles.toolbar} onKeyDown={onKeyDown}>
+      <div ref={toolbarRef} role="toolbar" aria-label="Formatting" className={styles.toolbar} onKeyDown={onKeyDown}>
         {TOOLS.slice(0, 5).map((t) => button(t, { pressed: state.pressed[t.key] }))}
         <span className={styles.divider} aria-hidden />
         {TOOLS.slice(5).map((t) => button(t, { pressed: state.pressed[t.key] }))}
         {button(
-          { key: 'link', label: '링크', icon: Link2, keys: `${MOD}K`, run: toggleLink },
-          { label: state.link ? '링크 지우기' : '링크', onClick: toggleLink },
+          { key: 'link', label: 'Link', icon: Link2, keys: `${MOD}K`, run: toggleLink },
+          { label: state.link ? 'Remove link' : 'Link', onClick: toggleLink },
         )}
         <span className={styles.divider} aria-hidden />
         {HISTORY.map((t) => button(t, { disabled: state.disabled[t.key] }))}
@@ -144,7 +144,7 @@ export function FormattingToolbar({ editor }: { editor: Editor }) {
         >
           <input
             autoFocus
-            aria-label="링크 주소"
+            aria-label="Link URL"
             className={styles.linkInput}
             value={linkUrl}
             onChange={(event) => setLinkUrl(event.target.value)}
@@ -156,7 +156,7 @@ export function FormattingToolbar({ editor }: { editor: Editor }) {
             }}
           />
           <button type="submit" className="button-secondary">
-            링크 넣기
+            Add link
           </button>
         </form>
       )}

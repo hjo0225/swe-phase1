@@ -76,8 +76,8 @@ export function NoteToc({ editor }: { editor: Editor }) {
   const minLevel = Math.min(...headings.map((h) => h.level));
 
   return (
-    <nav aria-label="이 노트의 목차" className={styles.toc}>
-      <p className={styles.label}>이 노트</p>
+    <nav aria-label="Table of contents" className={styles.toc}>
+      <p className={styles.label}>On this page</p>
       <ul className={styles.list}>
         {headings.map((heading) => {
           const active = heading.pos === activePos;

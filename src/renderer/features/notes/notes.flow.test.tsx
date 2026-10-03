@@ -8,9 +8,9 @@ import { getBlink, resetBlinkForTests } from '../../shared/api/blink';
 import { seedNote } from '../../test/seed-note';
 import { resetAutosaveForTests } from './autosave/autosave';
 
-const sidebarTree = () => within(screen.getByRole('region', { name: '노트 목록' }));
-const titleInput = () => screen.findByRole('textbox', { name: '노트 제목' });
-const body = () => screen.findByRole('textbox', { name: '노트 본문' });
+const sidebarTree = () => within(screen.getByRole('region', { name: 'Note list' }));
+const titleInput = () => screen.findByRole('textbox', { name: 'Note title' });
+const body = () => screen.findByRole('textbox', { name: 'Note body' });
 
 let controls: Partial<MockControls>;
 
@@ -30,13 +30,13 @@ describe('notes flow (vault)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
+    expect(await screen.findByText('No notes yet')).toBeInTheDocument();
     expect(screen.getByRole('main')).toBeEmptyDOMElement(); // 노트가 없으면 오른쪽은 비어 있다
-    await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /New note/ })[0]!);
 
-    expect(await titleInput()).toHaveValue('제목 없음');
+    expect(await titleInput()).toHaveValue('Untitled');
     expect(window.location.hash).toMatch(/^#\/notes\/[0-9a-f-]{36}$/);
-    expect(await sidebarTree().findByText('제목 없음')).toBeInTheDocument();
+    expect(await sidebarTree().findByText('Untitled')).toBeInTheDocument();
   });
 
   it('renames the note file when the title is committed with Enter', async () => {
@@ -64,7 +64,7 @@ describe('notes flow (vault)', () => {
     await user.clear(input);
     await user.type(input, '계획{Enter}');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('같은 이름의 노트');
+    expect(await screen.findByRole('alert')).toHaveTextContent('A note with this name');
     expect(input).toHaveValue('메모');
   });
 
@@ -78,23 +78,23 @@ describe('notes flow (vault)', () => {
     await user.keyboard('오늘 한 일');
 
     await waitFor(() => expect(controls.contentOf!('일지.md')).toBe('오늘 한 일'), { timeout: 3000 });
-    expect(screen.getByText('저장됨')).toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeInTheDocument();
   });
 
   it('shows the saved content when returning to a note created in this session', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByText('아직 노트가 없습니다');
+    await screen.findByText('No notes yet');
 
-    await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /New note/ })[0]!);
     await user.click(await body());
     await user.keyboard('첫 번째 본문');
-    await waitFor(() => expect(controls.contentOf!('제목 없음.md')).toBe('첫 번째 본문'), { timeout: 3000 });
+    await waitFor(() => expect(controls.contentOf!('Untitled.md')).toBe('첫 번째 본문'), { timeout: 3000 });
 
-    await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '노트 제목' })).toHaveValue('제목 없음 2'));
+    await user.click(screen.getAllByRole('button', { name: /New note/ })[0]!);
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Note title' })).toHaveValue('Untitled 2'));
 
-    await user.click(sidebarTree().getByText('제목 없음'));
+    await user.click(sidebarTree().getByText('Untitled'));
     expect(await screen.findByText('첫 번째 본문')).toBeInTheDocument();
   });
 
@@ -113,11 +113,11 @@ describe('notes flow (vault)', () => {
     window.location.hash = `#/notes/${id}`;
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '노트 삭제' }));
-    const dialog = screen.getByRole('dialog', { name: '노트를 삭제할까요?' });
-    await user.click(within(dialog).getByRole('button', { name: '삭제' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete note' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete this note?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
+    expect(await screen.findByText('No notes yet')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('main')).toBeEmptyDOMElement());
     await expect(getBlink().notes.get({ id })).rejects.toMatchObject({ code: 'NOTE_NOT_FOUND' });
   });
@@ -128,8 +128,8 @@ describe('notes flow (vault)', () => {
     window.location.hash = `#/notes/${id}`;
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: '노트 삭제' }));
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '취소' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete note' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await expect(getBlink().notes.get({ id })).resolves.toMatchObject({ title: '남길 노트' });
@@ -138,22 +138,22 @@ describe('notes flow (vault)', () => {
   it('shows a not-found state for unknown notes', async () => {
     window.location.hash = '#/notes/99999999-9999-4999-8999-999999999999';
     render(<App />);
-    expect(await screen.findByRole('heading', { name: '노트를 찾을 수 없습니다' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Note not found' })).toBeInTheDocument();
   });
 
   it('creates a folder from the sidebar and new notes inside the selected folder', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByText('아직 노트가 없습니다');
+    await screen.findByText('No notes yet');
 
-    await user.click(screen.getByRole('button', { name: '새 폴더' }));
-    await user.type(screen.getByRole('textbox', { name: '폴더 이름' }), '프로젝트{Enter}');
+    await user.click(screen.getByRole('button', { name: 'New folder' }));
+    await user.type(screen.getByRole('textbox', { name: 'Folder name' }), '프로젝트{Enter}');
     await user.click(await sidebarTree().findByRole('button', { name: '프로젝트' }));
-    await user.click(screen.getAllByRole('button', { name: /새 노트/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /New note/ })[0]!);
 
     await titleInput();
     const tree = await getBlink().notes.tree();
-    expect(tree).toMatchObject({ folders: ['프로젝트'], notes: [{ path: '프로젝트/제목 없음.md' }] });
+    expect(tree).toMatchObject({ folders: ['프로젝트'], notes: [{ path: '프로젝트/Untitled.md' }] });
     expect(sidebarTree().getByRole('treeitem', { name: '프로젝트' })).toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -162,31 +162,31 @@ describe('notes flow (vault)', () => {
     window.location.hash = `#/notes/${note.id}`;
     render(<App />);
 
-    const crumbs = await screen.findByRole('navigation', { name: '노트 위치' });
+    const crumbs = await screen.findByRole('navigation', { name: 'Note location' });
     expect(crumbs).toHaveTextContent('Mock회의계획');
-    expect(await screen.findByText(/수정 · \d+자 · 약 1분$/)).toBeInTheDocument();
-    const toc = await screen.findByRole('navigation', { name: '이 노트의 목차' });
+    expect(await screen.findByText(/^Edited .+ · \d+ chars · 1 min read$/)).toBeInTheDocument();
+    const toc = await screen.findByRole('navigation', { name: 'Table of contents' });
     expect(within(toc).getAllByRole('link').map((a) => a.textContent)).toEqual(['목표', '일정']);
-    expect(screen.getByRole('toolbar', { name: '서식' })).toBeInTheDocument();
+    expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeInTheDocument();
   });
 
   it('renames and deletes a folder from its menu', async () => {
     const user = userEvent.setup();
     await seedNote('계획', '', '회의');
     render(<App />);
-    await screen.findByRole('region', { name: '노트 목록' });
+    await screen.findByRole('region', { name: 'Note list' });
 
-    await user.click(await sidebarTree().findByRole('button', { name: '회의 폴더 메뉴' }));
-    await user.click(screen.getByRole('menuitem', { name: '이름 바꾸기' }));
-    const input = screen.getByRole('textbox', { name: '폴더 이름' });
+    await user.click(await sidebarTree().findByRole('button', { name: '회의 folder menu' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Rename' }));
+    const input = screen.getByRole('textbox', { name: 'Folder name' });
     await user.clear(input);
     await user.type(input, '2026 회의{Enter}');
     expect(await sidebarTree().findByRole('button', { name: '2026 회의' })).toBeInTheDocument();
 
-    await user.click(sidebarTree().getByRole('button', { name: '2026 회의 폴더 메뉴' }));
-    await user.click(screen.getByRole('menuitem', { name: '삭제' }));
-    expect(screen.getByRole('dialog')).toHaveTextContent('노트 1개');
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제' }));
+    await user.click(sidebarTree().getByRole('button', { name: '2026 회의 folder menu' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('1 note and any subfolders');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => expect(sidebarTree().queryByRole('button', { name: '2026 회의' })).not.toBeInTheDocument());
     await expect(getBlink().notes.tree()).resolves.toEqual({ folders: [], notes: [] });
@@ -218,7 +218,7 @@ describe('notes flow (vault)', () => {
     controls.externalEdit!(note.id, '밖에서 고침');
 
     expect(await screen.findByText('밖에서 고침')).toBeInTheDocument();
-    expect(screen.queryByText('이 노트가 다른 곳에서 바뀌었습니다.')).not.toBeInTheDocument();
+    expect(screen.queryByText('This note changed somewhere else.')).not.toBeInTheDocument();
   });
 
   it('asks before discarding local edits when the file changed outside', async () => {
@@ -231,8 +231,8 @@ describe('notes flow (vault)', () => {
 
     controls.externalEdit!(note.id, '밖에서 고침');
 
-    expect(await screen.findByText('이 노트가 다른 곳에서 바뀌었습니다.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /다시 불러오기/ }));
+    expect(await screen.findByText('This note changed somewhere else.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Reload/ }));
     expect(await screen.findByText('밖에서 고침')).toBeInTheDocument();
   });
 });
@@ -248,23 +248,23 @@ describe('vault picker', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(await screen.findByRole('button', { name: /폴더 열기/ }));
+    await user.click(await screen.findByRole('button', { name: /Open folder/ }));
 
-    expect(await screen.findByRole('button', { name: '보관함: Mock' })).toBeInTheDocument();
-    expect(await screen.findByText('아직 노트가 없습니다')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Vault: Mock' })).toBeInTheDocument();
+    expect(await screen.findByText('No notes yet')).toBeInTheDocument();
   });
 
   it('shows a decorative folder, the open button and what Blink promises', async () => {
     const { container } = render(<App />);
 
-    expect(await screen.findByRole('heading', { name: '보관함 열기' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Open a vault' })).toBeInTheDocument();
     // 폴더 그림은 꾸밈이라 보조 기술에는 숨긴다
     const art = container.querySelector('[data-folder-art]');
     expect(art).toHaveAttribute('aria-hidden', 'true');
-    const promises = screen.getByRole('list', { name: 'Blink의 약속' });
+    const promises = screen.getByRole('list', { name: 'What Blink promises' });
     expect(within(promises).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Markdown 파일 그대로 저장',
-      'AI는 선택한 부분에만',
+      'Saved as plain Markdown files',
+      'AI only touches what you select',
     ]);
     // 최근 보관함은 첫 화면이 아니라 사이드바 보관함 전환에서 고른다
     expect(screen.queryByRole('heading', { name: '최근 보관함' })).not.toBeInTheDocument();

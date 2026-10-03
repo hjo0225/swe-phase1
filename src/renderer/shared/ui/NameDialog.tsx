@@ -27,7 +27,7 @@ export function NameDialog({ title, label, initialValue = '', confirmLabel, erro
       actions={
         <>
           <button type="button" className="button-secondary" onClick={onClose}>
-            취소
+            Cancel
           </button>
           <button type="button" className="button-primary" disabled={busy || !value.trim()} onClick={submit}>
             {confirmLabel}

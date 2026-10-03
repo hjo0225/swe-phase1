@@ -55,7 +55,7 @@ export const JobResults = {
     }
     if (sources.length === 0) throw new JobOutputError('NO_SOURCES', 'No usable web sources');
     const list = sources.map((s) => `- [${s.title.replace(/[[\]]/g, '')}](${s.url})`).join('\n');
-    return { kind: 'RESEARCHED_MARKDOWN', markdown: `${body}\n\n**출처**\n${list}`, sources };
+    return { kind: 'RESEARCHED_MARKDOWN', markdown: `${body}\n\n**Sources**\n${list}`, sources };
   },
 
   /** spec은 visualization 도메인에서 이미 검증된 값이어야 한다. */

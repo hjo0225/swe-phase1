@@ -24,7 +24,7 @@ export function NoteEditor({ initialMarkdown, onReady, onChange }: NoteEditorPro
     contentType: 'markdown',
     shouldRerenderOnTransaction: false,
     editorProps: {
-      attributes: { class: styles.prose ?? '', role: 'textbox', 'aria-multiline': 'true', 'aria-label': '노트 본문' },
+      attributes: { class: styles.prose ?? '', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note body' },
     },
     onUpdate: ({ editor: e }) => onChangeRef.current(e),
   });

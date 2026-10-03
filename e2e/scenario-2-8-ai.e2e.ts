@@ -15,28 +15,28 @@ describe('Scenarios 8 & 2: AI settings and organize', () => {
     const shots = process.env.BLINK_E2E_SHOTS;
     try {
       // Scenario 8: Settings → Key 입력 → 모델 선택 → 연결 테스트 → 저장
-      await page.getByRole('link', { name: '설정' }).click();
-      const form = page.getByRole('form', { name: 'AI 설정' });
-      await form.getByRole('combobox', { name: '모델' }).selectOption('gpt-5.4-mini');
+      await page.getByRole('link', { name: 'Settings' }).click();
+      const form = page.getByRole('form', { name: 'AI settings' });
+      await form.getByRole('combobox', { name: 'Model' }).selectOption('gpt-5.4-mini');
       await form.getByLabel('API Key').fill('sk-e2e-test');
-      await form.getByRole('button', { name: '연결 테스트' }).click();
-      await form.getByText('연결되었습니다').waitFor();
-      await form.getByRole('button', { name: '저장' }).click();
-      await page.getByText('OpenAI · GPT-5.4 mini (권장)').waitFor();
-      await page.getByRole('dialog', { name: 'AI 설정' }).getByRole('button', { name: '닫기' }).click();
+      await form.getByRole('button', { name: 'Test connection' }).click();
+      await form.getByText('Connected').waitFor();
+      await form.getByRole('button', { name: 'Save' }).click();
+      await page.getByText('OpenAI · GPT-5.4 mini (recommended)').waitFor();
+      await page.getByRole('dialog', { name: 'AI settings' }).getByRole('button', { name: 'Close' }).click();
       if (shots) await page.screenshot({ path: `${shots}/scenario-8.png` });
 
       // Scenario 2: 텍스트 선택 → 정리 → Pulse → 다른 부분 작성 → 결과 한 번에 적용
-      await page.getByRole('button', { name: '새 노트' }).first().click();
+      await page.getByRole('button', { name: 'New note' }).first().click();
       await setTitle(page, '회의');
-      const body = page.getByRole('textbox', { name: '노트 본문' });
+      const body = page.getByRole('textbox', { name: 'Note body' });
       await body.click();
       await page.keyboard.type('회의했고 api 어떤거 쓸지도 얘기했고 electron 쓸 거 같음');
       await page.keyboard.press('Enter');
       await page.keyboard.type('다음 줄');
 
       await selectText(page, '회의했고 api 어떤거 쓸지도 얘기했고 electron 쓸 거 같음');
-      await page.getByRole('toolbar', { name: 'AI 작업' }).getByRole('button', { name: '정리' }).click();
+      await page.getByRole('toolbar', { name: 'AI actions' }).getByRole('button', { name: 'Organize' }).click();
       await page.locator('.ai-processing').waitFor();
       if (shots) await page.screenshot({ path: `${shots}/scenario-2-pulse.png` });
 

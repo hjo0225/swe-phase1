@@ -79,7 +79,7 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
   const e2eVaultChoice = app.isPackaged ? undefined : process.env.BLINK_E2E_VAULT_CHOICE;
   const chooseFolder = async () => {
     if (e2eVaultChoice) return e2eVaultChoice;
-    const options: Electron.OpenDialogOptions = { title: '보관함 폴더 선택', properties: ['openDirectory', 'createDirectory'] };
+    const options: Electron.OpenDialogOptions = { title: 'Choose a vault folder', properties: ['openDirectory', 'createDirectory'] };
     const window = BrowserWindow.getFocusedWindow();
     const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
     return result.canceled ? null : (result.filePaths[0] ?? null);

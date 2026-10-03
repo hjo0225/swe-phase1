@@ -15,12 +15,12 @@ import { MarkdownContent } from '../../domain/markdown-content';
 import { NoteName, numberedName, uniqueName } from '../../domain/names';
 import { snippetOf } from '../../domain/note-text';
 import { FolderPath, NotePath } from '../../domain/note-path';
+import { NEW_NOTE_TITLE } from '../../../../shared/notes/default-names';
 import { SearchQuery } from '../../domain/search-query';
 import type { NoteIndexRow } from '../../infrastructure/vault/sqlite-note-index';
 import { relinkAfterMoves, targetKeysFor } from './link-maintenance';
 import { readEntry, toSummary, type VaultDeps } from './vault-deps';
 
-const NEW_NOTE_NAME = '제목 없음';
 const DEFAULT_SEARCH_LIMIT = 20;
 const byPath = (a: { path: string }, b: { path: string }) => a.path.localeCompare(b.path, 'ko');
 
@@ -46,7 +46,7 @@ export class VaultNoteService {
         .filter((p) => p.folder.toLowerCase() === folder.value.toLowerCase())
         .map((p) => p.name),
     );
-    const path = NotePath.in(folder, NoteName.of(uniqueName(NEW_NOTE_NAME, taken)));
+    const path = NotePath.in(folder, NoteName.of(uniqueName(NEW_NOTE_TITLE, taken)));
     fs.createExclusive(path.value, '');
     const entry = readEntry(fs, path.value, nextId())!;
     index.upsert(entry);

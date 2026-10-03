@@ -74,14 +74,14 @@ export function SearchPalette({ onClose }: { onClose(): void }) {
 
   return (
     <div className={styles.backdrop} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label="노트 검색" className={`glass-elevated ${styles.palette}`} onKeyDown={onKeyDown}>
+      <div role="dialog" aria-modal="true" aria-label="Search notes" className={`glass-elevated ${styles.palette}`} onKeyDown={onKeyDown}>
         <label className={styles.inputRow}>
           <Search size={18} strokeWidth={1.75} aria-hidden />
           <input
             ref={inputRef}
             type="search"
-            aria-label="노트 검색어"
-            placeholder="제목이나 본문으로 노트 찾기"
+            aria-label="Search query"
+            placeholder="Find notes by title or text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -90,10 +90,10 @@ export function SearchPalette({ onClose }: { onClose(): void }) {
 
         <div className={styles.body}>
           <div className={styles.results}>
-            {keywords.length === 0 && <p className={styles.hint}>검색어를 입력하세요. ↑↓로 이동, Enter로 엽니다.</p>}
-            {isError && <p className={styles.hint}>검색하지 못했습니다. 다시 입력해 보세요.</p>}
+            {keywords.length === 0 && <p className={styles.hint}>Type to search. ↑↓ to move, Enter to open.</p>}
+            {isError && <p className={styles.hint}>Search failed. Try typing again.</p>}
             {keywords.length > 0 && !isFetching && hits.length === 0 && !isError && (
-              <p className={styles.hint}>일치하는 노트가 없습니다</p>
+              <p className={styles.hint}>No matching notes</p>
             )}
             {hits.map((hit, index) => (
               <article
@@ -110,22 +110,22 @@ export function SearchPalette({ onClose }: { onClose(): void }) {
                 {hit.snippet && <p className={styles.snippet}>{highlight(hit.snippet, keywords)}</p>}
                 <div className={styles.actions}>
                   <button type="button" onClick={() => open(hit)}>
-                    열기
+                    Open
                   </button>
                   {active && (
                     <>
                       <button type="button" onClick={() => link(hit)}>
-                        연결
+                        Link
                       </button>
                       <button type="button" onClick={() => void importAll(hit.id)}>
-                        내용 가져오기
+                        Import
                       </button>
                       <button
                         type="button"
                         aria-pressed={previewId === hit.id}
                         onClick={() => setPreviewId((id) => (id === hit.id ? null : hit.id))}
                       >
-                        미리보기
+                        Preview
                       </button>
                     </>
                   )}

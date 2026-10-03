@@ -29,15 +29,15 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
       </div>
 
       {/* 맨 위 검색칸 (21st Sidebar 5) — 누르면 검색 팔레트 */}
-      <button type="button" className={styles.searchField} aria-label={`노트 검색 (${modifierKey} K)`} onClick={onOpenSearch}>
+      <button type="button" className={styles.searchField} aria-label={`Search notes (${modifierKey} K)`} onClick={onOpenSearch}>
         <Search size={15} strokeWidth={1.75} aria-hidden />
-        <span className={styles.searchPlaceholder}>노트 검색</span>
+        <span className={styles.searchPlaceholder}>Search notes</span>
         <kbd className={styles.kbd}>{modifierKey} K</kbd>
       </button>
 
       <div
         role="group"
-        aria-label="보관함 편집"
+        aria-label="Edit vault"
         aria-busy={organizing}
         inert={organizing}
         className={styles.editable}
@@ -45,13 +45,13 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
       >
         {/* 트리 머리: 만들기·분류 (21st Tree View) */}
         <div className={styles.treeHeader}>
-          <span className={styles.treeLabel}>노트</span>
+          <span className={styles.treeLabel}>Notes</span>
           <div className={styles.treeActions}>
             <button
               type="button"
               className={styles.iconButton}
-              aria-label="새 노트"
-              data-tip={`새 노트${where}`}
+              aria-label="New note"
+              data-tip={`New note${where}`}
               disabled={createNote.isPending}
               onClick={() => createNote.mutate(selectedFolder || undefined)}
             >
@@ -60,8 +60,8 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
             <button
               type="button"
               className={styles.iconButton}
-              aria-label="새 폴더"
-              data-tip={`새 폴더${where}`}
+              aria-label="New folder"
+              data-tip={`New folder${where}`}
               onClick={() => setCreatingFolder(true)}
             >
               <FolderPlus size={16} strokeWidth={1.75} />
@@ -69,8 +69,8 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
             <button
               type="button"
               className={styles.iconButton}
-              aria-label="보관함 분류하기"
-              data-tip="보관함 분류하기"
+              aria-label="Organize vault"
+              data-tip="Organize vault"
               onClick={() => setOrganizingRoot(true)}
             >
               <Sparkles size={16} strokeWidth={1.75} />
@@ -81,9 +81,9 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
         <NoteTree selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />
       </div>
       {organizing && (
-        <div role="status" aria-label="AI 분류 상태" className={styles.organizing}>
+        <div role="status" aria-label="AI organize status" className={styles.organizing}>
           <Loader2 size={14} strokeWidth={2} aria-hidden className={styles.spinner} />
-          AI가 폴더를 정리하는 중… 끝날 때까지 폴더와 노트를 바꿀 수 없습니다
+          AI is organizing folders… Folders and notes are locked until it finishes
         </div>
       )}
 
@@ -93,7 +93,7 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
           <VaultSwitcher placement="up" />
         </div>
         {/* 지금 화면은 그대로 두고 설정 모달을 연다 */}
-        <Link to={{ search: '?settings' }} className={styles.settingsLink} aria-label="설정" data-tip="설정">
+        <Link to={{ search: '?settings' }} className={styles.settingsLink} aria-label="Settings" data-tip="Settings">
           <Settings size={17} strokeWidth={1.75} />
         </Link>
       </div>

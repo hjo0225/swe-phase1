@@ -46,7 +46,7 @@ export function Modal({ title, children, onClose }: ModalProps) {
           <h2 id={titleId} className={styles.title}>
             {title}
           </h2>
-          <button type="button" className="button-icon" aria-label="닫기" onClick={onClose}>
+          <button type="button" className="button-icon" aria-label="Close" onClick={onClose}>
             <X size={18} strokeWidth={1.75} />
           </button>
         </header>

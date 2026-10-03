@@ -23,8 +23,8 @@ export async function requestJob(
   const { from, to, empty } = editor.state.selection;
   if (empty) return;
   const selected = editor.state.doc.textBetween(from, to, '\n');
-  if (!selected.trim()) return toast.show('선택한 텍스트가 비어 있습니다');
-  if (selected.length > MAX_INPUT_LENGTH) return toast.show('10,000자 이하로 선택하세요');
+  if (!selected.trim()) return toast.show('The selection is empty');
+  if (selected.length > MAX_INPUT_LENGTH) return toast.show('Select 10,000 characters or fewer');
 
   const jobId = crypto.randomUUID();
   requestingJobs.add(jobId);
@@ -38,7 +38,7 @@ export async function requestJob(
   } catch (error) {
     removePending(editor, jobId); // 원문 그대로
     const needsSettings = error instanceof BlinkIpcError && error.code === 'AI_PROVIDER_NOT_CONFIGURED';
-    toast.show(describeRequestError(error), needsSettings ? { label: 'AI 설정 열기', onClick: deps.openSettings } : undefined);
+    toast.show(describeRequestError(error), needsSettings ? { label: 'Open AI settings', onClick: deps.openSettings } : undefined);
   } finally {
     requestingJobs.delete(jobId);
   }

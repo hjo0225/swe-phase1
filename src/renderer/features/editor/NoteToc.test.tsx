@@ -21,7 +21,7 @@ const open = (markdown: string) => {
 describe('NoteToc (21st Table of Contents 구조)', () => {
   it('lists the headings of the note in order with their level', () => {
     open('# 개요\n\n본문\n\n## 프로세스\n\n### Main\n\n## IPC');
-    const nav = screen.getByRole('navigation', { name: '이 노트의 목차' });
+    const nav = screen.getByRole('navigation', { name: 'Table of contents' });
     const links = [...nav.querySelectorAll('a')];
     expect(links.map((a) => a.textContent)).toEqual(['개요', '프로세스', 'Main', 'IPC']);
     expect(links.map((a) => a.dataset.level)).toEqual(['1', '2', '3', '2']);
@@ -29,7 +29,7 @@ describe('NoteToc (21st Table of Contents 구조)', () => {
 
   it('stays hidden for notes with fewer than two headings', () => {
     open('# 하나뿐\n\n본문');
-    expect(screen.queryByRole('navigation', { name: '이 노트의 목차' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Table of contents' })).not.toBeInTheDocument();
   });
 
   it('follows edits to the headings', () => {

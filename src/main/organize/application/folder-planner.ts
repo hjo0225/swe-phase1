@@ -1,9 +1,8 @@
 import type { LLMProvider } from '../../ai-provider/application/ports';
 import { FolderName } from '../../note/domain/names';
+import { isUnsortedFolder, UNSORTED_FOLDER } from '../../../shared/notes/default-names';
 import { DomainError } from '../../platform/errors';
 
-/** 어디에도 안 맞는 노트가 가는 폴더 이름 (층마다 하나) */
-export const UNSORTED = '미분류';
 export const FOLDER_PLAN_SCHEMA = 'folder_paths';
 /** 분류하기 한 번에 만드는 폴더 깊이 (지금 폴더 기준) */
 export const MAX_DEPTH = 3;
@@ -38,7 +37,7 @@ const SYSTEM = [
   '- 같은 분야의 묶음은 같은 위층 폴더 아래에 모은다. 경로가 완전히 같은 묶음들은 한 폴더로 합쳐진다.',
   '- 하위 폴더를 하나만 갖게 되는 폴더는 만들지 않는다 (그럴 땐 경로를 짧게).',
   '- 지금 경로에 있는 이름은 다시 쓰지 않는다.',
-  '- 폴더 이름은 한 단어(고유명사 가능). \\ / : * ? " < > | 는 쓰지 않는다. «미분류»는 쓰지 않는다.',
+  `- 폴더 이름은 한 단어(고유명사 가능). \\ / : * ? " < > | 는 쓰지 않는다. «${UNSORTED_FOLDER}»·«미분류»는 쓰지 않는다.`,
   '- 모든 묶음을 정확히 한 번씩 assignments에 넣는다.',
 ].join('\n');
 
@@ -122,7 +121,7 @@ function parsePaths(answer: unknown, count: number): string[][] | null {
       } catch {
         return null;
       }
-      if (name === UNSORTED) return null;
+      if (isUnsortedFolder(name)) return null;
       names.push(name);
     }
     byGroup.set(group, names);

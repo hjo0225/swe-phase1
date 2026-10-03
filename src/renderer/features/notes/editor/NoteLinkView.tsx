@@ -20,7 +20,7 @@ export function NoteLinkView({ node }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper as="span" className={styles.wrapper}>
       {broken || !resolved ? (
-        <span className={styles.broken} title={broken ? `'${target}' 노트가 없습니다` : undefined}>
+        <span className={styles.broken} title={broken ? `No note named '${target}'` : undefined}>
           {text}
         </span>
       ) : (

@@ -16,9 +16,9 @@ describe('Scenario 1: notes survive a restart', () => {
   it('keeps edits typed right before the window closes (close flush)', async () => {
     const first = await launchApp(userData.dir);
     try {
-      await first.page.getByRole('button', { name: '새 노트' }).first().click();
+      await first.page.getByRole('button', { name: 'New note' }).first().click();
       await setTitle(first.page, '종료 직전 제목');
-      await first.page.getByRole('textbox', { name: '노트 본문' }).click();
+      await first.page.getByRole('textbox', { name: 'Note body' }).click();
       await first.page.keyboard.type('Electron은 데스크톱 앱 프레임워크다.');
     } finally {
       // debounce(700ms)가 지나기 전에 닫는다 → 종료 flush가 없으면 유실된다.
@@ -32,10 +32,10 @@ describe('Scenario 1: notes survive a restart', () => {
     const second = await launchApp(userData.dir);
     try {
       const { page } = second;
-      await page.getByRole('region', { name: '노트 목록' }).getByText('종료 직전 제목').waitFor({ timeout: 10_000 });
-      await expect.poll(() => page.getByRole('textbox', { name: '노트 제목' }).inputValue()).toBe('종료 직전 제목');
+      await page.getByRole('region', { name: 'Note list' }).getByText('종료 직전 제목').waitFor({ timeout: 10_000 });
+      await expect.poll(() => page.getByRole('textbox', { name: 'Note title' }).inputValue()).toBe('종료 직전 제목');
       await expect
-        .poll(() => page.getByRole('textbox', { name: '노트 본문' }).textContent())
+        .poll(() => page.getByRole('textbox', { name: 'Note body' }).textContent())
         .toContain('Electron은 데스크톱 앱 프레임워크다.');
       if (process.env.BLINK_E2E_SHOTS) {
         await second.page.screenshot({ path: `${process.env.BLINK_E2E_SHOTS}/scenario-1.png` });
@@ -58,18 +58,18 @@ describe('Vault folder', () => {
   it('creates folders and notes as real files and picks up files changed outside the app', async () => {
     const { app, page } = await launchApp(userData.dir);
     try {
-      const tree = page.getByRole('region', { name: '노트 목록' });
+      const tree = page.getByRole('region', { name: 'Note list' });
 
       // 사이드바에서 폴더 만들기 → 그 폴더 안에 새 노트
-      await page.getByRole('button', { name: '새 폴더' }).click();
-      await page.getByRole('textbox', { name: '폴더 이름' }).fill('프로젝트');
-      await page.getByRole('textbox', { name: '폴더 이름' }).press('Enter');
+      await page.getByRole('button', { name: 'New folder' }).click();
+      await page.getByRole('textbox', { name: 'Folder name' }).fill('프로젝트');
+      await page.getByRole('textbox', { name: 'Folder name' }).press('Enter');
       await tree.getByRole('button', { name: '프로젝트', exact: true }).click();
-      await page.getByRole('button', { name: '새 노트' }).first().click();
+      await page.getByRole('button', { name: 'New note' }).first().click();
       await setTitle(page, '계획');
-      await page.getByRole('textbox', { name: '노트 본문' }).click();
+      await page.getByRole('textbox', { name: 'Note body' }).click();
       await page.keyboard.type('첫 줄');
-      await page.getByText('저장됨').waitFor();
+      await page.getByText('Saved').waitFor();
       expect(readFileSync(join(userData.vault, '프로젝트', '계획.md'), 'utf8')).toBe('첫 줄');
 
       // 다른 앱이 새 파일을 만들면 트리에 나타난다
@@ -79,7 +79,7 @@ describe('Vault folder', () => {
       // 열린 노트를 밖에서 고치면 (편집 대기 없음) 다시 불러온다
       writeFileSync(join(userData.vault, '프로젝트', '계획.md'), '밖에서 고친 내용');
       await expect
-        .poll(() => page.getByRole('textbox', { name: '노트 본문' }).textContent(), { timeout: 10_000 })
+        .poll(() => page.getByRole('textbox', { name: 'Note body' }).textContent(), { timeout: 10_000 })
         .toContain('밖에서 고친 내용');
 
       // 이름을 바꾸면 그 노트를 가리키던 링크도 고쳐진다

@@ -3,10 +3,10 @@ import styles from './NotePage.module.css';
 
 const LABEL = {
   idle: '',
-  dirty: '저장 중…',
-  saving: '저장 중…',
-  saved: '저장됨',
-  error: '저장 실패',
+  dirty: 'Saving…',
+  saving: 'Saving…',
+  saved: 'Saved',
+  error: 'Save failed',
 } as const;
 
 export function SaveIndicator({ noteId }: { noteId: string }) {
@@ -17,7 +17,7 @@ export function SaveIndicator({ noteId }: { noteId: string }) {
       {LABEL[status]}
       {status === 'error' && (
         <button type="button" className={styles.retry} onClick={() => void getAutosave().get(noteId).flush()}>
-          다시 시도
+          Try again
         </button>
       )}
     </span>

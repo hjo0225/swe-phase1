@@ -4,13 +4,13 @@ import { NameDialog } from '../../../shared/ui/NameDialog';
 import { useCreateFolder, useDeleteFolder, useRenameFolder } from '../api/note-queries';
 
 const FOLDER_ERRORS: Partial<Record<string, string>> = {
-  FOLDER_NAME_TAKEN: '같은 이름의 폴더가 이미 있습니다',
-  FOLDER_NAME_INVALID: '폴더 이름으로 쓸 수 없습니다 (\\ / : * ? " < > | 제외, 점으로 시작 불가)',
-  FOLDER_NOT_FOUND: '폴더를 찾을 수 없습니다',
+  FOLDER_NAME_TAKEN: 'A folder with that name already exists',
+  FOLDER_NAME_INVALID: 'Not a valid folder name (no \\ / : * ? " < > |, and it can\'t start with a dot)',
+  FOLDER_NOT_FOUND: 'Folder not found',
 };
 
 const messageOf = (error: unknown) =>
-  error ? (error instanceof BlinkIpcError && FOLDER_ERRORS[error.code]) || '폴더 작업에 실패했습니다' : null;
+  error ? (error instanceof BlinkIpcError && FOLDER_ERRORS[error.code]) || 'The folder action failed' : null;
 
 const nameOf = (path: string) => path.split('/').pop() ?? path;
 
@@ -28,9 +28,9 @@ export function FolderDialog({ state, onClose }: { state: FolderDialogState; onC
   if (state.kind === 'create') {
     return (
       <NameDialog
-        title={state.parent ? `'${nameOf(state.parent)}' 안에 새 폴더` : '새 폴더'}
-        label="폴더 이름"
-        confirmLabel="만들기"
+        title={state.parent ? `New folder in '${nameOf(state.parent)}'` : 'New folder'}
+        label="Folder name"
+        confirmLabel="Create"
         busy={create.isPending}
         error={messageOf(create.error)}
         onClose={onClose}
@@ -41,10 +41,10 @@ export function FolderDialog({ state, onClose }: { state: FolderDialogState; onC
   if (state.kind === 'rename') {
     return (
       <NameDialog
-        title="폴더 이름 바꾸기"
-        label="폴더 이름"
+        title="Rename folder"
+        label="Folder name"
         initialValue={nameOf(state.path)}
-        confirmLabel="바꾸기"
+        confirmLabel="Rename"
         busy={rename.isPending}
         error={messageOf(rename.error)}
         onClose={onClose}
@@ -54,12 +54,12 @@ export function FolderDialog({ state, onClose }: { state: FolderDialogState; onC
   }
   return (
     <Dialog
-      title={`'${nameOf(state.path)}' 폴더를 삭제할까요?`}
+      title={`Delete the '${nameOf(state.path)}' folder?`}
       onClose={onClose}
       actions={
         <>
           <button type="button" className="button-secondary" data-autofocus onClick={onClose}>
-            취소
+            Cancel
           </button>
           <button
             type="button"
@@ -67,14 +67,14 @@ export function FolderDialog({ state, onClose }: { state: FolderDialogState; onC
             disabled={remove.isPending}
             onClick={() => remove.mutate(state.path, { onSuccess: onClose })}
           >
-            삭제
+            Delete
           </button>
         </>
       }
     >
       {state.noteCount > 0
-        ? `안에 있는 노트 ${state.noteCount}개와 하위 폴더도 함께 삭제되며 되돌릴 수 없습니다.`
-        : '빈 폴더를 삭제합니다.'}
+        ? `${state.noteCount} ${state.noteCount === 1 ? 'note' : 'notes'} and any subfolders inside are deleted too. This can't be undone.`
+        : 'This deletes an empty folder.'}
       {remove.error ? <p role="alert">{messageOf(remove.error)}</p> : null}
     </Dialog>
   );

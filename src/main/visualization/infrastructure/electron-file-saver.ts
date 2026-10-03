@@ -7,9 +7,9 @@ import type { FileSaver } from '../application/export-infographic-png';
 export class ElectronFileSaver implements FileSaver {
   async askSavePath(defaultFileName: string): Promise<string | null> {
     const options = {
-      title: 'PNG로 저장',
+      title: 'Save as PNG',
       defaultPath: join(app.getPath('downloads'), defaultFileName),
-      filters: [{ name: 'PNG 이미지', extensions: ['png'] }],
+      filters: [{ name: 'PNG image', extensions: ['png'] }],
     };
     const parent = BrowserWindow.getFocusedWindow();
     const result = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);

@@ -26,9 +26,9 @@ describe('search palette', () => {
   async function openPalette(user: ReturnType<typeof userEvent.setup>, currentId: string) {
     window.location.hash = `#/notes/${currentId}`;
     render(<App />);
-    await screen.findByRole('textbox', { name: '노트 본문' });
+    await screen.findByRole('textbox', { name: 'Note body' });
     await user.keyboard('{Control>}k{/Control}');
-    return screen.findByRole('dialog', { name: '노트 검색' });
+    return screen.findByRole('dialog', { name: 'Search notes' });
   }
 
   it('opens with the shortcut, shows snippets, and opens a result', async () => {
@@ -36,14 +36,14 @@ describe('search palette', () => {
     const { past, current } = await seed();
     const palette = await openPalette(user, current.id);
 
-    await user.type(within(palette).getByRole('searchbox', { name: '노트 검색어' }), 'renderer');
+    await user.type(within(palette).getByRole('searchbox', { name: 'Search query' }), 'renderer');
     const result = await within(palette).findByRole('article', { name: 'Electron Architecture' });
     expect(result).toHaveTextContent('Main Process와 Renderer 차이');
     expect(within(palette).queryByRole('article', { name: '오늘 작업' })).not.toBeInTheDocument();
 
-    await user.click(within(result).getByRole('button', { name: '열기' }));
+    await user.click(within(result).getByRole('button', { name: 'Open' }));
     await waitFor(() => expect(window.location.hash).toBe(`#/notes/${past.id}`));
-    expect(screen.queryByRole('dialog', { name: '노트 검색' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Search notes' })).not.toBeInTheDocument();
   });
 
   it('links the current note to a result and derives the link on save', async () => {
@@ -51,11 +51,11 @@ describe('search palette', () => {
     const { past, current } = await seed();
     const palette = await openPalette(user, current.id);
 
-    await user.type(within(palette).getByRole('searchbox', { name: '노트 검색어' }), 'electron');
+    await user.type(within(palette).getByRole('searchbox', { name: 'Search query' }), 'electron');
     const result = await within(palette).findByRole('article', { name: 'Electron Architecture' });
-    await user.click(within(result).getByRole('button', { name: '연결' }));
+    await user.click(within(result).getByRole('button', { name: 'Link' }));
 
-    const editor = screen.getByRole('textbox', { name: '노트 본문' });
+    const editor = screen.getByRole('textbox', { name: 'Note body' });
     expect(await within(editor).findByRole('link', { name: 'Electron Architecture' })).toBeInTheDocument();
     await waitFor(
       async () => expect((await getBlink().notes.listLinks({ noteId: current.id })).outgoing).toEqual([
@@ -70,11 +70,11 @@ describe('search palette', () => {
     const { current } = await seed();
     const palette = await openPalette(user, current.id);
 
-    await user.type(within(palette).getByRole('searchbox', { name: '노트 검색어' }), 'electron');
+    await user.type(within(palette).getByRole('searchbox', { name: 'Search query' }), 'electron');
     const result = await within(palette).findByRole('article', { name: 'Electron Architecture' });
-    await user.click(within(result).getByRole('button', { name: '내용 가져오기' }));
+    await user.click(within(result).getByRole('button', { name: 'Import' }));
 
-    const editor = screen.getByRole('textbox', { name: '노트 본문' });
+    const editor = screen.getByRole('textbox', { name: 'Note body' });
     expect(await within(editor).findByText('Main Process와 Renderer 차이')).toBeInTheDocument();
   });
 
@@ -84,7 +84,7 @@ describe('search palette', () => {
     window.location.hash = `#/notes/${target.id}`;
     render(<App />);
 
-    const backlinks = await screen.findByRole('region', { name: '이 노트를 참조하는 노트' });
+    const backlinks = await screen.findByRole('region', { name: 'Linked from' });
     expect(await within(backlinks).findByRole('link', { name: '출발 노트' })).toBeInTheDocument();
   });
 });

@@ -221,18 +221,18 @@ export function infographicJsonSchema(): Record<string, unknown> {
     properties: {
       version: { type: 'integer', enum: [1] },
       type: { type: 'string', enum: [...SUPPORTED_TYPES] },
-      title: { type: 'string', description: '인포그래픽 제목, 60자 이하' },
+      title: { type: 'string', description: 'Infographic title, 60 characters or fewer' },
       nodes: {
         type: 'array',
-        description: `${MIN_NODES}~${MAX_NODES}개`,
+        description: `${MIN_NODES}–${MAX_NODES} nodes`,
         items: {
           type: 'object',
           additionalProperties: false,
           required: ['id', 'title', 'description'],
           properties: {
             id: { type: 'string' },
-            title: { type: 'string', description: '40자 이하' },
-            description: { type: 'string', description: '120자 이하, 없으면 빈 문자열' },
+            title: { type: 'string', description: '40 characters or fewer' },
+            description: { type: 'string', description: '120 characters or fewer, or an empty string' },
           },
         },
       },

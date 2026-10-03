@@ -89,7 +89,7 @@ describe('noteIpcHandlers', () => {
     await data('vault:open', { root: vault });
     await data('folder:create', { name: '프로젝트' });
     const created = await data<NoteDetail>('note:create', { folder: '프로젝트' });
-    expect(created).toMatchObject({ title: '제목 없음', path: '프로젝트/제목 없음.md', content: '' });
+    expect(created).toMatchObject({ title: 'Untitled', path: '프로젝트/Untitled.md', content: '' });
     await expect(data('note:update', { id: created.id, content: '# 회의' })).resolves.toMatchObject({ changed: true });
     await expect(data('note:rename', { id: created.id, title: '회의' })).resolves.toMatchObject({
       note: { title: '회의', path: '프로젝트/회의.md' },

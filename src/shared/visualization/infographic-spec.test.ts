@@ -150,6 +150,26 @@ describe('parseInfographicSpec — comparison', () => {
     expect(spec.type).toBe('comparison');
   });
 
+  it('copies a feature shared by several items under each of them (LLMs link common traits once)', () => {
+    const spec = parseInfographicSpec(
+      compare(
+        [
+          ['a', 'a1'],
+          ['b', 'b1'],
+          ['a', 'both'],
+          ['b', 'both'],
+        ],
+        ['a', 'b', 'a1', 'b1', 'both'],
+      ),
+    );
+    const titleOf = new Map(spec.nodes.map((n) => [n.id, n.title]));
+    const featuresOf = (item: string) => spec.edges.filter(([from]) => from === item).map(([, to]) => titleOf.get(to));
+    expect(featuresOf('a')).toEqual(['노드 a1', '노드 both']);
+    expect(featuresOf('b')).toEqual(['노드 b1', '노드 both']);
+    expect(new Set(spec.edges.map(([, to]) => to)).size).toBe(spec.edges.length); // 특징마다 부모 하나
+    expect(parseInfographicSpec(spec)).toEqual(spec); // 다시 적용해도 같다
+  });
+
   it('rejects one or four items, items without features, and nested features', () => {
     expect(reason(compare([['a', 'a1']], ['a', 'a1']))).toBe('STRUCTURE'); // 비교 대상 1개
     expect(

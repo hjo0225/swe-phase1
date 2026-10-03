@@ -97,9 +97,34 @@ export function parseInfographicSpec(raw: unknown): InfographicSpec {
     edges = nodes.slice(1).map((n, i) => [nodes[i]!.id, n.id]);
   }
 
-  const spec: InfographicSpec = { version: 1, type, title: input.title, nodes, edges };
+  const spec: InfographicSpec =
+    type === 'comparison'
+      ? splitSharedFeatures({ version: 1, type, title: input.title, nodes, edges })
+      : { version: 1, type, title: input.title, nodes, edges };
+  if (spec.nodes.length > MAX_NODES) throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${MAX_NODES} nodes`);
   STRUCTURE_RULES[type](spec);
   return spec;
+}
+
+/**
+ * comparison 정규화: 여러 비교 대상에 함께 연결된 특징(공통점)은 대상마다 하나씩 복제한다.
+ * LLM은 "둘 다 X를 지원한다"를 노드 하나로 잇는 경우가 많다 — 열마다 같은 특징이 보이는 편이 비교표로도 자연스럽다.
+ */
+function splitSharedFeatures(spec: InfographicSpec): InfographicSpec {
+  const { incoming, children } = degrees(spec);
+  const shared = new Set(spec.nodes.filter((n) => incoming.get(n.id)! > 1 && children.get(n.id)!.length === 0).map((n) => n.id));
+  if (shared.size === 0) return spec;
+  const ids = new Set(spec.nodes.map((n) => n.id));
+  const copies: InfographicNode[] = [];
+  const edges = spec.edges.map(([from, to]): [string, string] => {
+    if (!shared.has(to)) return [from, to];
+    let id = `${to}@${from}`;
+    for (let n = 2; ids.has(id); n += 1) id = `${to}@${from}#${n}`;
+    ids.add(id);
+    copies.push({ ...spec.nodes.find((node) => node.id === to)!, id });
+    return [from, id];
+  });
+  return { ...spec, nodes: [...spec.nodes.filter((n) => !shared.has(n.id)), ...copies], edges };
 }
 
 function degrees(spec: InfographicSpec) {

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { FolderPlus, Loader2, Plus, Search, Settings, Sparkles } from 'lucide-react';
+import { FolderPlus, Loader2, Search, Settings, Sparkles, SquarePen } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { useCreateNote } from '../features/notes/api/note-queries';
@@ -34,6 +34,14 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
       <div className={styles.brand}>
         <img src={wordmark} alt="Blink" className={styles.wordmark} />
       </div>
+
+      {/* 맨 위 검색칸 (21st Sidebar 5) — 누르면 검색 팔레트 */}
+      <button type="button" className={styles.searchField} aria-label={`노트 검색 (${modifierKey} K)`} onClick={onOpenSearch}>
+        <Search size={15} strokeWidth={1.75} aria-hidden />
+        <span className={styles.searchPlaceholder}>노트 검색</span>
+        <kbd className={styles.kbd}>{modifierKey} K</kbd>
+      </button>
+
       <div
         role="group"
         aria-label="보관함 편집"
@@ -42,39 +50,42 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
         className={styles.editable}
         data-locked={organizing || undefined}
       >
-      <VaultSwitcher />
+        {/* 트리 머리: 보관함 이름(전환) + 만들기·분류 (21st Tree View) */}
+        <div className={styles.treeHeader}>
+          <VaultSwitcher />
+          <div className={styles.treeActions}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label="새 노트"
+              data-tip={`새 노트${where}`}
+              disabled={createNote.isPending}
+              onClick={() => createNote.mutate(selectedFolder || undefined)}
+            >
+              <SquarePen size={16} strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label="새 폴더"
+              data-tip={`새 폴더${where}`}
+              onClick={() => setCreatingFolder(true)}
+            >
+              <FolderPlus size={16} strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label="보관함 분류하기"
+              data-tip="보관함 분류하기"
+              onClick={() => setOrganizingRoot(true)}
+            >
+              <Sparkles size={16} strokeWidth={1.75} />
+            </button>
+          </div>
+        </div>
 
-      <div className={styles.createRow}>
-        <button
-          type="button"
-          className={`button-primary ${styles.newNote}`}
-          title={`새 노트${where}`}
-          disabled={createNote.isPending}
-          onClick={() => createNote.mutate(selectedFolder || undefined)}
-        >
-          <Plus size={16} strokeWidth={1.75} />새 노트
-        </button>
-        <button
-          type="button"
-          className="button-icon"
-          aria-label="새 폴더"
-          title={`새 폴더${where}`}
-          onClick={() => setCreatingFolder(true)}
-        >
-          <FolderPlus size={16} strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          className="button-icon"
-          aria-label="보관함 분류하기"
-          title="보관함 분류하기"
-          onClick={() => setOrganizingRoot(true)}
-        >
-          <Sparkles size={16} strokeWidth={1.75} />
-        </button>
-      </div>
-
-      <NoteTree selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />
+        <NoteTree selectedFolder={selectedFolder} onSelectFolder={setSelectedFolder} />
       </div>
       {organizing && (
         <div role="status" aria-label="AI 분류 상태" className={styles.organizing}>
@@ -84,16 +95,11 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch(): void }) {
       )}
 
       <div className={styles.footer}>
-        <button type="button" className={styles.navItem} onClick={onOpenSearch}>
-          <Search size={16} strokeWidth={1.75} />
-          검색
-          <kbd className={styles.kbd}>{modifierKey} K</kbd>
-        </button>
         <NavLink to="/settings/ai" className={styles.navItem}>
           <Settings size={16} strokeWidth={1.75} />
           설정
+          <span className={styles.version}>{appInfo ? `v${appInfo.version}` : ''}</span>
         </NavLink>
-        <span className={styles.version}>{appInfo ? `v${appInfo.version}` : ''}</span>
       </div>
 
       {creatingFolder && (

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { ARCHITECTURE_ICONS, InfographicSpecError, infographicJsonSchema, parseInfographicSpec } from './infographic-spec';
+import {
+  ARCHITECTURE_ICONS,
+  InfographicSpecError,
+  infographicJsonSchema,
+  isLayerStack,
+  looseNodes,
+  parseInfographicSpec,
+} from './infographic-spec';
 
 const node = (id: string, title = `노드 ${id}`, description?: string) => ({ id, title, ...(description ? { description } : {}) });
 const base = (overrides: Record<string, unknown>) => ({
@@ -414,8 +421,125 @@ describe('parseInfographicSpec — architecture', () => {
     };
     expect(schema.properties.type.enum).toContain('architecture');
     expect(schema.required).toContain('groups');
+    // 층 구조 분류는 기술 스택 글에만 묻는다 (저장 Spec에는 남지 않는다)
+    expect(schema.required).not.toContain('layers');
+    expect((infographicJsonSchema({ layers: true }) as { required: string[] }).required).toContain('layers');
     expect(schema.properties.nodes.items.required).toEqual(['id', 'title', 'description', 'group', 'icon']);
     expect(schema.properties.nodes.items.properties.icon.enum).toEqual([...ARCHITECTURE_ICONS, 'none']);
     expect(schema.properties.edges.items.required).toEqual(['from', 'to', 'label', 'bidirectional']);
+  });
+});
+
+describe('architecture — lines between groups (layers)', () => {
+  const layers = (overrides: Record<string, unknown> = {}) => ({
+    version: 1,
+    type: 'architecture',
+    title: 'Blink — Application Architecture',
+    groups: [
+      { id: 'ui', title: 'User Interface' },
+      { id: 'core', title: 'Application Core' },
+      { id: 'res', title: 'Storage & AI' },
+    ],
+    nodes: [
+      { id: 'react', title: 'React 19.3', group: 'ui' },
+      { id: 'tiptap', title: 'Tiptap 3.31', group: 'ui' },
+      { id: 'electron', title: 'Electron 44.4', group: 'core' },
+      { id: 'sqlite', title: 'SQLite 3.53', icon: 'database', group: 'res' },
+    ],
+    edges: [
+      ['ui', 'core', { label: 'Preload / IPC' }],
+      ['core', 'res'],
+    ],
+    ...overrides,
+  });
+
+  it('lets a line start or end at a group: layer to layer, group to card and card to group', () => {
+    const spec = parseInfographicSpec(layers());
+    expect(spec.edges).toEqual([['ui', 'core', { label: 'Preload / IPC' }], ['core', 'res']]);
+    expect(parseInfographicSpec(spec)).toEqual(spec);
+    const mixed = parseInfographicSpec(
+      layers({
+        nodes: [
+          { id: 'u', title: 'Users', icon: 'user' },
+          { id: 'react', title: 'React', group: 'ui' },
+          { id: 'db', title: 'DB', group: 'res' },
+        ],
+        edges: [
+          ['u', 'ui'],
+          ['ui', 'db'],
+        ],
+      }),
+    );
+    expect(mixed.edges).toEqual([
+      ['u', 'ui'],
+      ['ui', 'db'],
+    ]);
+  });
+
+  it('still rejects lines to unknown ids, to an empty group that is dropped, and between a group and what it holds', () => {
+    expect(reason(layers({ edges: [['ui', 'nope']] }))).toBe('DANGLING_EDGE');
+    expect(reason(layers({ edges: [['ui', 'ui']] }))).toBe('SELF_EDGE');
+    expect(reason(layers({ groups: [...layers().groups, { id: 'empty', title: 'Empty' }], edges: [['ui', 'empty']] }))).toBe(
+      'DANGLING_EDGE',
+    );
+    expect(reason(layers({ edges: [['ui', 'react']] }))).toBe('STRUCTURE');
+    expect(
+      reason(
+        layers({
+          groups: [
+            { id: 'app', title: 'App' },
+            { id: 'ui', title: 'UI', parent: 'app' },
+          ],
+          nodes: [
+            { id: 'react', title: 'React', group: 'ui' },
+            { id: 'db', title: 'DB' },
+          ],
+          edges: [
+            ['app', 'react'],
+            ['react', 'db'],
+          ],
+        }),
+      ),
+    ).toBe('STRUCTURE');
+  });
+
+  it('does not let other types point lines at groups', () => {
+    expect(reason(base({ groups: [{ id: 'g', title: 'G' }], nodes: [{ ...node('1'), group: 'g' }, node('2')], edges: [['g', '2']] }))).toBe(
+      'DANGLING_EDGE',
+    );
+  });
+
+  it('calls a diagram a layer stack when every line joins two top-level groups and every card sits in one', () => {
+    expect(isLayerStack(parseInfographicSpec(layers()))).toBe(true);
+    // 카드에 닿는 선, 중첩된 그룹, 그룹 밖 카드, 그룹이 없는 그림은 아니다
+    expect(isLayerStack(parseInfographicSpec(layers({ edges: [['ui', 'core'], ['electron', 'sqlite']] })))).toBe(false);
+    expect(
+      isLayerStack(
+        parseInfographicSpec(
+          layers({
+            groups: [...layers().groups, { id: 'inner', title: 'Inner', parent: 'res' }],
+            nodes: [...layers().nodes, { id: 'x', title: 'X', group: 'inner' }],
+          }),
+        ),
+      ),
+    ).toBe(false);
+    expect(isLayerStack(parseInfographicSpec(layers({ nodes: [...layers().nodes, { id: 'u', title: 'Users' }] })))).toBe(false);
+    expect(
+      isLayerStack(
+        parseInfographicSpec({ ...layers(), groups: [], nodes: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }], edges: [['a', 'b']] }),
+      ),
+    ).toBe(false);
+  });
+
+  it('finds loose cards: no line of their own and no line on any group around them', () => {
+    expect(looseNodes(parseInfographicSpec(layers()))).toEqual([]);
+    const spec = parseInfographicSpec(
+      layers({
+        nodes: [...layers().nodes, { id: 'u', title: 'Users' }, { id: 'x', title: 'X' }],
+        edges: [['ui', 'core'], ['u', 'core']],
+      }),
+    );
+    // res(Storage)에는 선이 없다 → 그 안의 sqlite도 떠 있다
+    expect(looseNodes(spec).map((n) => n.id)).toEqual(['sqlite', 'x']);
   });
 });

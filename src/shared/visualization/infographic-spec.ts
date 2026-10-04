@@ -154,13 +154,20 @@ export function parseInfographicSpec(raw: unknown): InfographicSpec {
   }));
   const ids = new Set(nodes.map((n) => n.id));
   if (ids.size !== nodes.length) throw new InfographicSpecError('DUPLICATE_ID', 'Node ids must be unique');
+  // architecture는 선의 끝에 그룹(층)도 올 수 있다 — 안에 노드가 남는 그룹만
+  const groups = isArch ? normalizeGroups(input.groups ?? [], nodes) : [];
+  const ends = new Set([...ids, ...groups.map((g) => g.id)]);
+  const holds = holdsOf(groups, nodes);
 
   const seen = new Set<string>();
   let edges: InfographicEdge[] = [];
   for (const edge of input.edges) {
     const [from, to] = edge;
     if (from === to) throw new InfographicSpecError('SELF_EDGE', `Edge ${from} points to itself`);
-    if (!ids.has(from) || !ids.has(to)) throw new InfographicSpecError('DANGLING_EDGE', `Edge ${from}→${to} has no node`);
+    if (!ends.has(from) || !ends.has(to)) throw new InfographicSpecError('DANGLING_EDGE', `Edge ${from}→${to} has no node`);
+    if (holds(from, to) || holds(to, from)) {
+      throw new InfographicSpecError('STRUCTURE', `Edge ${from}→${to} joins a group and something inside it`);
+    }
     const key = `${from}\u0000${to}`;
     if (seen.has(key)) continue; // 중복은 처음 것을 남긴다
     seen.add(key);
@@ -176,10 +183,7 @@ export function parseInfographicSpec(raw: unknown): InfographicSpec {
       ? splitSharedFeatures({ version: 1, type, title: input.title, nodes, edges })
       : { version: 1, type, title: input.title, nodes, edges };
   if (spec.nodes.length > maxNodes) throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${maxNodes} nodes`);
-  if (isArch) {
-    const groups = normalizeGroups(input.groups ?? [], nodes);
-    if (groups.length > 0) spec = { ...spec, groups };
-  }
+  if (groups.length > 0) spec = { ...spec, groups };
   STRUCTURE_RULES[type](spec);
   const positions = keepPositions(input.positions, spec.nodes);
   return positions ? { ...spec, positions } : spec;
@@ -235,6 +239,40 @@ function normalizeGroups(raw: { id: string; title: string; parent?: string }[], 
     for (let g = n.group; g; g = byId.get(g)?.parent) used.add(g);
   }
   return [...byId.values()].filter((g) => used.has(g.id));
+}
+
+/** outer 그룹이 inner(노드 또는 그룹)를 (하위 그룹을 거쳐서라도) 품는가 */
+function holdsOf(groups: readonly InfographicGroup[], nodes: readonly InfographicNode[]): (outer: string, inner: string) => boolean {
+  const parentOf = new Map<string, string | undefined>([
+    ...groups.map((g): [string, string | undefined] => [g.id, g.parent]),
+    ...nodes.map((n): [string, string | undefined] => [n.id, n.group]),
+  ]);
+  return (outer, inner) => {
+    for (let p = parentOf.get(inner); p; p = parentOf.get(p)) if (p === outer) return true;
+    return false;
+  };
+}
+
+/**
+ * 층 구조: 모든 선이 맨 바깥 그룹 둘을 잇고(그룹 중첩 없음), 모든 카드가 어느 그룹 안에 있다.
+ * 이런 그림은 ELK 대신 층을 위→아래로 쌓아 그린다 (renderer의 stack 배치).
+ */
+export function isLayerStack(spec: InfographicSpec): boolean {
+  const groups = spec.groups ?? [];
+  if (spec.type !== 'architecture' || groups.length < 2 || groups.some((g) => g.parent)) return false;
+  const groupIds = new Set(groups.map((g) => g.id));
+  return spec.nodes.every((n) => n.group) && spec.edges.every(([from, to]) => groupIds.has(from) && groupIds.has(to));
+}
+
+/** 떠 있는 카드: 자기 선이 없고, 자기를 품은 어느 그룹에도 선이 닿지 않는다 (선이 닿는 층 안의 카드는 정상) */
+export function looseNodes(spec: InfographicSpec): InfographicNode[] {
+  const linked = new Set(spec.edges.flatMap(([from, to]) => [from, to]));
+  const parentOf = new Map((spec.groups ?? []).map((g) => [g.id, g.parent]));
+  return spec.nodes.filter((n) => {
+    if (linked.has(n.id)) return false;
+    for (let g = n.group; g; g = parentOf.get(g)) if (linked.has(g)) return false;
+    return true;
+  });
 }
 
 /** architecture: 그룹·연결선은 자유롭다(여러 선이 한 노드로 모여도 된다). 선이 하나는 있어야 그림이 된다. */
@@ -350,15 +388,29 @@ const STRUCTURE_RULES: Record<InfographicType, (spec: InfographicSpec) => void> 
  * Structured Output용 JSON Schema. strict 모드에 맞게 모든 필드를 required, additionalProperties false로 둔다.
  * 연결은 {from, to} 객체로 받고 실행기가 [from, to]로 바꾼다. 구조 규칙은 JSON Schema로 표현할 수 없어 parse가 사후 검사한다.
  */
-export function infographicJsonSchema(): Record<string, unknown> {
+export function infographicJsonSchema({ layers = false }: { layers?: boolean } = {}): Record<string, unknown> {
+  // 층 구조 분류(layers)와 그룹 끝 선 설명은 기술 스택 글(층 규칙을 받는 글)에만 더한다 —
+  // 모든 글에 더하면 다른 유형 분류가 흔들렸다(실제 API: mindmap 글이 가끔 hierarchy로)
+  const end = layers
+    ? { type: 'string', description: 'node id, or the group id of a layer for a line between layers' }
+    : { type: 'string' };
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['version', 'type', 'title', 'groups', 'nodes', 'edges'],
+    required: ['version', 'type', 'title', ...(layers ? ['layers'] : []), 'groups', 'nodes', 'edges'],
     properties: {
       version: { type: 'integer', enum: [1] },
       type: { type: 'string', enum: [...SUPPORTED_TYPES] },
       title: { type: 'string', description: 'Infographic title, 60 characters or fewer' },
+      // 모델의 분류만 받는다 — 실행기가 층 사이 선을 정리하는 데 쓰고, 저장 Spec에는 남지 않는다 (parse가 버린다)
+      ...(layers
+        ? {
+            layers: {
+              type: 'boolean',
+              description: 'architecture only: true when the text is a stack of layers (see the Layers rules), false otherwise and for other types',
+            },
+          }
+        : {}),
       groups: {
         type: 'array',
         description: `architecture only: named boxes such as a VPC, zone or subnet (at most ${MAX_GROUPS}, nested at most ${MAX_GROUP_DEPTH} deep). Empty for other types`,
@@ -400,8 +452,8 @@ export function infographicJsonSchema(): Record<string, unknown> {
           additionalProperties: false,
           required: ['from', 'to', 'label', 'bidirectional'],
           properties: {
-            from: { type: 'string' },
-            to: { type: 'string' },
+            from: end,
+            to: end,
             label: {
               type: 'string',
               description: 'architecture only: what travels on the line (e.g. HTTPS), 24 characters or fewer, or an empty string',

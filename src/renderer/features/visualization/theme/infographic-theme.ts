@@ -51,6 +51,8 @@ export const infographicTheme = {
     edge: { color: '#62758D', width: 1.4, arrowSize: 7 },
     label: { size: 11, color: '#40536E', background: '#F3F8FF', paddingX: 4, height: 16 },
     spacing: { nodeNode: 36, betweenLayers: 72 },
+    /** 층 쌓기 배치: 층 안 카드 간격, 한 줄 카드 수, 선과 라벨 사이, 같은 두 층 사이 선 간격, 층을 건너뛰는 선이 상자 옆으로 비켜 가는 거리 */
+    stack: { cardGap: 24, perRow: 4, labelGap: 10, lineGap: 24, detour: 36 },
     icon: { color: '#2F6DDB', stroke: 1.75 },
   },
 } as const;

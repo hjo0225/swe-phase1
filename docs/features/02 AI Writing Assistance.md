@@ -1,4 +1,4 @@
-**02. AI Writing Assistance**
+#### 02. AI Writing Assistance
 
 - **Organize:** Restructure rough notes into clear, organized writing.
 - **Expand:** Enrich selected text with web-grounded explanations and sources.

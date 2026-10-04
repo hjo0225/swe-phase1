@@ -38,7 +38,7 @@ markers = json.loads((RUN / 'markers.json').read_text(encoding='utf8'))
 frames_meta = json.loads((RUN / 'frames.json').read_text(encoding='utf8'))
 t0 = frames_meta['t0']
 frames = [(f['name'], f['t'] - t0) for f in frames_meta['frames']]
-shots = {m['name']: m['t'] for m in markers if m['type'] == 'shot'}
+shots = {m['name']: m for m in markers if m['type'] == 'shot'}
 
 
 def frame_at(t: float) -> Path:
@@ -52,9 +52,15 @@ def frame_at(t: float) -> Path:
 for file, heading, lines, image, alt in DOCS:
     if image not in shots:
         raise SystemExit(f'no shot "{image}" in {RUN / "markers.json"} — record the whole demo first')
-    picture = Image.open(frame_at(shots[image])).convert('RGB')
+    marker = shots[image]
+    picture = Image.open(frame_at(marker['t'])).convert('RGB')
+    clip = marker.get('clip')
+    if clip:
+        # 기능이 보이는 부분만 — 앱 창 전체는 포스터에서 너무 작아진다
+        k = picture.width / marker['view']['width']
+        picture = picture.crop(tuple(round(v * k) for v in (clip['x'], clip['y'], clip['x'] + clip['width'], clip['y'] + clip['height'])))
     picture.thumbnail((WIDTH, WIDTH))
     picture.save(OUT / 'images' / f'{image}.png', optimize=True)
-    body = [f'**{heading}**', '', *[f'- {line}' for line in lines], '', f'![{alt}](images/{image}.png)', '']
+    body = [f'#### {heading}', '', *[f'- {line}' for line in lines], '', f'![{alt}](images/{image}.png)', '']
     (OUT / f'{file}.md').write_text('\n'.join(body), encoding='utf8')
-    print(f'{file}.md  ← {image} at {shots[image]:.1f}s')
+    print(f'{file}.md  ← {image} at {marker["t"]:.1f}s {picture.size}')

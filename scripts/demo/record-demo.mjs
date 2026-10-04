@@ -63,10 +63,10 @@ const POSTER_TEMPLATE = [
   '### 3. Platform',
 ].join('\n');
 
-// 한 문단 줄글 — Organize가 제목 없이 한두 문장 설명으로 다듬는다 (실제 AI 약 93%)
+// 앱 아이디어 한 덩어리 — Organize가 제목 없이 한 문장 설명으로 다듬는다 (실제 AI 5번 중 5번)
 const KICKOFF =
-  'so the app we want: a desktop note app, you select text and ai refines it or draws it, and you can reuse old notes right there. ' +
-  'no more opening an ai site, copying and pasting back, which breaks your thinking every time';
+  'so the app we want: a desktop note app where you select text and ai refines it or draws it, ' +
+  'and you reuse old notes right there, without opening an ai site and copying and pasting back';
 
 const ARCHITECTURE_MEMO =
   'ok architecture for the poster. the screen is react 19.3 with tiptap 3.31 as the editor, it can\'t touch files itself, ' +
@@ -183,7 +183,21 @@ const cursorLog = [];
 const lines = [];
 const mark = (type, extra = {}) => markers.push({ type, t: now(), ...extra });
 /** 기능 문서 스크린샷으로 쓸 순간 (feature-docs.py가 이 시각의 프레임을 쓴다) */
-const shot = (name) => mark('shot', { name });
+const shot = async (name, region, { belowChrome = false } = {}) => {
+  // region: 잘라 낼 영역 (locator 또는 {x,y,width,height}, CSS px). 화면 밖은 잘라 낸다
+  // belowChrome: 편집기 머리줄(위치·서식 도구막대) 아래만 — 스크롤한 본문이 그 뒤에 가려 있다
+  const box = region && typeof region.boundingBox === 'function' ? await region.boundingBox() : region;
+  const chrome = belowChrome ? await page.getByRole('toolbar', { name: 'Formatting' }).boundingBox() : null;
+  const top = chrome ? chrome.y + chrome.height + 4 : 0;
+  const clip = box
+    ? (() => {
+        const x = Math.max(0, box.x - 12);
+        const y = Math.max(top, box.y - 12);
+        return { x, y, width: Math.min(VIEW.width, box.x + box.width + 12) - x, height: Math.min(VIEW.height, box.y + box.height + 12) - y };
+      })()
+    : null;
+  mark('shot', { name, clip, view: VIEW });
+};
 const pause = (ms) => page.waitForTimeout(ms);
 
 class StopRecording extends Error {}
@@ -528,7 +542,7 @@ try {
       await dialog.waitFor();
       await waitAI(skip, (o) => preview.waitFor(o), { showMs: 900 });
       await pause(400);
-      shot('05-organize');
+      await shot('05-organize', dialog);
     });
     await line('S07-3', 5, async () => {
       const box = await preview.boundingBox();
@@ -545,7 +559,7 @@ try {
         await click(closed.first().getByRole('button', { name, exact: true }), { after: 350 });
       }
       await pause(300);
-      shot('01-notes');
+      await shot('01-notes', { x: 0, y: 0, width: 1000, height: 560 }); // 사이드바 폴더 + 열린 노트
     });
   });
 
@@ -569,13 +583,13 @@ try {
       await hover(body.getByText('Sources', { exact: true }), 300);
       const source = body.locator('a[href^="http"]').first();
       if (await source.count()) await hover(source, 700);
-      shot('02-writing');
+      await shot('02-writing', body, { belowChrome: true });
     });
   });
 
   await scene('S09', 'Organize — Description', async () => {
     const first = 'so the app we want';
-    const last = 'breaks your thinking every time';
+    const last = 'copying and pasting back';
     await line('S09-1', 3, async () => {
       await openNote('Phase 1 Poster');
       await newLineAfter('Description (One Sentence)');
@@ -616,12 +630,15 @@ try {
       const first = hit('01 Basic Note Management');
       await first.waitFor();
       await click(first.getByRole('button', { name: 'Preview' }), { after: 1400 });
-      shot('04-search');
+      await shot('04-search', palette);
       await click(first.getByRole('button', { name: 'Link' }), { after: 800 });
     });
     await line('S10-3', 5, async (skip) => {
-      await key('End', 100);
-      await key('Enter', 200);
+      // 링크는 보여 줬으니 지운다 — 포스터에는 가져온 설명만 남긴다
+      await fast(1.5, skip, async () => {
+        await key('Shift+Home', 200);
+        await key('Backspace', 300);
+      });
       await fast(1.5, skip, () => searchAndImport('note management', '01 Basic Note Management'));
       await fast(3, skip, async () => {
         for (const [query, title] of [
@@ -666,9 +683,10 @@ try {
       });
     });
     await line('S11-3', 2, async () => {
-      await figure.scrollIntoViewIfNeeded();
+      await figure.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+      await pause(500);
       await hover(figure.locator('[data-group]').first(), 400);
-      shot('03-visualize');
+      await shot('03-visualize', figure, { belowChrome: true });
     });
     await line('S11-4', 2.5, async () => {
       const card = figure.locator('[data-card]').last(); // 맨 아래 층 둘째 줄 (OpenAI SDK 7)
@@ -677,9 +695,12 @@ try {
       await page.mouse.down();
       await pause(120);
       await moveTo(c.x + 70, c.y + 40, { speed: 4 });
+      await pause(350);
+      // 연결선이 따라오는 걸 보여 준 뒤 제자리로 — 포스터 그림은 원래 배치 그대로
+      await moveTo(c.x, c.y, { speed: 5 });
       await page.mouse.up();
       logCursor();
-      await pause(600);
+      await pause(400);
     });
     await line('S11-5', 2, async () => {
       await hover(figure.getByRole('button', { name: 'Save as PNG' }), 700); // 누르지 않는다

@@ -342,8 +342,8 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   it('turns a few sentences about one idea into one polished paragraph without a heading, at least four runs in five', async () => {
     // 데모 S09의 킥오프 메모 — 포스터 Description(한 문장) 자리에 들어간다
     const memo =
-      'so the app we want: a desktop note app, you select text and ai refines it or draws it, and you can reuse old notes right there. ' +
-      'no more opening an ai site, copying and pasting back, which breaks your thinking every time';
+      'so the app we want: a desktop note app where you select text and ai refines it or draws it, ' +
+      'and you reuse old notes right there, without opening an ai site and copying and pasting back';
     const outputs = await Promise.all(
       Array.from({ length: 5 }, () => new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal()) as Promise<{ markdown: string }>),
     );

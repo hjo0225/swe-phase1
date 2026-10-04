@@ -1,4 +1,4 @@
-**04. Note Search & Reuse**
+#### 04. Note Search & Reuse
 
 - Search notes by title and content.
 - Open, link, or import existing notes into the current document.

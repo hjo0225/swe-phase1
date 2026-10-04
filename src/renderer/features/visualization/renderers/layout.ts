@@ -121,6 +121,8 @@ function defaultLayout(spec: InfographicSpec): InfographicLayout {
       return layoutComparison(spec);
     case 'mindmap':
       return layoutMindmap(spec);
+    case 'architecture':
+      throw new Error('architecture is laid out asynchronously — use layoutArchitectureBase');
   }
 }
 

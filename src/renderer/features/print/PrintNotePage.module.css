@@ -57,3 +57,33 @@
   white-space: pre-wrap;
   overflow: visible;
 }
+
+/*
+ * 두 단 (논문처럼): 한 장에 다 넣을 때. 단 높이는 고르게 맞춘다(balance) — 그래서 높이가 대략 절반이 되고 배율이 커진다.
+ * 맨 위 제목과 그 아래 한 줄은 두 단에 걸치고, 그림·인포그래픽·코드는 단 사이에서 잘리지 않는다.
+ */
+/* 단은 본문(.ProseMirror)에 건다 — 노트 제목 줄은 그 위에 두고, 본문 맨 위 제목(h1)은 단의 직접 자식이라 두 단에 걸칠 수 있다 */
+.twoColumns :global(.ProseMirror) {
+  column-count: 2;
+  column-gap: var(--print-column-gap);
+  column-fill: balance;
+}
+
+/* 논문처럼 제목과 바로 아래 한 줄(저자·소속)은 두 단에 걸친다 */
+.twoColumns :global(.ProseMirror > h1:first-child),
+.twoColumns :global(.ProseMirror > h1:first-child + p) {
+  column-span: all;
+}
+
+.twoColumns :global(figure),
+.twoColumns :global(img),
+.twoColumns :global(pre),
+.twoColumns :global(blockquote) {
+  break-inside: avoid;
+}
+
+.twoColumns :global(h1),
+.twoColumns :global(h2),
+.twoColumns :global(h3) {
+  break-after: avoid;
+}

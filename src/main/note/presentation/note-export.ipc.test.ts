@@ -30,15 +30,15 @@ describe('noteExportIpcHandlers', () => {
 
   it('passes the page settings to the renderer', async () => {
     render.mockClear();
-    const options = { pageSize: 'A3', orientation: 'portrait', margin: 'small', includeTitle: true, fitToOnePage: false };
+    const options = { pageSize: 'A3', orientation: 'portrait', margin: 'small', includeTitle: true, fitToOnePage: true, columns: 2 };
     await expect(call({ id: NOTE_ID, options })).resolves.toMatchObject({ ok: true });
     expect(render).toHaveBeenCalledWith(NOTE_ID, options);
   });
 
   it('rejects unknown page settings', async () => {
     render.mockClear();
-    const good = { pageSize: 'A4', orientation: 'portrait', margin: 'default', fitToOnePage: true };
-    for (const options of [{ ...good, pageSize: 'B5' }, { ...good, margin: 3 }, { ...good, fitToOnePage: undefined }, { ...good, path: 'x' }]) {
+    const good = { pageSize: 'A4', orientation: 'portrait', margin: 'default', fitToOnePage: true, columns: 1 };
+    for (const options of [{ ...good, pageSize: 'B5' }, { ...good, margin: 3 }, { ...good, fitToOnePage: undefined }, { ...good, columns: 3 }, { ...good, path: 'x' }]) {
       await expect(call({ id: NOTE_ID, options })).resolves.toMatchObject({ ok: false, error: { code: 'VALIDATION_FAILED' } });
     }
     expect(render).not.toHaveBeenCalled();

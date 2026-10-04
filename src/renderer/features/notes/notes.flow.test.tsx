@@ -125,12 +125,18 @@ describe('notes flow (vault)', () => {
     expect(inDialog.getByRole('radio', { name: 'Portrait' })).toHaveAttribute('aria-checked', 'true');
     expect(inDialog.getByRole('radio', { name: 'Default' })).toHaveAttribute('aria-checked', 'true');
     expect(inDialog.getByRole('switch', { name: 'Fit to one page' })).toHaveAttribute('aria-checked', 'true');
+    expect(inDialog.getByRole('radio', { name: '1' })).toHaveAttribute('aria-checked', 'true');
     expect(await inDialog.findByText('1 page · A4 portrait · 100%')).toBeInTheDocument();
+    // 두 단은 한 장에 맞출 때만
+    await user.click(inDialog.getByRole('radio', { name: '2' }));
+    expect(inDialog.getByRole('radio', { name: '2' })).toHaveAttribute('aria-checked', 'true');
 
     await user.click(inDialog.getByRole('radio', { name: 'Letter' }));
     await user.click(inDialog.getByRole('radio', { name: 'Landscape' }));
     await user.click(inDialog.getByRole('radio', { name: 'None' }));
     await user.click(inDialog.getByRole('switch', { name: 'Fit to one page' }));
+    expect(inDialog.getByRole('radio', { name: '1' })).toHaveAttribute('aria-checked', 'true');
+    expect(inDialog.getByRole('radio', { name: '2' })).toBeDisabled();
     await user.click(inDialog.getByRole('switch', { name: 'Include note title' }));
     expect(await inDialog.findByText('1 page · Letter landscape · 100%')).toBeInTheDocument();
 
@@ -141,7 +147,7 @@ describe('notes flow (vault)', () => {
       {
         id: note.id,
         content: '마지막 문장',
-        options: { pageSize: 'Letter', orientation: 'landscape', margin: 'none', includeTitle: false, fitToOnePage: false },
+        options: { pageSize: 'Letter', orientation: 'landscape', margin: 'none', includeTitle: false, fitToOnePage: false, columns: 1 },
       },
     ]);
   });

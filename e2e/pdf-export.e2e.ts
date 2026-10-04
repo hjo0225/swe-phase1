@@ -156,6 +156,29 @@ describe('Export a note as a one-page A4 PDF', () => {
     }
   });
 
+  it('fits a long poster on one page in two columns at a larger scale than in one column', async () => {
+    writeFileSync(join(userData.vault, '긴 포스터.md'), posterMarkdown(14));
+    const pdfPath = join(userData.dir, 'two-columns.pdf');
+    const { app, page } = await launchApp(userData.dir, { BLINK_E2E_PDF_PATH: pdfPath });
+    try {
+      let oneColumn = 0;
+      const summary = await exportOpenNote(page, '긴 포스터', async (dialog) => {
+        const percent = async () => Number(/(\d+)%$/.exec((await dialog.getByText(/^1 page · /).textContent()) ?? '')?.[1]);
+        await dialog.getByText(/^1 page · /).waitFor({ timeout: 30_000 });
+        oneColumn = await percent();
+        await dialog.getByRole('radio', { name: '2' }).click();
+        await dialog.getByText('Laying out…').waitFor({ state: 'detached', timeout: 30_000 });
+      });
+      await page.getByText('Saved as PDF', { exact: true }).waitFor({ timeout: 30_000 });
+      expect(pdfPageCount(readFileSync(pdfPath))).toBe(1);
+      const twoColumns = Number(/(\d+)%$/.exec(summary)?.[1]);
+      expect(twoColumns).toBeGreaterThan(oneColumn * 1.2);
+      if (process.env.BLINK_E2E_SHOTS) copyFileSync(pdfPath, `${process.env.BLINK_E2E_SHOTS}/two-columns.pdf`);
+    } finally {
+      await app.close();
+    }
+  });
+
   it('previews and exports a poster whose architecture diagram is laid out asynchronously', async () => {
     const layers = {
       version: 1,

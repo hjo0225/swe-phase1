@@ -37,7 +37,7 @@ describe('ExportNotePdf', () => {
 
   it('renders with the chosen page settings', async () => {
     const { renderer, exportPdf } = setup();
-    const options = { pageSize: 'Letter' as const, orientation: 'landscape' as const, margin: 'none' as const, includeTitle: false, fitToOnePage: false };
+    const options = { pageSize: 'Letter' as const, orientation: 'landscape' as const, margin: 'none' as const, includeTitle: false, fitToOnePage: false, columns: 1 as const };
     await exportPdf.execute({ id: NOTE_ID, options });
     expect(renderer.render).toHaveBeenCalledWith(NOTE_ID, options);
   });

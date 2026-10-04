@@ -50,3 +50,11 @@
   outline: 2px solid var(--blue-400);
   outline-offset: 1px;
 }
+
+.group[aria-disabled='true'] {
+  opacity: 0.5;
+}
+
+.option:disabled {
+  cursor: not-allowed;
+}

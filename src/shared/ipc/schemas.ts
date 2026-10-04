@@ -36,6 +36,7 @@ export const PdfExportOptionsSchema = z
     margin: z.enum(MARGINS),
     includeTitle: z.boolean().optional(),
     fitToOnePage: z.boolean(),
+    columns: z.union([z.literal(1), z.literal(2)]),
   })
   .strict();
 

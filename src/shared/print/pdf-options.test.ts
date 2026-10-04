@@ -32,7 +32,7 @@ describe('pageGeometry', () => {
 
 describe('print query', () => {
   it('round-trips every option', () => {
-    const options: PdfExportOptions = { pageSize: 'Letter', orientation: 'landscape', margin: 'none', includeTitle: false, fitToOnePage: false };
+    const options: PdfExportOptions = { pageSize: 'Letter', orientation: 'landscape', margin: 'none', includeTitle: false, fitToOnePage: true, columns: 2 };
     expect(parsePrintQuery(new URLSearchParams(toPrintQuery(options)))).toEqual(options);
   });
 
@@ -43,7 +43,12 @@ describe('print query', () => {
   });
 
   it('falls back to the defaults for missing or unknown values', () => {
-    expect(parsePrintQuery(new URLSearchParams('size=B5&orientation=sideways&margin=huge&fit=maybe'))).toEqual(DEFAULT_PDF_OPTIONS);
+    expect(parsePrintQuery(new URLSearchParams('size=B5&orientation=sideways&margin=huge&fit=maybe&cols=3'))).toEqual(DEFAULT_PDF_OPTIONS);
+  });
+
+  it('prints one column whenever the note may run over several pages', () => {
+    expect(parsePrintQuery(new URLSearchParams('fit=0&cols=2')).columns).toBe(1);
+    expect(parsePrintQuery(new URLSearchParams('fit=1&cols=2')).columns).toBe(2);
   });
 });
 

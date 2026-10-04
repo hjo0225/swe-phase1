@@ -12,6 +12,7 @@ interface SegmentedControlProps<T extends string> {
   options: readonly SegmentedOption<T>[];
   value: T;
   onChange(value: NoInfer<T>): void;
+  disabled?: boolean;
 }
 
 /**
@@ -19,7 +20,7 @@ interface SegmentedControlProps<T extends string> {
  * 21st.dev halaska-studio "Segmented Control"(MIT)을 Cloud Glass 토큰과 CSS 모듈로 옮겼다.
  * 방향키·Home·End로 옮기면서 바로 고른다. Tab으로는 고른 칸에만 들어간다.
  */
-export function SegmentedControl<T extends string>({ label, options, value, onChange }: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({ label, options, value, onChange, disabled = false }: SegmentedControlProps<T>) {
   const groupRef = useRef<HTMLDivElement>(null);
   const buttons = useRef(new Map<T, HTMLButtonElement>());
   const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
@@ -51,7 +52,7 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             : event.key === 'End'
               ? last
               : null;
-    if (next === null) return;
+    if (next === null || disabled) return;
     event.preventDefault();
     const option = options[next]!;
     onChange(option.value);
@@ -59,7 +60,14 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
   };
 
   return (
-    <div ref={groupRef} role="radiogroup" aria-label={label} className={styles.group} onKeyDown={onKeyDown}>
+    <div
+      ref={groupRef}
+      role="radiogroup"
+      aria-label={label}
+      aria-disabled={disabled || undefined}
+      className={styles.group}
+      onKeyDown={onKeyDown}
+    >
       {thumb && <span aria-hidden className={styles.thumb} style={{ left: thumb.left, width: thumb.width }} />}
       {options.map((option) => {
         const selected = option.value === value;
@@ -73,7 +81,8 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             type="button"
             role="radio"
             aria-checked={selected}
-            tabIndex={selected ? 0 : -1}
+            tabIndex={selected && !disabled ? 0 : -1}
+            disabled={disabled}
             className={styles.option}
             onClick={() => onChange(option.value)}
           >

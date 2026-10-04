@@ -1,7 +1,9 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   DEFAULT_PDF_OPTIONS,
+  effectiveColumns,
   pageGeometry,
+  type ColumnCount,
   type MarginPreset,
   type Orientation,
   type PageGeometry,
@@ -27,6 +29,10 @@ const PAGE_SIZE_OPTIONS: SegmentedOption<PageSize>[] = [
 const ORIENTATION_OPTIONS: SegmentedOption<Orientation>[] = [
   { value: 'portrait', label: 'Portrait' },
   { value: 'landscape', label: 'Landscape' },
+];
+const COLUMN_OPTIONS: SegmentedOption<'1' | '2'>[] = [
+  { value: '1', label: '1' },
+  { value: '2', label: '2' },
 ];
 const MARGIN_OPTIONS: SegmentedOption<MarginPreset>[] = [
   { value: 'default', label: 'Default' },
@@ -61,13 +67,14 @@ export function ExportPdfDialog({ note, onClose }: ExportPdfDialogProps) {
       setOptions((current) => ({ ...current, [key]: value }));
 
   const page = pageGeometry(options);
-  const fit = usePrintFit(root, page, options.fitToOnePage, options.includeTitle);
+  const columns = effectiveColumns(options);
+  const fit = usePrintFit(root, page, options.fitToOnePage, `${options.includeTitle}:${columns}`);
   const onPrintReady = useCallback((ready: HTMLElement) => setRoot(ready), []);
 
   const exportPdf = async () => {
     setExporting(true);
     try {
-      const result = await getBlink().notes.exportPdf({ id: note.id, options });
+      const result = await getBlink().notes.exportPdf({ id: note.id, options: { ...options, columns } });
       if (!result.saved) return; // 저장 창을 닫았다 — 설정을 고쳐 다시 내보낼 수 있게 둔다
       toast.show(result.clipped ? 'Saved as PDF, but the note was too long and the bottom was cut off' : 'Saved as PDF');
       onClose();
@@ -88,7 +95,13 @@ export function ExportPdfDialog({ note, onClose }: ExportPdfDialogProps) {
     <Modal title="Export PDF" wide onClose={onClose}>
       <div className={styles.layout}>
         <PagePreview page={page} fit={fit} fitToOnePage={options.fitToOnePage}>
-          <PrintDocument note={note} includeTitle={options.includeTitle} printableWidthPx={page.printableWidthPx} onPrintReady={onPrintReady} />
+          <PrintDocument
+            note={note}
+            includeTitle={options.includeTitle}
+            printableWidthPx={page.printableWidthPx}
+            columns={columns}
+            onPrintReady={onPrintReady}
+          />
         </PagePreview>
 
         <div className={styles.settings}>
@@ -108,6 +121,15 @@ export function ExportPdfDialog({ note, onClose }: ExportPdfDialogProps) {
             checked={options.fitToOnePage}
             onChange={set('fitToOnePage')}
           />
+          <Field label="Columns" hint={options.fitToOnePage ? undefined : 'Turn on Fit to one page to use two columns'}>
+            <SegmentedControl
+              label="Columns"
+              options={COLUMN_OPTIONS}
+              value={String(columns) as '1' | '2'}
+              disabled={!options.fitToOnePage}
+              onChange={(value) => set('columns')(Number(value) as ColumnCount)}
+            />
+          </Field>
         </div>
 
         <footer className={styles.footer}>
@@ -133,7 +155,7 @@ export function ExportPdfDialog({ note, onClose }: ExportPdfDialogProps) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className={styles.field}>
       {/* 화면 읽기는 radiogroup의 이름으로 읽는다 */}
@@ -141,6 +163,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
         {label}
       </span>
       {children}
+      {hint && <p className={styles.fieldHint}>{hint}</p>}
     </div>
   );
 }

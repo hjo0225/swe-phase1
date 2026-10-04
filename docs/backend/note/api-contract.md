@@ -57,7 +57,7 @@ interface VaultTree { folders: string[]; notes: NoteSummary[] }   // 폴더 경�
 ### PDF 내보내기 (`note:export-pdf`)
 
 - 노트 머리줄의 Export PDF는 먼저 **내보내기 창**을 연다: 왼쪽은 종이 미리보기(인쇄 화면과 같은 `PrintDocument`를 같은 `fitToPageWidth`로 재어 같은 배율로 그림 — iframe이 아니다, iframe은 preload API를 받지 못한다), 오른쪽은 설정, 아래는 요약(`1 page · A4 portrait · 82%`)과 Cancel·Export. Export → 이 IPC → Save Dialog. 저장 창을 닫으면 내보내기 창은 그대로 남는다.
-- `options` (`src/shared/print/pdf-options.ts`, 없으면 기본): `pageSize` `A4`·`A3`·`Letter`, `orientation` `portrait`·`landscape`, `margin` `default`(12 mm)·`small`(6 mm)·`none`, `includeTitle?`(없으면 자동: 본문이 맨 위 제목으로 시작하지 않을 때만), `fitToOnePage`(끄면 배율 1로 모든 장). 모르는 값·다른 필드는 `VALIDATION_FAILED`. 인쇄 화면은 같은 값을 주소 쿼리로 받는다 (`#/print/<id>?size=A4&orientation=portrait&margin=default&fit=1&title=0`).
+- `options` (`src/shared/print/pdf-options.ts`, 없으면 기본): `pageSize` `A4`·`A3`·`Letter`, `orientation` `portrait`·`landscape`, `margin` `default`(12 mm)·`small`(6 mm)·`none`, `includeTitle?`(없으면 자동: 본문이 맨 위 제목으로 시작하지 않을 때만), `fitToOnePage`(끄면 배율 1로 모든 장), `columns` `1`·`2`(논문처럼 두 단 — 본문 맨 위 `#` 제목과 그 아래 한 줄은 두 단에 걸친다. 한 장 맞춤일 때만, 아니면 늘 1). 모르는 값·다른 필드는 `VALIDATION_FAILED`. 인쇄 화면은 같은 값을 주소 쿼리로 받는다 (`#/print/<id>?size=A4&orientation=portrait&margin=default&fit=1&cols=1&title=0`).
 
 - Renderer는 노트 ID만 보낸다. Main이 Save Dialog(기본: 다운로드 폴더, `<제목>.pdf`, PDF 필터)를 띄우고 **고른 경로에만** 쓴다. 취소는 오류가 아니라 `{ saved: false }`. Renderer는 보내기 전에 대기 중인 자동 저장을 끝낸다 — Main은 파일에서 노트를 다시 읽어 그린다.
 - Main은 숨은 창(메인 창과 같은 preload·contextIsolation·sandbox, 같은 이동 차단)에 앱 자신의 인쇄 화면 `#/print/<noteId>?설정`을 열고, 준비 신호를 기다려 `printToPDF`로 만든 뒤 창을 없앤다(실패해도). 인쇄 화면은 제목 + 읽기 전용 본문만 그린다(사이드바·머리줄·도구막대 없음). `includeTitle`이 없을 때, 본문이 이미 맨 위 제목(`# …` 또는 Setext `===`)으로 시작하면 노트 제목은 찍지 않는다(제목 중복 방지).

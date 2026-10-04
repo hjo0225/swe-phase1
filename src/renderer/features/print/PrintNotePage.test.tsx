@@ -92,6 +92,14 @@ describe('print route', () => {
     expect((document.querySelector('[data-print-root]') as HTMLElement).style.width).toBe(`${width}px`);
   });
 
+  it('flows the note into two columns like a paper when asked', async () => {
+    const note = await seedNote('수업 포스터', POSTER);
+    window.location.hash = `#/print/${note.id}?fit=1&cols=2`;
+    render(<App />);
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-print-ready', 'true'));
+    expect(document.querySelector('[data-print-root]')).toHaveAttribute('data-columns', '2');
+  });
+
   it('renders only the note as a read-only document — body, image and infographic — and signals when it is ready', async () => {
     const note = await seedNote('수업 포스터', POSTER);
     window.location.hash = `#/print/${note.id}`;

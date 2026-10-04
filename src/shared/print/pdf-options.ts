@@ -6,10 +6,12 @@
 export const PAGE_SIZES = ['A4', 'A3', 'Letter'] as const;
 export const ORIENTATIONS = ['portrait', 'landscape'] as const;
 export const MARGINS = ['default', 'small', 'none'] as const;
+export const COLUMNS = [1, 2] as const;
 
 export type PageSize = (typeof PAGE_SIZES)[number];
 export type Orientation = (typeof ORIENTATIONS)[number];
 export type MarginPreset = (typeof MARGINS)[number];
+export type ColumnCount = (typeof COLUMNS)[number];
 
 export interface PdfExportOptions {
   pageSize: PageSize;
@@ -19,6 +21,8 @@ export interface PdfExportOptions {
   includeTitle?: boolean;
   /** 한 장에 맞춰 줄인다. 끄면 배율 1로 여러 장 */
   fitToOnePage: boolean;
+  /** 논문처럼 두 단으로. 한 장에 맞출 때만 — 여러 장이면 단이 장을 넘나들어 읽는 순서가 꼬인다 */
+  columns: ColumnCount;
 }
 
 export const DEFAULT_PDF_OPTIONS: PdfExportOptions = {
@@ -26,7 +30,15 @@ export const DEFAULT_PDF_OPTIONS: PdfExportOptions = {
   orientation: 'portrait',
   margin: 'default',
   fitToOnePage: true,
+  columns: 1,
 };
+
+/** 두 단 사이 간격 (CSS px) */
+export const COLUMN_GAP_PX = 28;
+
+/** 실제로 쓸 단 수: 한 장 맞춤이 아니면 늘 1 */
+export const effectiveColumns = (options: Pick<PdfExportOptions, 'fitToOnePage' | 'columns'>): ColumnCount =>
+  options.fitToOnePage ? options.columns : 1;
 
 const MM_PER_INCH = 25.4;
 const CSS_PX_PER_INCH = 96;
@@ -65,13 +77,14 @@ export function pageGeometry(options: Pick<PdfExportOptions, 'pageSize' | 'orien
   };
 }
 
-/** 인쇄 화면 주소의 쿼리 (`size=A4&orientation=portrait&margin=default&fit=1[&title=0|1]`) */
+/** 인쇄 화면 주소의 쿼리 (`size=A4&orientation=portrait&margin=default&fit=1&cols=1[&title=0|1]`) */
 export function toPrintQuery(options: PdfExportOptions): string {
   const query = new URLSearchParams({
     size: options.pageSize,
     orientation: options.orientation,
     margin: options.margin,
     fit: options.fitToOnePage ? '1' : '0',
+    cols: String(options.columns),
   });
   if (options.includeTitle !== undefined) query.set('title', options.includeTitle ? '1' : '0');
   return query.toString();
@@ -87,7 +100,9 @@ export function parsePrintQuery(query: URLSearchParams): PdfExportOptions {
     orientation: pick(ORIENTATIONS, query.get('orientation'), DEFAULT_PDF_OPTIONS.orientation),
     margin: pick(MARGINS, query.get('margin'), DEFAULT_PDF_OPTIONS.margin),
     fitToOnePage: query.get('fit') !== '0',
+    columns: 1,
   };
+  options.columns = effectiveColumns({ fitToOnePage: options.fitToOnePage, columns: query.get('cols') === '2' ? 2 : 1 });
   const title = query.get('title');
   if (title === '1' || title === '0') options.includeTitle = title === '1';
   return options;

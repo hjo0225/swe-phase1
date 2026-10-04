@@ -47,6 +47,7 @@ function PrintSheet({ note }: { note: NoteDetail }) {
       note={note}
       includeTitle={includeTitle}
       printableWidthPx={pageGeometry(options).printableWidthPx}
+      columns={options.columns}
       onPrintReady={onPrintReady}
     />
   );

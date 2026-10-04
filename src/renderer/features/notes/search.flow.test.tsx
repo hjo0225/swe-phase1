@@ -78,6 +78,33 @@ describe('search palette', () => {
     expect(await within(editor).findByText('Main Process와 Renderer 차이')).toBeInTheDocument();
   });
 
+  it('imports notes one after another under a section without nesting them or leaving empty lines between', async () => {
+    const user = userEvent.setup();
+    await seedNote('Feature A', '#### A title\n\n- a one\n- a two\n');
+    await seedNote('Feature B', '#### B title\n\n- b one\n');
+    const current = await seedNote('Poster', '### Key Features\n\nx');
+    window.location.hash = `#/notes/${current.id}`;
+    render(<App />);
+    const editor = await screen.findByRole('textbox', { name: 'Note body' });
+    // 섹션 아래 빈 줄에 커서 (데모 S10과 같다)
+    const tiptap = (editor as unknown as { editor: import('@tiptap/core').Editor }).editor;
+    const size = tiptap.state.doc.content.size;
+    tiptap.chain().focus().setTextSelection({ from: size - 2, to: size - 1 }).deleteSelection().run();
+    const importNote = async (title: string) => {
+      await user.keyboard('{Control>}k{/Control}');
+      const palette = await screen.findByRole('dialog', { name: 'Search notes' });
+      await user.type(within(palette).getByRole('searchbox', { name: 'Search query' }), title);
+      const result = await within(palette).findByRole('article', { name: title });
+      await user.click(within(result).getByRole('button', { name: 'Import' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Search notes' })).not.toBeInTheDocument());
+    };
+    await importNote('Feature A');
+    await importNote('Feature B');
+
+    const blocks = [...editor.children].map((el) => `${el.tagName}${el.textContent ? '' : ' (empty)'}`);
+    expect(blocks).toEqual(['H3', 'H4', 'UL', 'H4', 'UL', 'P (empty)']);
+  });
+
   it('shows backlinks of the open note', async () => {
     const target = await seedNote('대상', 'x');
     await seedNote('출발 노트', '[[대상]]');

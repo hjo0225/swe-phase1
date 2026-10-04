@@ -104,3 +104,9 @@
   border-bottom: 2px solid var(--blue-100);
   color: var(--blue-800);
 }
+
+/* 빈 줄(빈 단락)은 종이에 그리지 않는다 — 편집 중 커서를 두던 줄이 포스터 사이 빈칸으로 남지 않게 */
+.sheet :global(.ProseMirror > p:empty),
+.sheet :global(.ProseMirror > p:has(> br.ProseMirror-trailingBreak:only-child)) {
+  display: none;
+}

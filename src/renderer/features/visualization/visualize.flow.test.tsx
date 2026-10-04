@@ -70,7 +70,7 @@ describe('visualize and expand', () => {
     await waitFor(async () => expect((await getBlink().notes.get({ id: note.id })).content).not.toContain('"positions"'), {
       timeout: 3000,
     });
-  });
+  }, 15_000); // 저장 확인을 두 번 기다린다 — 전체 실행 부하에서 기본 5초를 넘길 수 있다
 
   it('keeps the original text and inserts the infographic below it', async () => {
     const { user, note } = await runAction('노트를 쓰면 AI가 분석해서 결과를 만든다', '노트를 쓰면 AI가 분석해서 결과를 만든다', /Visualize/);

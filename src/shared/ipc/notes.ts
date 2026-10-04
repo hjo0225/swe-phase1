@@ -83,6 +83,12 @@ export interface NoteLinks {
   incoming: LinkedNote[];
 }
 
+/**
+ * 한 장짜리 A4 PDF 내보내기 결과. Dialog를 취소하면 { saved: false }.
+ * scale: 한 장에 맞추려고 줄인 배율(1 = 그대로), clipped: 최소 배율로도 넘쳐 아래쪽이 잘림
+ */
+export type ExportPdfResult = { saved: true; filePath: string; scale: number; clipped: boolean } | { saved: false };
+
 /** Main → Renderer: 외부 변경·링크 고치기로 노트가 바뀜 */
 export interface VaultChangedEvent {
   noteIds: NoteId[];

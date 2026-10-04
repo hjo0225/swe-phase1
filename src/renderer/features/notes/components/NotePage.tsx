@@ -1,11 +1,12 @@
 import type { Editor } from '@tiptap/react';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { FileDown, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { NoteDetail } from '../../../../shared/ipc/notes';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import { getBlink } from '../../../shared/api/blink';
 import { Dialog } from '../../../shared/ui/Dialog';
+import { toast } from '../../../shared/ui/toast';
 import { AIActionBubble } from '../../assist/components/AIActionBubble';
 import { useAssistBridge } from '../../assist/components/use-assist-bridge';
 import { useActiveEditor } from '../../editor/ActiveEditorContext';
@@ -60,6 +61,7 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
   const editorRef = useRef<Editor | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const deleteNote = useDeleteNote();
+  const [exporting, setExporting] = useState(false);
   const { setActive } = useActiveEditor();
 
   // 저장 시점에 최신 본문을 읽는다.
@@ -103,6 +105,22 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
   // AI Job 상태 ↔ 편집기 (잠금·Pulse·Commit)
   useAssistBridge(note.id, editor);
 
+  // 한 장짜리 A4 PDF. Main이 파일에서 노트를 다시 읽어 그리므로 대기 중인 편집을 먼저 저장한다.
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      await queue.flush();
+      const result = await getBlink().notes.exportPdf({ id: note.id });
+      if (result.saved) {
+        toast.show(result.clipped ? 'Saved as PDF, but the note was too long and the bottom was cut off' : 'Saved as PDF');
+      }
+    } catch {
+      toast.show("Couldn't export the PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <article className={`paper ${styles.sheet}`} data-scroll-root>
       {/* 21st Rich Text Editor: 위치·저장 상태 머리줄 + 서식 도구막대. 스크롤해도 위에 붙어 있다. */}
@@ -111,6 +129,17 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
           <NoteBreadcrumb note={note} />
           <div className={styles.headerActions}>
             <SaveIndicator noteId={note.id} />
+            <button
+              type="button"
+              className="button-icon"
+              aria-label="Export PDF"
+              title="Export PDF"
+              disabled={exporting}
+              aria-busy={exporting || undefined}
+              onClick={() => void exportPdf()}
+            >
+              <FileDown size={16} strokeWidth={1.75} />
+            </button>
             <button type="button" className="button-icon" aria-label="Delete note" onClick={() => setConfirmingDelete(true)}>
               <Trash2 size={16} strokeWidth={1.75} />
             </button>

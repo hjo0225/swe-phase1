@@ -34,6 +34,7 @@ export function createRawBlinkApi(
       rename: (input) => call(IpcChannels.noteRename, input),
       move: (input) => call(IpcChannels.noteMove, input),
       delete: (input) => call(IpcChannels.noteDelete, input),
+      exportPdf: (input) => call(IpcChannels.noteExportPdf, input),
       search: (input) => call(IpcChannels.noteSearch, input),
       listLinks: (input) => call(IpcChannels.noteLinkList, input),
     },

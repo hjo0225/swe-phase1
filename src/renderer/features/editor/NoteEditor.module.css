@@ -114,6 +114,13 @@
   pointer-events: none;
 }
 
+/* 읽기 전용 문서(인쇄 화면): 빈 편집 영역 높이를 두지 않는다 — 한 장에 맞출 높이를 늘리지 않게 */
+.editor[data-readonly],
+.editor[data-readonly] .prose {
+  min-height: 0;
+  cursor: auto;
+}
+
 /* 본문 편집 영역은 입력창이 아니라 종이 자체다. 포커스 링을 그리지 않는다. */
 .prose:focus-visible {
   box-shadow: none;

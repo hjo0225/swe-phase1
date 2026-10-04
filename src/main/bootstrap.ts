@@ -28,6 +28,9 @@ import { aiIpcHandlers } from './assist/presentation/ai.ipc';
 import { VaultManager } from './note/application/vault/vault-manager';
 import { JsonAppConfigStore } from './note/infrastructure/vault/app-config-store';
 import { openNoteVault, type OpenedNoteVault } from './note/infrastructure/vault/open-note-vault';
+import { ExportNotePdf } from './note/application/export-note-pdf';
+import { ElectronNotePdfRenderer } from './note/infrastructure/print/electron-note-pdf-renderer';
+import { noteExportIpcHandlers } from './note/presentation/note-export.ipc';
 import { noteIpcHandlers } from './note/presentation/note.ipc';
 import { OrganizeLock } from './organize/application/organize-lock';
 import { OrganizeService } from './organize/application/organize-service';
@@ -39,6 +42,7 @@ import { migrations } from './platform/db/migrations';
 import { createIpcHandler } from './platform/ipc/handler';
 import { registerIpcHandlers } from './platform/ipc/register';
 import { createSenderValidator } from './platform/ipc/sender';
+import { DialogFileSaver, FixedPathSaver, type SaveFileKind } from './platform/file-saver';
 import { ExportInfographicPng } from './visualization/application/export-infographic-png';
 import { ElectronFileSaver, FixedPathFileSaver } from './visualization/infrastructure/electron-file-saver';
 import { visualizationIpcHandlers } from './visualization/presentation/visualization.ipc';
@@ -116,6 +120,14 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
 
   const e2eSavePath = app.isPackaged ? undefined : process.env.BLINK_E2E_SAVE_PATH;
   const exportPng = new ExportInfographicPng(e2eSavePath ? new FixedPathFileSaver(e2eSavePath) : new ElectronFileSaver());
+  // 노트 → 한 장짜리 A4 PDF. E2E는 PNG처럼 Dialog 대신 환경 변수의 경로에 쓴다 (개발 빌드 전용).
+  const e2ePdfPath = app.isPackaged ? undefined : process.env.BLINK_E2E_PDF_PATH;
+  const pdfKind: SaveFileKind = { title: 'Export PDF', filterName: 'PDF document', extension: 'pdf' };
+  const exportPdf = new ExportNotePdf({
+    notes: { get: (id) => vaults.session().notes.get(id) },
+    files: e2ePdfPath ? new FixedPathSaver(pdfKind, e2ePdfPath) : new DialogFileSaver(pdfKind),
+    renderer: new ElectronNotePdfRenderer(),
+  });
 
   // 3. 마지막 보관함 다시 열기 (UC-VAULT-003). 못 열면 Renderer가 선택 화면을 보여 준다.
   vaults.restoreLast();
@@ -133,6 +145,7 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
       [IpcChannels.appGetInfo]: createIpcHandler(EmptyRequest, () => ({ version: app.getVersion() })),
       [IpcChannels.appReadyToClose]: createIpcHandler(EmptyRequest, () => releaseClose()),
       ...noteIpcHandlers({ vaults, chooseFolder, lock: organizeLock }),
+      ...noteExportIpcHandlers(exportPdf),
       ...settingsIpcHandlers(providerSettings),
       ...aiIpcHandlers({
         create: new CreateAIJob({ repo: jobRepo, notes: { exists: (id) => vaults.session().notes.exists(id) }, activeLLM, runner, clock: systemClock }),

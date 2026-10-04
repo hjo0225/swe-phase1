@@ -1,0 +1,45 @@
+/* 인쇄 화면: 앱 배경·스크롤 영역 없이 흰 종이 위 문서 한 장. 여백은 printToPDF가 준다 */
+:global(html[data-print-page]),
+:global(html[data-print-page]) body {
+  height: auto;
+  background: #fff;
+}
+
+:global(html[data-print-page] #root) {
+  height: auto;
+}
+
+/* 화면과 PDF가 같은 높이가 되도록 인쇄용 규칙을 따로 두지 않는다 */
+.sheet {
+  /* 배율을 줄이면 종이가 넓어진다 — 가운데 둔다 */
+  margin: 0 auto;
+  padding: 0;
+  color: var(--ink-800);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.title {
+  margin: 0 0 20px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--ink-900);
+}
+
+/* 인포그래픽 블록의 버튼(PNG 저장·삭제)과 유리 효과는 종이에 그리지 않는다 */
+.sheet :global(figure button) {
+  display: none;
+}
+
+.sheet :global(figure.glass) {
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* 코드 블록은 가로 스크롤 대신 줄을 바꾼다 — 종이에서는 스크롤할 수 없다 */
+.sheet :global(pre) {
+  white-space: pre-wrap;
+  overflow: visible;
+}

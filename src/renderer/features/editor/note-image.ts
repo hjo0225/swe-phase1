@@ -14,13 +14,13 @@ export function displaySrc(src: string | null | undefined, noteId: string | unde
  * 노트 속 Markdown 이미지 `![alt](path)`. 문단 안에 놓이도록 인라인으로 둔다 — 블록이면 문단 속 이미지를 읽다 문서가 깨진다.
  * 문서·.md에는 원래 경로를 두고, 그릴 때만 blink-vault: 주소로 바꾼다.
  */
-export const NoteImage = Image.extend<ImageOptions & { noteId?: string }>({
+export const NoteImage = Image.extend<ImageOptions & { noteId?: string; loading: 'lazy' | 'eager' }>({
   addOptions() {
-    return { ...this.parent!(), inline: true, allowBase64: false, noteId: undefined };
+    return { ...this.parent!(), inline: true, allowBase64: false, noteId: undefined, loading: 'lazy' as const };
   },
 
   renderHTML({ HTMLAttributes }) {
     const { src, ...rest } = HTMLAttributes as { src?: string };
-    return ['img', { ...this.options.HTMLAttributes, ...rest, src: displaySrc(src, this.options.noteId), loading: 'lazy' }];
+    return ['img', { ...this.options.HTMLAttributes, ...rest, src: displaySrc(src, this.options.noteId), loading: this.options.loading }];
   },
 });

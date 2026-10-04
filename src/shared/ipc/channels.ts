@@ -13,6 +13,7 @@ export const IpcChannels = {
   noteRename: 'note:rename',
   noteMove: 'note:move',
   noteDelete: 'note:delete',
+  noteExportPdf: 'note:export-pdf',
   noteSearch: 'note:search',
   noteLinkList: 'note-link:list',
   folderCreate: 'folder:create',

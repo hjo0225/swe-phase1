@@ -28,6 +28,9 @@ export const FolderPathRequest = z.object({ path: RelativePathSchema }).strict()
 
 export const NoteIdRequest = z.object({ id: NoteIdSchema }).strict();
 
+/** 저장 경로·파일 이름은 받지 않는다 — Main이 Dialog로 묻는다 */
+export const ExportNotePdfRequest = z.object({ id: NoteIdSchema }).strict();
+
 export const SearchNotesRequest = z
   .object({
     query: z.string().max(1000),

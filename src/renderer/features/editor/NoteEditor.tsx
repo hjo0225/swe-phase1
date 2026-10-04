@@ -10,23 +10,32 @@ interface NoteEditorProps {
   initialMarkdown: string;
   onReady(editor: Editor): void;
   onChange(editor: Editor): void;
+  /** false = 읽기 전용 문서(인쇄 화면). 그림도 미리 불러온다 */
+  editable?: boolean;
 }
 
 /**
  * 노트 하나의 Tiptap 인스턴스. 열린 노트 본문의 유일한 작성자다(D-04).
  * 노트가 바뀌면 부모가 key로 새로 만든다 — 초기값 이후 props로 내용을 다시 주입하지 않는다.
  */
-export function NoteEditor({ noteId, initialMarkdown, onReady, onChange }: NoteEditorProps) {
+export function NoteEditor({ noteId, initialMarkdown, onReady, onChange, editable = true }: NoteEditorProps) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
   const editor = useEditor({
-    extensions: createEditorExtensions({ noteId }),
+    extensions: createEditorExtensions({ noteId, imageLoading: editable ? 'lazy' : 'eager' }),
+    editable,
     content: initialMarkdown,
     contentType: 'markdown',
     shouldRerenderOnTransaction: false,
     editorProps: {
-      attributes: { class: styles.prose ?? '', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note body' },
+      attributes: {
+        class: styles.prose ?? '',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': 'Note body',
+        ...(editable ? {} : { 'aria-readonly': 'true' }),
+      },
     },
     onUpdate: ({ editor: e }) => onChangeRef.current(e),
   });
@@ -35,5 +44,5 @@ export function NoteEditor({ noteId, initialMarkdown, onReady, onChange }: NoteE
     if (editor) onReady(editor);
   }, [editor, onReady]);
 
-  return <EditorContent editor={editor} className={styles.editor} />;
+  return <EditorContent editor={editor} className={styles.editor} data-readonly={editable ? undefined : ''} />;
 }

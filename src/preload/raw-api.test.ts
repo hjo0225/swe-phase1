@@ -25,6 +25,7 @@ describe('createRawBlinkApi', () => {
     await api.notes.rename({ id, title: 'v' });
     await api.notes.move({ id, folder: 'b' });
     await api.notes.delete({ id });
+    await api.notes.exportPdf({ id });
     await api.folders.create({ name: 'c' });
     await api.folders.rename({ path: 'c', name: 'd' });
     await api.folders.delete({ path: 'd' });
@@ -39,6 +40,7 @@ describe('createRawBlinkApi', () => {
       ['note:rename', { id, title: 'v' }],
       ['note:move', { id, folder: 'b' }],
       ['note:delete', { id }],
+      ['note:export-pdf', { id }],
       ['folder:create', { name: 'c' }],
       ['folder:rename', { path: 'c', name: 'd' }],
       ['folder:delete', { path: 'd' }],

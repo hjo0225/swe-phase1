@@ -107,6 +107,31 @@ describe('notes flow (vault)', () => {
     expect(await titleInput()).toHaveValue('최근 노트');
   });
 
+  it('exports the note as a PDF from the header after saving the latest edits', async () => {
+    const user = userEvent.setup();
+    const note = await seedNote('포스터');
+    window.location.hash = `#/notes/${note.id}`;
+    render(<App />);
+
+    await user.click(await body());
+    await user.keyboard('마지막 문장');
+    // debounce를 기다리지 않고 바로 누른다 — Main은 파일을 다시 읽어 그리므로 먼저 저장해야 한다
+    await user.click(screen.getByRole('button', { name: 'Export PDF' }));
+
+    expect(await screen.findByText('Saved as PDF')).toBeInTheDocument();
+    expect(controls.pdfExports!()).toEqual([{ id: note.id, content: '마지막 문장' }]);
+  });
+
+  it('warns when the note was too long to fit on one page', async () => {
+    const user = userEvent.setup();
+    const note = await seedNote('긴 노트', '#clip-pdf');
+    window.location.hash = `#/notes/${note.id}`;
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Export PDF' }));
+    expect(await screen.findByText('Saved as PDF, but the note was too long and the bottom was cut off')).toBeInTheDocument();
+  });
+
   it('deletes a note after confirmation', async () => {
     const user = userEvent.setup();
     const { id } = await seedNote('지울 노트');

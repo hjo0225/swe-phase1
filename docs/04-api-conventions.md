@@ -23,6 +23,7 @@ getBlink().ai.createJob(req)         // ai:create-job
 getBlink().ai.onJobUpdated(cb)       // ai:job-updated 구독, 해제 함수 반환 (Envelope 아님)
 getBlink().settings.updateProvider(req)
 getBlink().visualization.savePng(req)
+getBlink().notes.exportPdf({ id })   // note:export-pdf → 한 장짜리 A4 PDF (Main이 Dialog를 띄운다)
 ```
 
 코드: `src/shared/ipc/blink-api.ts`(두 타입), `src/preload/raw-api.ts`, `src/renderer/shared/api/blink.ts`.

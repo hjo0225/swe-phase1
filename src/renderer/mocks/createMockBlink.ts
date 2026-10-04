@@ -31,6 +31,8 @@ export interface MockControls {
   externalEdit(noteId: string, content: string): void;
   /** 경로의 파일 내용 (테스트 확인용). */
   contentOf(path: string): string | undefined;
+  /** notes.exportPdf가 불린 노트와 그때 파일 내용 (테스트 확인용). */
+  pdfExports(): { id: string; content: string }[];
 }
 
 interface MockNote {
@@ -168,6 +170,8 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
     return ok({ note: summary(note), updatedNoteIds: relink(before, new Map([[note.id, path]])) });
   };
 
+  const pdfExports: { id: string; content: string }[] = [];
+
   if (options.controls) {
     options.controls.externalEdit = (noteId, content) => {
       const note = notes.get(noteId);
@@ -176,6 +180,7 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       for (const listener of vaultListeners) listener({ noteIds: [noteId], structure: false });
     };
     options.controls.contentOf = (path) => [...notes.values()].find((n) => n.path === path)?.content;
+    options.controls.pdfExports = () => pdfExports.map((e) => ({ ...e }));
   }
 
   const all: Capabilities = { generate: true, structuredOutput: true, webSearch: true };
@@ -281,6 +286,14 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
       delete: ({ id }) => {
         notes.delete(id);
         return ok({ deleted: true as const });
+      },
+      // 본문에 `#clip-pdf`가 있으면 한 장에 다 들어가지 않은 것처럼 답한다 (UI 시험용)
+      exportPdf: ({ id }) => {
+        const note = notes.get(id);
+        if (!note) return fail('NOTE_NOT_FOUND', id);
+        pdfExports.push({ id, content: note.content });
+        const clipped = note.content.includes('#clip-pdf');
+        return ok({ saved: true as const, filePath: `mock/${titleOf(note.path)}.pdf`, scale: clipped ? 0.1 : 1, clipped });
       },
       search: ({ query, excludeNoteId, limit = 20 }) => {
         const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);

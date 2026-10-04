@@ -1,5 +1,6 @@
 import type {
   CreateNoteInput,
+  ExportPdfResult,
   NoteDetail,
   NoteId,
   NoteLinks,
@@ -51,6 +52,8 @@ export interface BlinkApi {
     rename(input: { id: NoteId; title: string }): Promise<RelocateNoteResult>;
     move(input: { id: NoteId; folder: string }): Promise<RelocateNoteResult>;
     delete(input: { id: NoteId }): Promise<{ deleted: true }>;
+    /** 한 장짜리 A4 PDF로 내보낸다. Main이 저장 Dialog를 띄운다. 취소하면 { saved: false } */
+    exportPdf(input: { id: NoteId }): Promise<ExportPdfResult>;
     search(input: SearchNotesInput): Promise<{ items: NoteSearchHit[] }>;
     listLinks(input: { noteId: NoteId }): Promise<NoteLinks>;
   };

@@ -1,4 +1,4 @@
-"""녹화 결과에서 기능 문서 5개(docs/features)를 만든다 — README Key Features 문장 + 영어 화면 스크린샷 한 장씩.
+"""녹화 결과에서 기능 문서 5개(docs/features)를 만든다 — README Key Features 문장. 화면 예시는 02·04에만 한 장씩.
 
 스크린샷은 record-demo.mjs가 남긴 shot 표시(markers.json) 순간의 프레임이다. 데모 S10에서 이 문서들을 보관함에 넣어 쓴다.
 
@@ -17,21 +17,21 @@ WIDTH = 1280  # 포스터에서는 한 단 폭보다 작게 그려진다 — 이
 DOCS = [
     ('01 Basic Note Management', '01. Basic Note Management (CRUD)',
      ['Create, read, update, and delete Markdown notes.', 'Manage notes and folders in a simple desktop editor.'],
-     '01-notes', 'Blink main screen'),
+     None, None),
     ('02 AI Writing Assistance', '02. AI Writing Assistance',
      ['**Organize:** Restructure rough notes into clear, organized writing.',
       '**Expand:** Enrich selected text with web-grounded explanations and sources.'],
      '02-writing', 'Expand result with sources'),
     ('03 AI Visualization', '03. AI Visualization',
      ['Transform selected text into diagrams and infographics.', 'Edit layouts and export visualizations as PNG.'],
-     '03-visualize', 'Architecture diagram drawn from a memo'),
+     None, None),
     ('04 Note Search & Reuse', '04. Note Search & Reuse',
      ['Search notes by title and content.', 'Open, link, or import existing notes into the current document.',
       'Maintain bidirectional links between related notes.'],
      '04-search', 'Search with Open, Link, Import and Preview'),
     ('05 AI Folder Organization', '05. AI Folder Organization',
      ['Automatically classify notes into relevant folders using AI.', 'Preview and confirm the suggested folder structure.'],
-     '05-organize', 'Suggested folders before moving'),
+     None, None),
 ]
 
 markers = json.loads((RUN / 'markers.json').read_text(encoding='utf8'))
@@ -50,6 +50,12 @@ def frame_at(t: float) -> Path:
 
 (OUT / 'images').mkdir(parents=True, exist_ok=True)
 for file, heading, lines, image, alt in DOCS:
+    if image is None:
+        # 글만 — 포스터 사진은 화면 예시 2장(02·04)과 아키텍처 그림뿐
+        body = [f'#### {heading}', '', *[f'- {line}' for line in lines], '']
+        (OUT / f'{file}.md').write_text('\n'.join(body), encoding='utf8')
+        print(f'{file}.md  (text only)')
+        continue
     if image not in shots:
         raise SystemExit(f'no shot "{image}" in {RUN / "markers.json"} — record the whole demo first')
     marker = shots[image]

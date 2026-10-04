@@ -54,35 +54,31 @@ const POSTER_TEMPLATE = [
   '',
   '**Team members | Department**',
   '',
-  '### Description (One Sentence)',
+  '### Description',
   '',
   '### 1. Key Features',
   '',
   '### 2. Tools & Architecture',
   '',
-  '### 3. Platform',
+  '### 3. GenAI Development Tool',
+  '',
+  '### 4. Platform',
 ].join('\n');
 
-// 앱 아이디어 한 덩어리 — Organize가 제목 없이 한 문장 설명으로 다듬는다 (실제 AI 5번 중 5번)
+// README Description을 대충 적은 한 덩어리 — Organize가 다듬어진 한 문장으로 바꾼다 (실제 AI 10번 중 10번)
 const KICKOFF =
-  'so the app we want: a desktop note app where you select text and ai refines it or draws it, ' +
-  'and you reuse old notes right there, without opening an ai site and copying and pasting back';
+  'Blink = gets rid of the hassle of jumping between ai tools, copy pasting text & digging thru old notes... ' +
+  'by putting everything in one seamless writing experience';
 
+// README Tools & Architecture를 메모로 — 층 이름과 기술별 역할이 그대로 그림에 들어간다
+// (openai-provider.live.test.ts의 README_ARCHITECTURE_MEMO와 같다. 실제 AI로 바로 시각화 10번 중 10번)
 const ARCHITECTURE_MEMO =
-  'ok architecture for the poster. the screen is react 19.3 with tiptap 3.31 as the editor, it can\'t touch files itself, ' +
-  'it goes through preload / ipc to main. main is electron 44.4 on node.js 24, all written in typescript 6.0. ' +
-  'main is what talks to the resources: notes stay as plain markdown files, sqlite 3.53 keeps the search and link index ' +
-  '(we use better-sqlite3 and drizzle orm to reach it), and openai sdk 7 calls both openai and kimi.';
-
-const TECH_STACK = [
-  '- Claude Code (Claude Opus 5.5)',
-  '- TypeScript 6.0',
-  '- Electron 44.4 / React 19.3 / Tiptap 3.31',
-  '- SQLite 3.53 / Drizzle ORM 0.45',
-  '- Node.js 24 / pnpm 11',
-  '- electron-vite / Vitest / Playwright / electron-builder',
-  '- OpenAI SDK (OpenAI & Kimi)',
-].join('\n');
+  'ok architecture for the poster. ' +
+  "the renderer process is react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
+  'so it goes through preload / ipc to the main process. the main process is electron 44.4 for the desktop application ' +
+  'and node.js 24 for the application logic and file i/o. ' +
+  'main talks to the connected resources: sqlite 3.53 for the search and link index, better-sqlite3 / drizzle orm for database access, ' +
+  'openai sdk 7 for llm api communication, and openai / kimi for the ai processing.';
 
 const INBOX = {
   'What is a container': 'A process isolated with its own filesystem, network and limits, sharing the host kernel.',
@@ -110,7 +106,6 @@ const files = {
   'Phase 1/Poster template.md': POSTER_TEMPLATE,
   'Phase 1/Kickoff meeting.md': KICKOFF,
   'Phase 1/Architecture memo.md': ARCHITECTURE_MEMO,
-  'Phase 1/Tech stack.md': TECH_STACK,
   'Phase 1/Scratch.md': 'test',
   ...Object.fromEntries(Object.entries(INBOX).map(([title, body]) => [`Inbox/${title}.md`, body])),
 };
@@ -541,8 +536,6 @@ try {
       await click(page.getByRole('menuitem', { name: 'Organize' }));
       await dialog.waitFor();
       await waitAI(skip, (o) => preview.waitFor(o), { showMs: 900 });
-      await pause(400);
-      await shot('05-organize', dialog);
     });
     await line('S07-3', 5, async () => {
       const box = await preview.boundingBox();
@@ -558,8 +551,6 @@ try {
         const name = await closed.first().getAttribute('aria-label');
         await click(closed.first().getByRole('button', { name, exact: true }), { after: 350 });
       }
-      await pause(300);
-      await shot('01-notes', { x: 0, y: 0, width: 1000, height: 560 }); // 사이드바 폴더 + 열린 노트
     });
   });
 
@@ -588,11 +579,11 @@ try {
   });
 
   await scene('S09', 'Organize — Description', async () => {
-    const first = 'so the app we want';
-    const last = 'copying and pasting back';
+    const first = 'Blink = gets rid of';
+    const last = 'one seamless writing experience';
     await line('S09-1', 3, async () => {
       await openNote('Phase 1 Poster');
-      await newLineAfter('Description (One Sentence)');
+      await newLineAfter('Description');
     });
     await line('S09-2', 3.5, async () => {
       await searchAndImport('kickoff', 'Kickoff meeting');
@@ -612,8 +603,8 @@ try {
     });
     await line('S09-4', 4, async (skip) => {
       await waitAI(skip, (o) => pulse().waitFor({ state: 'detached', ...o }), { showMs: 0 });
-      await scrollToText('Description (One Sentence)');
-      const box = await body.getByText('Description (One Sentence)').boundingBox();
+      await scrollToText('Description');
+      const box = await body.getByText('Description').boundingBox();
       await moveTo(box.x + 140, box.y + box.height + 30); // 바뀐 설명을 가리킨다
       await pause(500);
     });
@@ -664,7 +655,7 @@ try {
 
   await scene('S11', 'Visualize — architecture', async () => {
     const first = 'ok architecture for the poster';
-    const last = 'calls both openai and kimi.';
+    const last = 'for the ai processing.';
     const figure = body.getByRole('figure').first();
     await line('S11-1', 1.5, async () => {
       await newLineAfter('2. Tools & Architecture');
@@ -686,7 +677,6 @@ try {
       await figure.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'smooth' }));
       await pause(500);
       await hover(figure.locator('[data-group]').first(), 400);
-      await shot('03-visualize', figure, { belowChrome: true });
     });
     await line('S11-4', 2.5, async () => {
       const card = figure.locator('[data-card]').last(); // 맨 아래 층 둘째 줄 (OpenAI SDK 7)
@@ -707,38 +697,35 @@ try {
     });
   });
 
-  await scene('S12', 'Tools & architecture', async () => {
+  await scene('S12', 'Tools, GenAI tool & platform', async () => {
+    const figure = body.getByRole('figure').first();
     await line('S12-1', 7, async (skip) => {
+      // 그림이 생겼으니 메모 원문은 지운다 — 포스터에는 그림만 남긴다
       await fast(2, skip, async () => {
-        // 그림이 생겼으니 메모 원문은 지운다 — 포스터에는 그림만 남긴다
-        await dragSelect('ok architecture for the poster', 'calls both openai and kimi.');
-        await key('Backspace', 300);
-        // 그림 아래, 3. Platform 위에 새 줄 → 도구 목록
-        await clickAfter('3. Platform');
-        await key('Home', 100);
-        await page.evaluate((sel) => {
-          const { editor } = document.querySelector(sel);
-          const { from } = editor.state.selection;
-          editor.chain().focus().insertContentAt(from - 1, { type: 'paragraph' }).setTextSelection(from).run();
-        }, BODY);
-        await type('**Development Tools**', 30);
-        await key('Enter', 200);
-        await searchAndImport('typescript', 'Tech stack');
-        await newLineAfter('3. Platform');
-        await type('Windows 11 (x64) · Desktop application (Electron)', 16);
+        await dragSelect('ok architecture for the poster', 'for the ai processing.');
+        await key('Backspace', 200);
+        await key('Backspace', 300); // 남은 빈 줄도 — 그림이 섹션 제목 바로 아래에 오게
       });
-      await scrollToText('Development Tools');
-      await hover(body.getByText('Development Tools'), 1500);
-    });
-    await line('S12-2', 2.5, async () => {
-      await scrollRoot(0);
-      await pause(500);
-      const toc = page.getByRole('navigation', { name: 'Table of contents' });
-      for (const name of [/Description/, /Key Features/, /Tools & Architecture/, /Platform/]) {
-        await hover(toc.getByRole('link', { name }), 60);
-        await press();
-        await pause(200);
+      // 대사가 기술을 말하는 동안 층을 위에서 아래로 짚는다 (역할·로고가 보이게)
+      await figure.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+      await pause(600);
+      for (const group of await figure.locator('[data-group]').all()) {
+        const box = await group.boundingBox();
+        if (!box) continue;
+        await moveTo(box.x + box.width * 0.3, box.y + box.height / 2, { speed: 10 });
+        await moveTo(box.x + box.width * 0.7, box.y + box.height / 2, { speed: 6 });
       }
+    });
+    await line('S12-2', 2.5, async (skip) => {
+      await fast(2, skip, async () => {
+        await newLineAfter('3. GenAI Development Tool');
+        await type('- Claude Code (Claude Opus 5.5)', 14);
+        await newLineAfter('4. Platform');
+        await type('- Desktop Application (Electron)', 14);
+        await key('Enter', 100);
+        await type('Windows 11', 14);
+      });
+      await hover(body.getByText('Windows 11', { exact: true }), 400);
     });
   });
 

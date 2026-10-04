@@ -74,6 +74,60 @@ describe('VisualizeExecutor', () => {
     });
   });
 
+  it('turns the model output into an architecture spec with groups, icons and labelled lines', async () => {
+    const generateStructured = vi.fn().mockResolvedValue({
+      version: 1,
+      type: 'architecture',
+      title: 'Serverless web app',
+      groups: [{ id: 'app', title: 'Web Application', parent: '' }],
+      nodes: [
+        { id: 'u', title: 'Users', description: '', group: '', icon: 'user' },
+        { id: 'gw', title: 'API Gateway', description: '', group: 'app', icon: 'gateway' },
+        { id: 'fn', title: 'Cloud Functions', description: '', group: 'app', icon: 'function' },
+      ],
+      edges: [
+        { from: 'u', to: 'gw', label: 'Get/Post', bidirectional: false },
+        { from: 'gw', to: 'fn', label: '', bidirectional: false },
+      ],
+    });
+    const result = await new VisualizeExecutor().execute(InputSnapshot.of('x'), fakeProvider({ generateStructured }), signal);
+    expect(result).toEqual({
+      kind: 'INFOGRAPHIC',
+      spec: {
+        version: 1,
+        type: 'architecture',
+        title: 'Serverless web app',
+        groups: [{ id: 'app', title: 'Web Application' }],
+        nodes: [
+          { id: 'u', title: 'Users', icon: 'user' },
+          { id: 'gw', title: 'API Gateway', group: 'app', icon: 'gateway' },
+          { id: 'fn', title: 'Cloud Functions', group: 'app', icon: 'function' },
+        ],
+        edges: [['u', 'gw', { label: 'Get/Post' }], ['gw', 'fn']],
+      },
+    });
+  });
+
+  it('shortens a slightly long line label or group title instead of failing the whole diagram', async () => {
+    const generateStructured = vi.fn().mockResolvedValue({
+      version: 1,
+      type: 'architecture',
+      title: 'Web service',
+      groups: [{ id: 'vpc', title: '  Production Virtual Private Cloud A  ', parent: '' }],
+      nodes: [
+        { id: 'u', title: 'Users', description: '', group: '', icon: 'user' },
+        { id: 'lb', title: 'Load Balancer', description: '', group: 'vpc', icon: 'load-balancer' },
+      ],
+      edges: [{ from: 'u', to: 'lb', label: ' HTTPS requests over port 443 ', bidirectional: true }],
+    });
+    const result = await new VisualizeExecutor().execute(InputSnapshot.of('x'), fakeProvider({ generateStructured }), signal);
+    const spec = (result as { spec: { groups: { title: string }[]; edges: [string, string, { label: string; bidirectional?: true }][] } }).spec;
+    expect(spec.groups[0]!.title).toBe('Production Virtual Private Cl…');
+    expect(spec.groups[0]!.title).toHaveLength(30);
+    expect(spec.edges[0]).toEqual(['u', 'lb', { label: 'HTTPS requests over por…', bidirectional: true }]);
+    expect(spec.edges[0]![2].label).toHaveLength(24);
+  });
+
   it('rejects specs that break the structure rules', async () => {
     const broken = { ...llmSpec, edges: [{ from: '1', to: '9' }] };
     await expect(

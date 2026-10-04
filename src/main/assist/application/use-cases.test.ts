@@ -125,6 +125,8 @@ describe('assist use cases', () => {
       expect(user).toBe('회의했고 api 얘기함');
       expect(system).toContain('Do not add facts');
       expect(system).toContain('same language as the selected text');
+      expect(system).toContain('## Components');
+      expect(system).toContain('## Flows');
     });
   });
 });

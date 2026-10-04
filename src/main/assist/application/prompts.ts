@@ -16,7 +16,8 @@ export const ORGANIZE_PROMPT = [
   '2. Keep the original meaning and judgement. Leave vague parts vague.',
   `3. ${LANGUAGE_RULE}`,
   '4. When it fits, structure it with Markdown headings (##, ###) and lists. A short text may become a single polished paragraph.',
-  '5. Output only the organized Markdown: no explanations, greetings or code fences.',
+  '5. If the text describes how a system is built (servers, databases, networks, services and how they talk), organize it into two sections: "## Components" — a nested list where nesting means "inside" (e.g. VPC > zone > subnet > server), and "## Flows" — one line per connection as "A → B: what travels" (use ↔ for two-way, leave out ": …" when the text does not say). Use the same section words in the language of the text. Do not invent components, groups, directions or protocols the text does not mention. Any other text keeps the usual structure.',
+  '6. Output only the organized Markdown: no explanations, greetings or code fences.',
 ].join('\n');
 
 export const EXPAND_PROMPT = [
@@ -36,9 +37,11 @@ export const VISUALIZE_PROMPT = [
   '- hierarchy: a concept split into parts or categories. One root, and every node has exactly one parent.',
   '- comparison: comparing 2 or 3 subjects (A vs B). The 2–3 subject nodes are roots, and each subject links only to its own feature nodes (no edges below features, at least one feature per subject). Giving each subject the same aspects in the same order lines the rows up.',
   '- mindmap: ideas branching out from one central topic. Center → topic → detail, at most two levels.',
+  '- architecture: how a system is built — components (users, servers, databases, load balancers, functions…) and how requests or data flow between them, often inside nested boxes such as a VPC, zone or subnet. Lines may branch and merge freely.',
   'Rules:',
   '1. Pick only the key ideas as 2–16 nodes. Node titles are short (40 characters or fewer); a description is one sentence (120 characters or fewer) or an empty string.',
   '2. Do not invent facts that are not in the text.',
   `3. The title (60 characters or fewer) and every node title and description follow this rule: ${LANGUAGE_RULE}`,
   '4. Ids are short and unique like "1", "2"; edges are {from, to} pointing at node ids.',
+  '5. For architecture: put every component in the innermost group it belongs to, pick the closest icon, label a line only with what travels on it (protocol or action), and mark two-way flows as bidirectional. For other types leave groups empty, group empty, icon none, label empty and bidirectional false.',
 ].join('\n');

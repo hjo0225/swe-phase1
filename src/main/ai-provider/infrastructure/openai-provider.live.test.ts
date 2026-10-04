@@ -8,6 +8,7 @@ import { VisualizeExecutor } from '../../assist/application/executors/visualize-
 import { InputSnapshot } from '../../assist/domain/input-snapshot';
 import { openNoteVault } from '../../note/infrastructure/vault/open-note-vault';
 import { OrganizeService } from '../../organize/application/organize-service';
+import type { InfographicSpec } from '../../../shared/visualization/infographic-spec';
 import { OPENAI_MODELS, OpenAIProvider } from './openai-provider';
 
 /**
@@ -58,6 +59,46 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     const spec = (result as { spec: { type: string; nodes: unknown[] } }).spec;
     console.log(`[VISUALIZE ${type}] type=${spec.type}, nodes=${spec.nodes.length}`);
     expect(spec.type).toBe(type);
+  }, TIMEOUT);
+
+  it('draws a system description as an architecture with groups and icons', async () => {
+    const result = await new VisualizeExecutor().execute(
+      InputSnapshot.of(
+        'Users reach a load balancer over HTTPS. Inside VPC A there are two zones; each zone has a web server subnet and a WAS subnet. ' +
+          'Web servers call the WAS servers, and both zones share a multi-zone Cloud DB (master in zone A, standby in zone B).',
+      ),
+      llm(),
+      signal(),
+    );
+    const spec = (result as { spec: InfographicSpec }).spec;
+    console.log('[VISUALIZE architecture] ' + JSON.stringify(spec));
+    expect(spec.type).toBe('architecture');
+    expect(spec.groups?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(spec.nodes.filter((n) => n.icon).length).toBeGreaterThanOrEqual(4);
+  }, TIMEOUT);
+
+  it('organizes a messy architecture memo into components and flows, which then visualize as an architecture', async () => {
+    const memo =
+      'users hit the load balancer over https, lb sends to web servers in zone a and zone b (both inside vpc a), ' +
+      'web servers call was servers, was talks to the cloud db, master in zone a and slave in zone b';
+    const organized = (await new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal())) as { markdown: string };
+    console.log('[ORGANIZE architecture]\n' + organized.markdown);
+    expect(organized.markdown).toMatch(/^##\s+Components/m);
+    expect(organized.markdown).toMatch(/^##\s+Flows/m);
+    expect(organized.markdown).toMatch(/→|↔/);
+    const visual = (await new VisualizeExecutor().execute(InputSnapshot.of(organized.markdown), llm(), signal())) as { spec: InfographicSpec };
+    console.log('[VISUALIZE organized architecture] ' + JSON.stringify(visual.spec));
+    expect(visual.spec.type).toBe('architecture');
+    expect(visual.spec.groups?.length ?? 0).toBeGreaterThanOrEqual(2);
+  }, TIMEOUT * 2);
+
+  it('keeps organizing an ordinary meeting memo without components and flows', async () => {
+    const organized = (await new OrganizeExecutor().execute(
+      InputSnapshot.of('talked about which ai api to use, probably electron for the app, keep notes local first, prototype by next friday'),
+      llm(),
+      signal(),
+    )) as { markdown: string };
+    expect(organized.markdown).not.toMatch(/##\s+(Components|Flows)/);
   }, TIMEOUT);
 
   describe('answers in the language of the selected text (English input → English output)', () => {

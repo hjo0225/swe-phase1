@@ -57,9 +57,9 @@ interface VaultTree { folders: string[]; notes: NoteSummary[] }   // 폴더 경�
 ### 한 장짜리 A4 PDF 내보내기 (`note:export-pdf`)
 
 - Renderer는 노트 ID만 보낸다. Main이 Save Dialog(기본: 다운로드 폴더, `<제목>.pdf`, PDF 필터)를 띄우고 **고른 경로에만** 쓴다. 취소는 오류가 아니라 `{ saved: false }`. Renderer는 보내기 전에 대기 중인 자동 저장을 끝낸다 — Main은 파일에서 노트를 다시 읽어 그린다.
-- Main은 숨은 창(메인 창과 같은 preload·contextIsolation·sandbox, 같은 이동 차단)에 앱 자신의 인쇄 화면 `#/print/<noteId>`를 열고, 준비 신호를 기다려 `printToPDF`로 만든 뒤 창을 없앤다(실패해도). 인쇄 화면은 제목 + 읽기 전용 본문만 그린다(사이드바·머리줄·도구막대 없음).
+- Main은 숨은 창(메인 창과 같은 preload·contextIsolation·sandbox, 같은 이동 차단)에 앱 자신의 인쇄 화면 `#/print/<noteId>`를 열고, 준비 신호를 기다려 `printToPDF`로 만든 뒤 창을 없앤다(실패해도). 인쇄 화면은 제목 + 읽기 전용 본문만 그린다(사이드바·머리줄·도구막대 없음). 본문이 이미 맨 위 제목(`# …` 또는 Setext `===`)으로 시작하면 노트 제목은 찍지 않는다(제목 중복 방지).
 - **준비 신호 약속** (`src/shared/print/print-page.ts`): 인쇄 화면은 노트·편집기가 준비되고, 모든 `<img>`가 decode되고(깨진 그림은 건너뜀), `document.fonts.ready`이고, `data-print-busy` 속성이 붙은 요소가 하나도 없을 때 `<html data-print-ready="true">`를 단다(노트를 못 읽으면 `"error"`). **비동기로 배치하는 요소(예: 나중에 레이아웃을 계산하는 인포그래픽)는 배치하는 동안 자기 요소에 `data-print-busy`를 달고, 끝나면 지운다.** 인쇄 화면은 최대 15초 기다린 뒤 그대로 신호를 주고, Main은 최대 30초 기다린다(시간 초과·`"error"` → `EXPORT_RENDER_FAILED`).
-- **한 장에 맞추기** (`src/shared/print/page-fit.ts`): A4 세로, 여백 12 mm. 인쇄 화면은 인쇄 영역 폭(≈703 CSS px)으로 그리고 Main이 `[data-print-root]` 높이 H를 잰다. H ≤ 인쇄 높이(≈1032 px) × 0.98이면 `scale` 1, 넘치면 `0.98 × 인쇄 높이 / H`로 고르게 줄인다(가로는 가운데). Chromium의 하한 0.1 아래로는 줄이지 않는다 — 그래도 넘치는 아주 긴 노트(약 10장 분량 이상)는 첫 장만 남고 `clipped: true`, Renderer가 잘렸다고 알린다. 늘 `pageRanges: '1'`이므로 결과는 항상 한 장이다.
+- **한 장에 맞추기** (`src/shared/print/page-fit.ts`): A4 세로, 여백 12 mm. 인쇄 화면은 인쇄 영역 폭(≈703 CSS px)으로 그리고 Main이 `[data-print-root]` 높이 H를 잰다. H ≤ 인쇄 높이(≈1032 px) × 0.98이면 `scale` 1. 넘치면 **종이 폭을 채우도록** 폭 W = 703 / s로 넓게 다시 배치해(줄이 길어져 높이가 준다) 높이 H(W)를 재고, `H(W) × s ≤ 0.98 × 인쇄 높이`인 가장 큰 s를 이분 탐색으로 0.01 안까지 찾는다(측정 약 9번, 고른 값은 늘 실제로 잰 값). 그 폭으로 배치한 채 s로 인쇄하면 W × s = 인쇄 폭이다. 그림·인포그래픽은 넓힌 폭을 따라 커지지 않게 인쇄 폭(703 px)을 넘지 않는다 — 커지면 글자만 더 작아진다. 넓혀도 들어가지 않으면(0.1에서도 넘침) 예전처럼 인쇄 폭에서 `0.98 × 인쇄 높이 / H`로 고르게 줄이고, 고르게 줄이는 쪽 배율이 더 크면 그쪽을 쓴다. Chromium의 하한 0.1 아래로는 줄이지 않는다 — 그래도 넘치는 아주 긴 노트는 첫 장만 남고 `clipped: true`, Renderer가 잘렸다고 알린다. 늘 `pageRanges: '1'`이므로 결과는 항상 한 장이다.
 - E2E: 개발 빌드에서 `BLINK_E2E_PDF_PATH`가 있으면 Dialog 없이 그 경로에 쓴다 (PNG의 `BLINK_E2E_SAVE_PATH`와 같은 방식).
 
 ## 폴더

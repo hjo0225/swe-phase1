@@ -49,15 +49,33 @@ describe('print route', () => {
     window.location.hash = '';
   });
 
-  it('renders only the note as a read-only document — title, body, image and infographic — and signals when it is ready', async () => {
-    const note = await seedNote('수업 포스터', POSTER);
+  it('prints the note title above a body that does not start with a top-level heading', async () => {
+    const note = await seedNote('수업 포스터', `이 노트는 제목 없이 시작한다.\n\n${POSTER}`);
     window.location.hash = `#/print/${note.id}`;
     render(<App />);
 
     expect(await screen.findByRole('heading', { level: 1, name: '수업 포스터' })).toBeInTheDocument();
+    expect(await screen.findByText('이 노트는 제목 없이 시작한다.')).toBeInTheDocument();
+  });
+
+  it('does not print the title twice when the body already starts with a top-level heading', async () => {
+    const note = await seedNote('수업 포스터', `\n${POSTER}`);
+    window.location.hash = `#/print/${note.id}`;
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: '연구 개요' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '수업 포스터' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('renders only the note as a read-only document — body, image and infographic — and signals when it is ready', async () => {
+    const note = await seedNote('수업 포스터', POSTER);
+    window.location.hash = `#/print/${note.id}`;
+    render(<App />);
+
     const body = await screen.findByRole('textbox', { name: 'Note body' });
     expect(body).toHaveAttribute('contenteditable', 'false');
-    expect(screen.getByRole('heading', { name: '연구 개요' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '연구 개요' })).toBeInTheDocument();
     expect(screen.getByText('둘째 항목')).toBeInTheDocument();
     const img = screen.getByRole('img', { name: '구조도' });
     expect(img.getAttribute('src')).toMatch(/^blink-vault:\/\/image\//);

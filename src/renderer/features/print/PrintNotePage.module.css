@@ -36,6 +36,20 @@
 .sheet :global(figure.glass) {
   box-shadow: none;
   backdrop-filter: none;
+  /* 흰 종이 위에서 반투명 유리가 사라지지 않게 옅은 파랑으로 */
+  background: var(--blue-50);
+  border-color: var(--blue-100);
+}
+
+/*
+ * 내용이 길면 Main이 인쇄 화면을 더 넓게 다시 배치한 뒤 줄여 인쇄한다(글이 종이 폭을 채운다).
+ * 그림·인포그래픽은 1:1 종이에서의 크기(인쇄 폭)를 넘지 않게 둔다 — 넓힌 폭을 따라 커지면 글자가 더 작아진다.
+ */
+.sheet :global(.ProseMirror img),
+.sheet :global(figure svg) {
+  max-width: min(100%, var(--print-media-width, 100%));
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 코드 블록은 가로 스크롤 대신 줄을 바꾼다 — 종이에서는 스크롤할 수 없다 */

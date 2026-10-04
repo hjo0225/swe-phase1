@@ -2,6 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { join, resolve } from 'node:path';
 import type { Page } from 'playwright-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { RawBlinkApi } from '../src/shared/ipc/blink-api';
 import { createUserDataDir, launchApp } from './support/app';
 import { pdfMediaBox, pdfPageCount } from './support/pdf';
 
@@ -99,6 +100,17 @@ describe('Export a note as a one-page A4 PDF', () => {
         .toBe(true);
       expect(pdfPageCount(readFileSync(pdfPath))).toBe(1);
       expect(await page.getByText(/bottom was cut off/).count()).toBe(0);
+      // 줄였지만 잘리지 않았다 (Main이 넓게 다시 배치해 종이 폭을 채우는 배율)
+      const noteId = await page.evaluate(() => location.hash.split('/').pop()!);
+      const result = await page.evaluate(
+        (id) => (window as unknown as { blink: RawBlinkApi }).blink.notes.exportPdf({ id }),
+        noteId,
+      );
+      expect(result).toMatchObject({ ok: true, data: { saved: true, clipped: false } });
+      const { scale } = (result as { data: { scale: number } }).data;
+      expect(scale).toBeGreaterThan(0.1);
+      expect(scale).toBeLessThan(1);
+      expect(pdfPageCount(readFileSync(pdfPath))).toBe(1);
       if (process.env.BLINK_E2E_SHOTS) copyFileSync(pdfPath, `${process.env.BLINK_E2E_SHOTS}/long-poster.pdf`);
     } finally {
       await app.close();

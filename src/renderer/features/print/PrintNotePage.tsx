@@ -8,6 +8,7 @@ import { NoteEditor } from '../editor/NoteEditor';
 import { useNoteDetail } from '../notes/api/note-queries';
 import styles from './PrintNotePage.module.css';
 import { waitForPrintReady } from './print-readiness';
+import { startsWithTopLevelHeading } from './print-title';
 
 const html = () => document.documentElement;
 const signal = (state: PrintReadyState) => html().setAttribute(PRINT_READY_ATTRIBUTE, state);
@@ -60,10 +61,11 @@ function PrintSheet({ note }: { note: NoteDetail }) {
       ref={rootRef}
       {...{ [PRINT_ROOT_ATTRIBUTE]: '' }}
       className={styles.sheet}
-      // 인쇄 영역과 같은 폭으로 그린다 — 배율 1에서 화면과 PDF의 줄바꿈이 같다
-      style={{ width: A4_PRINT.printableWidthPx }}
+      // 인쇄 영역과 같은 폭으로 그린다 — 배율 1에서 화면과 PDF의 줄바꿈이 같다. 길면 Main이 더 넓게 다시 배치한다
+      // 그림·인포그래픽은 넓게 다시 배치해도 이 폭을 넘지 않는다 (PrintNotePage.module.css)
+      style={{ width: A4_PRINT.printableWidthPx, ['--print-media-width' as string]: `${A4_PRINT.printableWidthPx}px` }}
     >
-      <h1 className={styles.title}>{note.title}</h1>
+      {!startsWithTopLevelHeading(note.content) && <h1 className={styles.title}>{note.title}</h1>}
       <NoteEditor noteId={note.id} initialMarkdown={note.content} editable={false} onReady={onReady} onChange={() => undefined} />
     </main>
   );

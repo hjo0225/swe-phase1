@@ -325,6 +325,20 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(organized.markdown).not.toMatch(/##\s+(Components|Flows)/);
   }, TIMEOUT);
 
+  it('keeps a product idea memo (a workflow and an app idea, no parts) out of components and flows, five runs in a row', async () => {
+    // 데모 S09: 포스터 Description을 쓸 킥오프 메모. 앱이 하는 일을 말하지만 시스템의 부품과 연결을 말하지 않는다
+    const memo = [
+      'using ai while writing notes = open an ai site, copy, write a prompt, wait, copy back, paste.',
+      'breaks your thinking every time. old notes are buried in files too.',
+      'idea: desktop note app where you select text and ai refines it, draws it, and you can reuse old notes right there',
+    ].join('\n\n');
+    const outputs = await Promise.all(
+      Array.from({ length: 5 }, () => new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal()) as Promise<{ markdown: string }>),
+    );
+    outputs.forEach((o, i) => console.log(`[ORGANIZE idea run ${i + 1}]\n${o.markdown}`));
+    expect(outputs.filter((o) => /##\s+(Components|Flows)/.test(o.markdown))).toHaveLength(0);
+  }, TIMEOUT * 2);
+
   describe('answers in the language of the selected text (English input → English output)', () => {
     const HANGUL = /[가-힣]/;
     it('organize', async () => {

@@ -16,7 +16,8 @@ export const ORGANIZE_PROMPT = [
   '2. Keep the original meaning and judgement. Leave vague parts vague.',
   `3. ${LANGUAGE_RULE}`,
   '4. When it fits, structure it with Markdown headings (##, ###) and lists. A short text may become a single polished paragraph.',
-  '5. If the text describes how a system is built (servers, databases, networks, services and how they talk), organize it into two sections. Any other text keeps the usual structure.',
+  '5. Only if the text describes how a software system is built — its technical parts (servers, databases, processes, services, networks) and how they talk — organize it into two sections. ' +
+    'A product idea, the steps a person takes, a problem, a plan or meeting notes are not a system description, even when they mention an app, AI, a site or files: they keep the usual structure of rule 4.',
   '   "## Components" — a nested list where a child item is inside its parent (e.g. VPC > zone > subnet > server):',
   '   - Only containers have child items: something that merely holds others (an app, a network, a zone). A component named in Flows never has child items — when the text says something runs in it, list both at the same level (e.g. "a queue runs in the server" → "- Server" and "- Queue" next to each other, with "Server → Queue" in Flows).',
   '   - Put a component inside a container only when the text says it is there; otherwise keep it at the top level (or directly under the one container the text puts it in). Never copy a component into several containers.',

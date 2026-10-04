@@ -374,10 +374,10 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   }, TIMEOUT * 2);
 
   it('turns a few sentences about one idea into one polished paragraph without a heading, at least four runs in five', async () => {
-    // 데모 S09의 킥오프 메모 — 포스터 Description(한 문장) 자리에 들어간다
+    // 데모 S09의 킥오프 메모 — 포스터 Description(README 한 문장) 자리에 들어간다
     const memo =
-      'so the app we want: a desktop note app where you select text and ai refines it or draws it, ' +
-      'and you reuse old notes right there, without opening an ai site and copying and pasting back';
+      'Blink = gets rid of the hassle of jumping between ai tools, copy pasting text & digging thru old notes... ' +
+      'by putting everything in one seamless writing experience';
     const outputs = await Promise.all(
       Array.from({ length: 5 }, () => new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal()) as Promise<{ markdown: string }>),
     );
@@ -385,6 +385,8 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
 ${o.markdown}`));
     // 실제로 약 93% (30번 중 28번). 데모는 리허설에서 고른 회차를 쓴다
     expect(outputs.filter((o) => /^\s*(#|[-*] |\d+\. )/m.test(o.markdown)).length).toBeLessThanOrEqual(1);
+    // 그대로 돌려주지 않고 다듬는다 (대문자로 시작, 줄임말 풀기)
+    expect(outputs.filter((o) => !/^[A-Z]/.test(o.markdown.trim()) || /thru|&/.test(o.markdown))).toHaveLength(0);
   }, TIMEOUT * 2);
 
   describe('answers in the language of the selected text (English input → English output)', () => {

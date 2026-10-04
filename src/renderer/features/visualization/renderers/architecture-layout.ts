@@ -1,7 +1,7 @@
 import type { ELK, ElkExtendedEdge, ElkNode, ElkPoint } from 'elkjs/lib/elk-api';
 import type { InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { infographicTheme } from '../theme/infographic-theme';
-import { widthOf, wrapText, type EdgeLabel, type LayoutEdge, type LayoutGroup, type LayoutNode } from './layout';
+import { widthOf, wrapText, type EdgeLabel, type InfographicLayout, type LayoutEdge, type LayoutGroup, type LayoutNode } from './layout';
 
 const t = infographicTheme;
 const a = infographicTheme.architecture;
@@ -132,16 +132,105 @@ export async function layoutArchitectureBase(spec: InfographicSpec): Promise<Arc
     };
   });
 
-  // 캔버스는 카드·그룹·선 라벨을 모두 품는다
-  const boxes = [...nodes, ...layoutGroups, ...layoutEdges.flatMap((e) => (e.label ? [e.label] : []))];
-  const titleWidth = t.spacing.margin * 2 + widthOf(spec.title) * t.title.size;
+  return { title: spec.title, nodes, groups: layoutGroups, edges: layoutEdges, ...canvasSize(spec.title, nodes, layoutGroups, layoutEdges) };
+}
+
+/** 캔버스는 카드·그룹·선 라벨을 모두 여백을 두고 품고, 제목이 들어갈 만큼은 넓다 */
+function canvasSize(title: string, nodes: LayoutNode[], groups: LayoutGroup[], edges: LayoutEdge[]): { width: number; height: number } {
+  const boxes = [...nodes, ...groups, ...edges.flatMap((e) => (e.label ? [e.label] : []))];
+  const titleWidth = t.spacing.margin * 2 + widthOf(title) * t.title.size;
   return {
-    title: spec.title,
-    nodes,
-    groups: layoutGroups,
-    edges: layoutEdges,
     width: Math.max(titleWidth, ...boxes.map((b) => b.x + b.width + t.spacing.margin)),
     height: Math.max(...boxes.map((b) => b.y + b.height + t.spacing.margin)),
+  };
+}
+
+/**
+ * ELK 기본 배치 위에 옮긴 카드(spec.positions)를 덮어쓴다.
+ * 옮긴 카드에 닿는 선만 직각으로 다시 잇고, 옮긴 카드를 (하위 그룹 포함) 품은 그룹만 내용에 맞게 다시 잡는다.
+ * 옮긴 것이 없으면 ELK 결과를 그대로 쓴다.
+ */
+export function placeArchitecture(base: ArchitectureBase, spec: InfographicSpec): InfographicLayout {
+  const positions = spec.positions ?? {};
+  const movedIds = new Set(Object.keys(positions).filter((id) => base.nodes.some((n) => n.id === id)));
+  if (movedIds.size === 0) return { ...base, panels: [] };
+
+  const parentOf = new Map((spec.groups ?? []).map((g) => [g.id, g.parent]));
+  const groupOfNode = new Map(spec.nodes.map((n) => [n.id, n.group]));
+  /** 카드를 품은 그룹들 (안쪽부터) */
+  const ancestorsOf = (id: string): string[] => {
+    const chain: string[] = [];
+    for (let g = groupOfNode.get(id); g; g = parentOf.get(g)) chain.push(g);
+    return chain;
+  };
+
+  // 다른 유형과 같이 제목 영역·왼쪽 여백 밖으로는 못 나간다. 그룹 안 카드는 품은 그룹의 이름 자리·여백까지 비켜야
+  // 다시 맞춘 그룹 상자도 제목 영역을 덮지 않는다.
+  const nodes = base.nodes.map((n) => {
+    if (!movedIds.has(n.id)) return n;
+    const depth = ancestorsOf(n.id).length;
+    return {
+      ...n,
+      x: Math.max(t.spacing.margin + depth * a.group.padding, positions[n.id]!.x),
+      y: Math.max(t.spacing.header + depth * a.group.header, positions[n.id]!.y),
+    };
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+
+  const touched = new Set([...movedIds].flatMap(ancestorsOf));
+  // 깊은 그룹부터 다시 잡아야 바깥 그룹이 새로 잡은 안쪽 상자를 감싼다
+  const groups = [...base.groups];
+  for (const group of [...base.groups].sort((p, q) => q.depth - p.depth)) {
+    if (!touched.has(group.id)) continue;
+    const members = [
+      ...nodes.filter((n) => groupOfNode.get(n.id) === group.id),
+      ...groups.filter((g) => parentOf.get(g.id) === group.id),
+    ];
+    const left = Math.min(...members.map((m) => m.x)) - a.group.padding;
+    const top = Math.min(...members.map((m) => m.y)) - a.group.header;
+    const right = Math.max(...members.map((m) => m.x + m.width)) + a.group.padding;
+    const bottom = Math.max(...members.map((m) => m.y + m.height)) + a.group.padding;
+    groups[groups.findIndex((g) => g.id === group.id)] = { ...group, x: left, y: top, width: right - left, height: bottom - top };
+  }
+
+  const edges = base.edges.map((e) =>
+    movedIds.has(e.from) || movedIds.has(e.to) ? elbow(byId.get(e.from)!, byId.get(e.to)!, e) : e,
+  );
+
+  return { title: base.title, nodes, groups, edges, panels: [], ...canvasSize(spec.title, nodes, groups, edges) };
+}
+
+const overlapX = (p: LayoutNode, q: LayoutNode) => p.x < q.x + q.width && q.x < p.x + p.width;
+
+/**
+ * 두 카드의 마주 보는 면을 잇는 직각 꺾은선. 가로로 떨어져 있으면 옆면 → 가운데 세로 선분 → 옆면,
+ * 가로로 겹치면 윗면·아랫면 → 가운데 가로 선분. 화살표·라벨은 그대로 두고 라벨은 가운데 선분의 가운데에 놓는다.
+ */
+function elbow(p: LayoutNode, q: LayoutNode, edge: LayoutEdge): LayoutEdge {
+  let corners: { x: number; y: number }[];
+  if (!overlapX(p, q)) {
+    const toRight = q.x >= p.x + p.width;
+    const x1 = toRight ? p.x + p.width : p.x;
+    const x2 = toRight ? q.x : q.x + q.width;
+    const [y1, y2] = [p.y + p.height / 2, q.y + q.height / 2];
+    const mx = (x1 + x2) / 2;
+    corners = [{ x: x1, y: y1 }, { x: mx, y: y1 }, { x: mx, y: y2 }, { x: x2, y: y2 }];
+  } else {
+    const down = q.y >= p.y;
+    const [x1, x2] = [p.x + p.width / 2, q.x + q.width / 2];
+    const y1 = down ? p.y + p.height : p.y;
+    const y2 = down ? q.y : q.y + q.height;
+    const my = (y1 + y2) / 2;
+    corners = [{ x: x1, y: y1 }, { x: x1, y: my }, { x: x2, y: my }, { x: x2, y: y2 }];
+  }
+  const mid = { x: (corners[1]!.x + corners[2]!.x) / 2, y: (corners[1]!.y + corners[2]!.y) / 2 };
+  // 두 카드가 나란하면 가운데 선분 길이가 0 — 같은 점을 빼야 화살표 방향이 흐트러지지 않는다
+  const points = corners.filter((pt, i) => i === 0 || pt.x !== corners[i - 1]!.x || pt.y !== corners[i - 1]!.y);
+  return {
+    ...edge,
+    path: points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' '),
+    end: points[points.length - 1]!,
+    ...(edge.label ? { label: { ...edge.label, x: mid.x - edge.label.width / 2, y: mid.y - edge.label.height / 2 } } : {}),
   };
 }
 

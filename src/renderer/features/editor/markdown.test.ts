@@ -60,3 +60,34 @@ describe('note markdown (D-15, D-18)', () => {
     expect(e.getMarkdown()).toBe('```ts\nconst a = 1;\n```');
   });
 });
+
+describe('note images', () => {
+  const doc = '# Feature\n\nIntro line.\n\n![Main screen](images/main%20screen.png)\n\nAfter the image.';
+
+  it('keeps images and the text around them when the note is saved', () => {
+    const e = open(doc);
+    expect(nodesOf(e, 'image')).toEqual([expect.objectContaining({ src: 'images/main%20screen.png', alt: 'Main screen' })]);
+    expect(e.getMarkdown()).toBe(doc);
+  });
+
+  it('shows vault images through blink-vault: while the markdown keeps the original path', () => {
+    editor = new Editor({
+      extensions: createEditorExtensions({ noteId: 'note-1' }),
+      content: doc,
+      contentType: 'markdown',
+    });
+    const img = editor.view.dom.querySelector('img')!;
+    expect(img.getAttribute('src')).toBe(`blink-vault://image/note-1/${encodeURIComponent('images/main%20screen.png')}`);
+    expect(img.getAttribute('alt')).toBe('Main screen');
+    expect(editor.getMarkdown()).toBe(doc);
+  });
+
+  it('leaves remote images alone (the CSP keeps them from loading)', () => {
+    editor = new Editor({
+      extensions: createEditorExtensions({ noteId: 'note-1' }),
+      content: '![x](https://example.com/x.png)',
+      contentType: 'markdown',
+    });
+    expect(editor.view.dom.querySelector('img')!.getAttribute('src')).toBe('https://example.com/x.png');
+  });
+});

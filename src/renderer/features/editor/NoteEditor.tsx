@@ -4,6 +4,8 @@ import styles from './NoteEditor.module.css';
 import { createEditorExtensions } from './extensions';
 
 interface NoteEditorProps {
+  /** 노트 속 이미지를 이 노트 위치 기준으로 찾는다 */
+  noteId: string;
   /** .md 파일 내용 (D-14) */
   initialMarkdown: string;
   onReady(editor: Editor): void;
@@ -14,12 +16,12 @@ interface NoteEditorProps {
  * 노트 하나의 Tiptap 인스턴스. 열린 노트 본문의 유일한 작성자다(D-04).
  * 노트가 바뀌면 부모가 key로 새로 만든다 — 초기값 이후 props로 내용을 다시 주입하지 않는다.
  */
-export function NoteEditor({ initialMarkdown, onReady, onChange }: NoteEditorProps) {
+export function NoteEditor({ noteId, initialMarkdown, onReady, onChange }: NoteEditorProps) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
   const editor = useEditor({
-    extensions: createEditorExtensions(),
+    extensions: createEditorExtensions({ noteId }),
     content: initialMarkdown,
     contentType: 'markdown',
     shouldRerenderOnTransaction: false,

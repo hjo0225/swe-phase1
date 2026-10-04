@@ -22,7 +22,7 @@ export function NotePreviewPane({ noteId, onImportAll, onImportSelection }: Note
 
   const editor = useEditor(
     {
-      extensions: createEditorExtensions({ placeholder: '' }),
+      extensions: createEditorExtensions({ placeholder: '', noteId }),
       editable: false,
       content: note?.content ?? '',
       contentType: 'markdown',

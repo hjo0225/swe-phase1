@@ -138,7 +138,7 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
             </div>
           )}
 
-          <NoteEditor initialMarkdown={note.content} onReady={onReady} onChange={() => queue.markDirty(payload)} />
+          <NoteEditor noteId={note.id} initialMarkdown={note.content} onReady={onReady} onChange={() => queue.markDirty(payload)} />
           {editor && <AIActionBubble editor={editor} noteId={note.id} />}
           <BacklinksPanel noteId={note.id} />
         </div>

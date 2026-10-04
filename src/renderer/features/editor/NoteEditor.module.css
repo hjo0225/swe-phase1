@@ -155,3 +155,15 @@
   margin: 0;
   border: none;
 }
+
+/* 제목 속 그림(로고·워드마크): 글자 높이에 맞추고 테두리 없이 — 예: `# ![Blink](blink-wordmark.svg)` */
+.prose :global(:is(h1, h2, h3, h4) img) {
+  display: inline-block;
+  width: auto;
+  height: 1.6em;
+  max-width: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  vertical-align: middle;
+}

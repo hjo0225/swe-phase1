@@ -6,6 +6,7 @@ import { getBlink } from '../../../shared/api/blink';
 import { toast } from '../../../shared/ui/toast';
 import { upsertJob } from '../api/job-queries';
 import { findPendingRanges, markPending, removePending } from '../editor/ai-pending';
+import { selectionText } from '../editor/selection-text';
 import { describeRequestError } from './messages';
 
 /** ai:create-job 응답을 기다리는 jobId. 이 동안에는 Job 목록에 없어도 Mark를 지우지 않는다. */
@@ -22,7 +23,8 @@ export async function requestJob(
 ): Promise<void> {
   const { from, to, empty } = editor.state.selection;
   if (empty) return;
-  const selected = editor.state.doc.textBetween(from, to, '\n');
+  // 여러 블록이면 제목·목록 구조를 남긴 글 — AI가 정리된 Components의 중첩(그룹)을 볼 수 있다
+  const selected = selectionText(editor.state.doc, from, to);
   if (!selected.trim()) return toast.show('The selection is empty');
   if (selected.length > MAX_INPUT_LENGTH) return toast.show('Select 10,000 characters or fewer');
 

@@ -12,7 +12,7 @@ type AIJobView = {
   noteId: NoteId;
   type: JobType;
   status: JobStatus;
-  inputText: string;                 // Commit 전 비교용 (BR-ASSIST-08)
+  inputText: string;                 // Commit 전 비교용 (BR-ASSIST-08). 블록 하나 안의 선택은 그대로의 글, 여러 블록이면 블록마다 한 줄에 제목·목록·인용 표시(`## `, `- `·들여쓰기, `> `)를 남긴다 (renderer selectionText)
   attempt: number;
   result?:                           // status === 'COMPLETED'일 때만
     | { kind: 'MARKDOWN'; markdown: string }

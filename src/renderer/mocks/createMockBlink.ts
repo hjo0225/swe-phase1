@@ -70,6 +70,22 @@ function mockResult(job: AIJobView): JobResultDto {
         sources: [{ title: '예시 출처', url: 'https://example.com/' }],
       };
     case 'VISUALIZE':
+      if (job.inputText.includes('architecture')) {
+        return {
+          kind: 'INFOGRAPHIC',
+          spec: {
+            version: 1,
+            type: 'architecture',
+            title: 'Web service',
+            groups: [{ id: 'vpc', title: 'VPC A' }],
+            nodes: [
+              { id: 'u', title: 'Users', icon: 'user' },
+              { id: 'w', title: 'Web server', icon: 'server', group: 'vpc' },
+            ],
+            edges: [['u', 'w', { label: 'HTTPS' }]],
+          },
+        };
+      }
       return {
         kind: 'INFOGRAPHIC',
         spec: {

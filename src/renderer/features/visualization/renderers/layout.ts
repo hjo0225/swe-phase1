@@ -1,4 +1,4 @@
-import type { InfographicNode, InfographicSpec } from '../../../../shared/visualization/infographic-spec';
+import type { ArchitectureIcon, InfographicNode, InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { infographicTheme as t } from '../theme/infographic-theme';
 
 export interface LayoutNode {
@@ -11,6 +11,17 @@ export interface LayoutNode {
   descriptionLines: string[];
   /** process의 시작, hierarchy·mindmap의 루트, comparison의 비교 대상 — 강조 색으로 그린다 */
   emphasis: boolean;
+  /** architecture: 아이콘 카드로 그린다 ('generic' = 기본 상자) */
+  icon?: ArchitectureIcon | 'generic';
+}
+
+export interface EdgeLabel {
+  text: string;
+  /** 라벨 상자의 왼쪽 위 */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface LayoutEdge {
@@ -19,6 +30,20 @@ export interface LayoutEdge {
   /** SVG path d */
   path: string;
   end: { x: number; y: number };
+  /** architecture: 화살표 (없으면 끝점에 점) */
+  arrow?: 'end' | 'both';
+  label?: EdgeLabel;
+}
+
+/** architecture: 이름 있는 상자. depth 0 = 맨 바깥 */
+export interface LayoutGroup {
+  id: string;
+  title: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  depth: number;
 }
 
 export interface LayoutPanel {
@@ -36,6 +61,8 @@ export interface InfographicLayout {
   edges: LayoutEdge[];
   /** 카드 묶음 배경 (comparison의 열) */
   panels: LayoutPanel[];
+  /** architecture 그룹 상자 */
+  groups?: LayoutGroup[];
 }
 
 const PER_ROW = 4;
@@ -51,7 +78,7 @@ function charWidth(ch: string): number {
   return 0.55;
 }
 
-const widthOf = (text: string) => [...text].reduce((sum, ch) => sum + charWidth(ch), 0);
+export const widthOf = (text: string) => [...text].reduce((sum, ch) => sum + charWidth(ch), 0);
 
 /**
  * 공백 단위로 줄을 나누고, 한 단어가 너무 길면 글자 단위로 자른다.
@@ -121,6 +148,8 @@ function defaultLayout(spec: InfographicSpec): InfographicLayout {
       return layoutComparison(spec);
     case 'mindmap':
       return layoutMindmap(spec);
+    case 'architecture':
+      throw new Error('architecture is laid out asynchronously — use layoutArchitectureBase');
   }
 }
 

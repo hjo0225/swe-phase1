@@ -3,26 +3,69 @@ import { z } from 'zod';
 /**
  * InfographicSpec — Shared Kernel (docs/backend/visualization/domain-model.md, D-11).
  * Main은 LLM 결과 검증에, Renderer는 본문에 저장된 Spec을 그리기 전 검증에 같은 규칙을 쓴다.
- * LLM이 정하는 것(유형·제목·노드·연결)을 담는다. 좌표·색·폰트는 Blink가 정한다.
+ * LLM이 정하는 것(유형·제목·노드·연결, architecture는 그룹·아이콘·선 라벨/방향까지)을 담는다. 좌표·색·폰트는 Blink가 정한다.
  * 예외로 사용자가 손으로 옮긴 카드 위치(positions)를 담는다 — LLM 스키마에는 없고 편집기에서만 쓴다.
  */
 
 /** LLM에 허용하는 유형 = Renderer가 구현한 유형 (BR-VIS-01). Renderer를 추가할 때 함께 늘린다. */
-export const SUPPORTED_TYPES = ['process', 'hierarchy', 'comparison', 'mindmap'] as const;
+export const SUPPORTED_TYPES = ['process', 'hierarchy', 'comparison', 'mindmap', 'architecture'] as const;
 export type InfographicType = (typeof SUPPORTED_TYPES)[number];
+
+/** architecture 노드가 고를 수 있는 아이콘. 렌더러의 architecture-icons.ts와 함께 늘린다. */
+export const ARCHITECTURE_ICONS = [
+  'user',
+  'client',
+  'mobile',
+  'internet',
+  'cdn',
+  'load-balancer',
+  'gateway',
+  'server',
+  'container',
+  'function',
+  'database',
+  'cache',
+  'storage',
+  'queue',
+  'ai',
+  'mail',
+  'security',
+  'monitoring',
+] as const;
+export type ArchitectureIcon = (typeof ARCHITECTURE_ICONS)[number];
 
 export interface InfographicNode {
   id: string;
   title: string;
   description?: string;
+  /** architecture: 노드가 들어 있는 그룹 id */
+  group?: string;
+  /** architecture: 아이콘 종류 */
+  icon?: ArchitectureIcon;
 }
+
+/** architecture: 이름 있는 상자 (VPC, Zone, Subnet…). parent가 없으면 맨 바깥 */
+export interface InfographicGroup {
+  id: string;
+  title: string;
+  parent?: string;
+}
+
+/** architecture: 선 라벨과 방향. 다른 유형은 메타 없이 [from, to]만 쓴다. */
+export interface EdgeMeta {
+  label?: string;
+  bidirectional?: true;
+}
+export type InfographicEdge = [from: string, to: string] | [from: string, to: string, meta: EdgeMeta];
 
 export interface InfographicSpec {
   version: 1;
   type: InfographicType;
   title: string;
   nodes: InfographicNode[];
-  edges: [from: string, to: string][];
+  edges: InfographicEdge[];
+  /** architecture 전용 */
+  groups?: InfographicGroup[];
   /** 사용자가 끌어다 놓은 카드의 왼쪽 위 좌표 (노드 id별). 없는 카드는 기본 배치를 따른다. */
   positions?: Record<string, CardPosition>;
 }
@@ -52,8 +95,11 @@ export class InfographicSpecError extends Error {
 }
 
 const MIN_NODES = 2;
-const MAX_NODES = 16;
+const MAX_NODES_BY_TYPE: Record<InfographicType, number> = { process: 16, hierarchy: 16, comparison: 16, mindmap: 16, architecture: 30 };
+export const MAX_GROUP_DEPTH = 3;
+const MAX_GROUPS = 12;
 
+const EdgeMetaSchema = z.object({ label: z.string().trim().max(24).optional(), bidirectional: z.boolean().optional() });
 const ShapeSchema = z.object({
   version: z.literal(1),
   type: z.string(),
@@ -63,9 +109,22 @@ const ShapeSchema = z.object({
       id: z.string().trim().min(1).max(40),
       title: z.string().trim().min(1).max(40),
       description: z.string().trim().max(120).optional(),
+      group: z.string().trim().max(40).optional(),
+      icon: z.string().trim().optional(),
     }),
   ),
-  edges: z.array(z.tuple([z.string().trim(), z.string().trim()])),
+  edges: z.array(
+    z.union([z.tuple([z.string().trim(), z.string().trim()]), z.tuple([z.string().trim(), z.string().trim(), EdgeMetaSchema])]),
+  ),
+  groups: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(40),
+        title: z.string().trim().min(1).max(30),
+        parent: z.string().trim().max(40).optional(),
+      }),
+    )
+    .optional(),
   positions: z.record(z.string(), z.object({ x: z.number().refine(Number.isFinite), y: z.number().refine(Number.isFinite) })).optional(),
 });
 
@@ -79,38 +138,52 @@ export function parseInfographicSpec(raw: unknown): InfographicSpec {
     throw new InfographicSpecError('UNSUPPORTED_TYPE', `Unsupported type ${input.type}`);
   }
   const type = input.type as InfographicType;
-  if (input.nodes.length < MIN_NODES || input.nodes.length > MAX_NODES) {
-    throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${MAX_NODES} nodes`);
+  const maxNodes = MAX_NODES_BY_TYPE[type];
+  if (input.nodes.length < MIN_NODES || input.nodes.length > maxNodes) {
+    throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${maxNodes} nodes`);
   }
 
+  // 그룹·아이콘·선 메타는 architecture만 남긴다 — 다른 유형의 저장 JSON은 바뀌지 않는다.
+  const isArch = type === 'architecture';
   const nodes: InfographicNode[] = input.nodes.map((n) => ({
     id: n.id,
     title: n.title,
     ...(n.description ? { description: n.description } : {}),
+    ...(isArch && n.group ? { group: n.group } : {}),
+    ...(isArch && isIcon(n.icon) ? { icon: n.icon } : {}),
   }));
   const ids = new Set(nodes.map((n) => n.id));
   if (ids.size !== nodes.length) throw new InfographicSpecError('DUPLICATE_ID', 'Node ids must be unique');
+  // architecture는 선의 끝에 그룹(층)도 올 수 있다 — 안에 노드가 남는 그룹만
+  const groups = isArch ? normalizeGroups(input.groups ?? [], nodes) : [];
+  const ends = new Set([...ids, ...groups.map((g) => g.id)]);
+  const holds = holdsOf(groups, nodes);
 
   const seen = new Set<string>();
-  let edges: [string, string][] = [];
-  for (const [from, to] of input.edges) {
+  let edges: InfographicEdge[] = [];
+  for (const edge of input.edges) {
+    const [from, to] = edge;
     if (from === to) throw new InfographicSpecError('SELF_EDGE', `Edge ${from} points to itself`);
-    if (!ids.has(from) || !ids.has(to)) throw new InfographicSpecError('DANGLING_EDGE', `Edge ${from}→${to} has no node`);
-    const key = `${from}\u0000${to}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      edges.push([from, to]);
+    if (!ends.has(from) || !ends.has(to)) throw new InfographicSpecError('DANGLING_EDGE', `Edge ${from}→${to} has no node`);
+    if (holds(from, to) || holds(to, from)) {
+      throw new InfographicSpecError('STRUCTURE', `Edge ${from}→${to} joins a group and something inside it`);
     }
+    const key = `${from}\u0000${to}`;
+    if (seen.has(key)) continue; // 중복은 처음 것을 남긴다
+    seen.add(key);
+    const meta = isArch ? edgeMeta(edge[2]) : undefined;
+    edges.push(meta ? [from, to, meta] : [from, to]);
   }
   if (type === 'process' && edges.length === 0) {
     edges = nodes.slice(1).map((n, i) => [nodes[i]!.id, n.id]);
   }
 
-  const spec: InfographicSpec =
+  let spec: InfographicSpec =
     type === 'comparison'
       ? splitSharedFeatures({ version: 1, type, title: input.title, nodes, edges })
       : { version: 1, type, title: input.title, nodes, edges };
-  if (spec.nodes.length > MAX_NODES) throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${MAX_NODES} nodes`);
+  if (spec.nodes.length > maxNodes) throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${maxNodes} nodes`);
+  if (groups.length > 0) spec = { ...spec, groups };
   STRUCTURE_RULES[type](spec);
   const positions = keepPositions(input.positions, spec.nodes);
   return positions ? { ...spec, positions } : spec;
@@ -126,6 +199,85 @@ function keepPositions(
     nodes.filter((n) => raw[n.id]).map((n) => [n.id, { x: Math.round(raw[n.id]!.x), y: Math.round(raw[n.id]!.y) }]),
   );
   return Object.keys(kept).length > 0 ? kept : undefined;
+}
+
+const isIcon = (value: string | undefined): value is ArchitectureIcon =>
+  value !== undefined && (ARCHITECTURE_ICONS as readonly string[]).includes(value);
+
+/** 빈 라벨·false 방향은 지운다. 남는 것이 없으면 undefined ([from, to]로 저장). */
+function edgeMeta(raw: { label?: string; bidirectional?: boolean } | undefined): EdgeMeta | undefined {
+  const label = raw?.label?.trim();
+  const meta: EdgeMeta = { ...(label ? { label } : {}), ...(raw?.bidirectional ? { bidirectional: true as const } : {}) };
+  return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
+/** id·부모·깊이를 검사하고, 안에 노드가 하나도 없는(하위 포함) 그룹은 뺀다. 입력 순서를 지킨다. */
+function normalizeGroups(raw: { id: string; title: string; parent?: string }[], nodes: readonly InfographicNode[]): InfographicGroup[] {
+  if (raw.length > MAX_GROUPS) throw new InfographicSpecError('STRUCTURE', `At most ${MAX_GROUPS} groups`);
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const byId = new Map<string, InfographicGroup>();
+  for (const g of raw) {
+    if (byId.has(g.id) || nodeIds.has(g.id)) throw new InfographicSpecError('DUPLICATE_ID', `Group id ${g.id} is not unique`);
+    byId.set(g.id, { id: g.id, title: g.title, ...(g.parent ? { parent: g.parent } : {}) });
+  }
+  const depthOf = (id: string, seen: Set<string> = new Set()): number => {
+    if (seen.has(id)) throw new InfographicSpecError('STRUCTURE', `Group ${id} is inside itself`);
+    seen.add(id);
+    const parent = byId.get(id)!.parent;
+    if (!parent) return 1;
+    if (!byId.has(parent)) throw new InfographicSpecError('STRUCTURE', `Group ${id} has an unknown parent ${parent}`);
+    return 1 + depthOf(parent, seen);
+  };
+  for (const id of byId.keys()) {
+    if (depthOf(id) > MAX_GROUP_DEPTH) throw new InfographicSpecError('STRUCTURE', `Groups nest at most ${MAX_GROUP_DEPTH} deep`);
+  }
+  for (const n of nodes) {
+    if (n.group && !byId.has(n.group)) throw new InfographicSpecError('STRUCTURE', `Node ${n.id} is in an unknown group ${n.group}`);
+  }
+  const used = new Set<string>();
+  for (const n of nodes) {
+    for (let g = n.group; g; g = byId.get(g)?.parent) used.add(g);
+  }
+  return [...byId.values()].filter((g) => used.has(g.id));
+}
+
+/** outer 그룹이 inner(노드 또는 그룹)를 (하위 그룹을 거쳐서라도) 품는가 */
+function holdsOf(groups: readonly InfographicGroup[], nodes: readonly InfographicNode[]): (outer: string, inner: string) => boolean {
+  const parentOf = new Map<string, string | undefined>([
+    ...groups.map((g): [string, string | undefined] => [g.id, g.parent]),
+    ...nodes.map((n): [string, string | undefined] => [n.id, n.group]),
+  ]);
+  return (outer, inner) => {
+    for (let p = parentOf.get(inner); p; p = parentOf.get(p)) if (p === outer) return true;
+    return false;
+  };
+}
+
+/**
+ * 층 구조: 모든 선이 맨 바깥 그룹 둘을 잇고(그룹 중첩 없음), 모든 카드가 어느 그룹 안에 있다.
+ * 이런 그림은 ELK 대신 층을 위→아래로 쌓아 그린다 (renderer의 stack 배치).
+ */
+export function isLayerStack(spec: InfographicSpec): boolean {
+  const groups = spec.groups ?? [];
+  if (spec.type !== 'architecture' || groups.length < 2 || groups.some((g) => g.parent)) return false;
+  const groupIds = new Set(groups.map((g) => g.id));
+  return spec.nodes.every((n) => n.group) && spec.edges.every(([from, to]) => groupIds.has(from) && groupIds.has(to));
+}
+
+/** 떠 있는 카드: 자기 선이 없고, 자기를 품은 어느 그룹에도 선이 닿지 않는다 (선이 닿는 층 안의 카드는 정상) */
+export function looseNodes(spec: InfographicSpec): InfographicNode[] {
+  const linked = new Set(spec.edges.flatMap(([from, to]) => [from, to]));
+  const parentOf = new Map((spec.groups ?? []).map((g) => [g.id, g.parent]));
+  return spec.nodes.filter((n) => {
+    if (linked.has(n.id)) return false;
+    for (let g = n.group; g; g = parentOf.get(g)) if (linked.has(g)) return false;
+    return true;
+  });
+}
+
+/** architecture: 그룹·연결선은 자유롭다(여러 선이 한 노드로 모여도 된다). 선이 하나는 있어야 그림이 된다. */
+function assertArchitecture(spec: InfographicSpec): void {
+  if (spec.edges.length === 0) throw new InfographicSpecError('STRUCTURE', 'An architecture needs at least one connection');
 }
 
 /**
@@ -229,32 +381,67 @@ const STRUCTURE_RULES: Record<InfographicType, (spec: InfographicSpec) => void> 
   hierarchy: assertTree,
   comparison: assertComparison,
   mindmap: assertMindmap,
+  architecture: assertArchitecture,
 };
 
 /**
  * Structured Output용 JSON Schema. strict 모드에 맞게 모든 필드를 required, additionalProperties false로 둔다.
  * 연결은 {from, to} 객체로 받고 실행기가 [from, to]로 바꾼다. 구조 규칙은 JSON Schema로 표현할 수 없어 parse가 사후 검사한다.
  */
-export function infographicJsonSchema(): Record<string, unknown> {
+export function infographicJsonSchema({ layers = false }: { layers?: boolean } = {}): Record<string, unknown> {
+  // 층 구조 분류(layers)와 그룹 끝 선 설명은 기술 스택 글(층 규칙을 받는 글)에만 더한다 —
+  // 모든 글에 더하면 다른 유형 분류가 흔들렸다(실제 API: mindmap 글이 가끔 hierarchy로)
+  const end = layers
+    ? { type: 'string', description: 'node id, or the group id of a layer for a line between layers' }
+    : { type: 'string' };
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['version', 'type', 'title', 'nodes', 'edges'],
+    required: ['version', 'type', 'title', ...(layers ? ['layers'] : []), 'groups', 'nodes', 'edges'],
     properties: {
       version: { type: 'integer', enum: [1] },
       type: { type: 'string', enum: [...SUPPORTED_TYPES] },
       title: { type: 'string', description: 'Infographic title, 60 characters or fewer' },
-      nodes: {
+      // 모델의 분류만 받는다 — 실행기가 층 사이 선을 정리하는 데 쓰고, 저장 Spec에는 남지 않는다 (parse가 버린다)
+      ...(layers
+        ? {
+            layers: {
+              type: 'boolean',
+              description: 'architecture only: true when the text is a stack of layers (see the Layers rules), false otherwise and for other types',
+            },
+          }
+        : {}),
+      groups: {
         type: 'array',
-        description: `${MIN_NODES}–${MAX_NODES} nodes`,
+        description: `architecture only: named boxes such as a VPC, zone or subnet (at most ${MAX_GROUPS}, nested at most ${MAX_GROUP_DEPTH} deep). Empty for other types`,
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['id', 'title', 'description'],
+          required: ['id', 'title', 'parent'],
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string', description: '30 characters or fewer' },
+            parent: { type: 'string', description: 'id of the enclosing group, or an empty string' },
+          },
+        },
+      },
+      nodes: {
+        type: 'array',
+        description: `${MIN_NODES}–${MAX_NODES_BY_TYPE.process} nodes (architecture: ${MIN_NODES}–${MAX_NODES_BY_TYPE.architecture})`,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'title', 'description', 'group', 'icon'],
           properties: {
             id: { type: 'string' },
             title: { type: 'string', description: '40 characters or fewer' },
             description: { type: 'string', description: '120 characters or fewer, or an empty string' },
+            group: { type: 'string', description: 'architecture only: id of the group this component sits in, or an empty string' },
+            icon: {
+              type: 'string',
+              enum: [...ARCHITECTURE_ICONS, 'none'],
+              description: 'architecture only: what the component is. none for other types',
+            },
           },
         },
       },
@@ -263,8 +450,16 @@ export function infographicJsonSchema(): Record<string, unknown> {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['from', 'to'],
-          properties: { from: { type: 'string' }, to: { type: 'string' } },
+          required: ['from', 'to', 'label', 'bidirectional'],
+          properties: {
+            from: end,
+            to: end,
+            label: {
+              type: 'string',
+              description: 'architecture only: what travels on the line (e.g. HTTPS), 24 characters or fewer, or an empty string',
+            },
+            bidirectional: { type: 'boolean', description: 'architecture only: true when data flows both ways' },
+          },
         },
       },
     },

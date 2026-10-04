@@ -2,13 +2,14 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { InfographicSvg } from '../renderers/InfographicSvg';
+import { layoutInfographic } from '../renderers/layout';
 import { prepareSvgForExport } from './svg-to-png';
 
 describe('prepareSvgForExport', () => {
   it('embeds the Pretendard subsets for the drawn text and prefers them, leaving the on-screen SVG untouched', async () => {
     const { container } = render(
       <InfographicSvg
-        spec={{
+        layout={layoutInfographic({
           version: 1,
           type: 'process',
           title: '처리 과정',
@@ -17,7 +18,7 @@ describe('prepareSvgForExport', () => {
             { id: '2', title: 'AI 처리' },
           ],
           edges: [['1', '2']],
-        }}
+        })}
       />,
     );
     const onScreen = container.querySelector('svg')!;

@@ -125,6 +125,26 @@ describe('assist use cases', () => {
       expect(user).toBe('회의했고 api 얘기함');
       expect(system).toContain('Do not add facts');
       expect(system).toContain('same language as the selected text');
+      expect(system).toContain('## Components');
+      expect(system).toContain('## Flows');
+      // 원문에 없는 위치·라벨을 만들지 않는다
+      expect(system).toContain('only when the text says it is there');
+      expect(system).toContain('including users');
+      expect(system).toContain('Do not restate the action');
+      // 층 규칙은 기술 스택 글에만 붙는다
+      expect(system).not.toContain('Layers:');
+    });
+
+    it('adds the layer rules only for a text that names its technologies with versions', async () => {
+      const generateText = vi.fn().mockResolvedValue('ok');
+      await new OrganizeExecutor().execute(
+        InputSnapshot.of('the screen is react 19.3 with tiptap 3.31, main is electron 44.4 on node.js 24'),
+        fakeProvider({ generateText }),
+        new AbortController().signal,
+      );
+      const [{ system }] = generateText.mock.calls[0] as [{ system: string }];
+      expect(system).toContain('Layers: this text names its technologies with version numbers');
+      expect(system).toContain('Do not add facts');
     });
   });
 });

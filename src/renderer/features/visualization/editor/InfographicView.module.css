@@ -14,7 +14,8 @@
   overflow-x: auto;
 }
 
-.canvas svg {
+/* 바깥 SVG만 — 카드 안 아이콘(중첩 svg)은 속성 크기 그대로 둔다 */
+.canvas > svg {
   display: block;
   max-width: 100%;
   height: auto;

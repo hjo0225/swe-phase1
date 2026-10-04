@@ -37,4 +37,22 @@ export const infographicTheme = {
   },
   /** comparison 열 배경 */
   panel: { fill: '#FFFFFF', fillOpacity: 0.45, stroke: 'rgba(123,177,241,0.28)', radius: 24 },
+  /** architecture: 아이콘 카드·그룹 상자·화살표·선 라벨 */
+  architecture: {
+    card: { width: 128, padding: 12, iconSize: 28, iconGap: 8 },
+    title: { size: 13, weight: 600, lineHeight: 17, maxWidth: 9 },
+    group: {
+      header: 34,
+      padding: 20,
+      label: { size: 12, weight: 700, color: '#2059C1' },
+      outer: { stroke: '#6BA8F6', dash: '6 4', fill: 'none' },
+      inner: { stroke: 'rgba(107,168,246,0.55)', fill: '#FFFFFF', fillOpacity: 0.45 },
+    },
+    edge: { color: '#62758D', width: 1.4, arrowSize: 7 },
+    label: { size: 11, color: '#40536E', background: '#F3F8FF', paddingX: 4, height: 16 },
+    spacing: { nodeNode: 36, betweenLayers: 72 },
+    /** 층 쌓기 배치: 층 안 카드 간격, 한 줄 카드 수, 선과 라벨 사이, 같은 두 층 사이 선 간격, 층을 건너뛰는 선이 상자 옆으로 비켜 가는 거리 */
+    stack: { cardGap: 24, perRow: 4, labelGap: 10, lineGap: 24, detour: 36 },
+    icon: { color: '#2F6DDB', stroke: 1.75 },
+  },
 } as const;

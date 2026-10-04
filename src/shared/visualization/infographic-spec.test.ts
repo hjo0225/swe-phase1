@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { InfographicSpecError, infographicJsonSchema, parseInfographicSpec } from './infographic-spec';
+import {
+  ARCHITECTURE_ICONS,
+  InfographicSpecError,
+  infographicJsonSchema,
+  isLayerStack,
+  looseNodes,
+  parseInfographicSpec,
+} from './infographic-spec';
 
 const node = (id: string, title = `노드 ${id}`, description?: string) => ({ id, title, ...(description ? { description } : {}) });
 const base = (overrides: Record<string, unknown>) => ({
@@ -258,11 +265,281 @@ describe('infographicJsonSchema', () => {
     expect(schema).toMatchObject({
       type: 'object',
       additionalProperties: false,
-      required: ['version', 'type', 'title', 'nodes', 'edges'],
+      required: ['version', 'type', 'title', 'groups', 'nodes', 'edges'],
       properties: {
-        type: { enum: ['process', 'hierarchy', 'comparison', 'mindmap'] },
-        edges: { type: 'array', items: { type: 'object', required: ['from', 'to'] } },
+        type: { enum: ['process', 'hierarchy', 'comparison', 'mindmap', 'architecture'] },
+        edges: { type: 'array', items: { type: 'object', required: ['from', 'to', 'label', 'bidirectional'] } },
       },
     });
+  });
+});
+
+describe('parseInfographicSpec — architecture', () => {
+  const arch = (overrides: Record<string, unknown> = {}) => ({
+    version: 1,
+    type: 'architecture',
+    title: 'Multi zone web service',
+    groups: [
+      { id: 'vpc', title: 'VPC A' },
+      { id: 'za', title: 'Zone A', parent: 'vpc' },
+      { id: 'zb', title: 'Zone B', parent: 'vpc' },
+    ],
+    nodes: [
+      { id: 'u', title: 'Users', icon: 'user' },
+      { id: 'lb', title: 'Load Balancer', icon: 'load-balancer', group: 'vpc' },
+      { id: 'w1', title: 'Web 1', icon: 'server', group: 'za' },
+      { id: 'w2', title: 'Web 2', icon: 'server', group: 'zb' },
+      { id: 'db', title: 'Cloud DB', icon: 'database', group: 'vpc' },
+    ],
+    edges: [
+      ['u', 'lb', { label: 'HTTPS' }],
+      ['lb', 'w1'],
+      ['lb', 'w2'],
+      ['w1', 'db', { bidirectional: true }],
+      ['w2', 'db', { bidirectional: true }],
+    ],
+    ...overrides,
+  });
+
+  it('keeps groups, icons, edge labels and directions; lets several lines meet at one node', () => {
+    const spec = parseInfographicSpec(arch());
+    expect(spec.groups).toEqual([
+      { id: 'vpc', title: 'VPC A' },
+      { id: 'za', title: 'Zone A', parent: 'vpc' },
+      { id: 'zb', title: 'Zone B', parent: 'vpc' },
+    ]);
+    expect(spec.nodes[1]).toEqual({ id: 'lb', title: 'Load Balancer', icon: 'load-balancer', group: 'vpc' });
+    expect(spec.edges[0]).toEqual(['u', 'lb', { label: 'HTTPS' }]);
+    expect(spec.edges[3]).toEqual(['w1', 'db', { bidirectional: true }]);
+    expect(parseInfographicSpec(spec)).toEqual(spec); // 다시 적용해도 같다
+  });
+
+  it('drops unknown icons, empty labels and groups with nothing inside', () => {
+    const spec = parseInfographicSpec(
+      arch({
+        groups: [
+          { id: 'vpc', title: 'VPC A' },
+          { id: 'empty', title: 'Unused', parent: 'vpc' },
+        ],
+        nodes: [
+          { id: 'u', title: 'Users', icon: 'robot-arm' },
+          { id: 'db', title: 'DB', icon: 'database', group: 'vpc' },
+        ],
+        edges: [['u', 'db', { label: '  ' }]],
+      }),
+    );
+    expect(spec.nodes[0]).toEqual({ id: 'u', title: 'Users' });
+    expect(spec.edges).toEqual([['u', 'db']]);
+    expect(spec.groups).toEqual([{ id: 'vpc', title: 'VPC A' }]);
+  });
+
+  it('allows up to 30 nodes for architecture but still 16 for other types', () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `n${i}`, title: `N${i}` }));
+    const chain = (n: number) => Array.from({ length: n - 1 }, (_, i) => [`n${i}`, `n${i + 1}`]);
+    expect(reason(arch({ groups: [], nodes: many(30), edges: chain(30) }))).toBe('ok');
+    expect(reason(arch({ groups: [], nodes: many(31), edges: chain(31) }))).toBe('NODE_COUNT');
+    expect(reason(base({ nodes: many(17), edges: chain(17) }))).toBe('NODE_COUNT');
+  });
+
+  it('rejects unknown parents, unknown node groups, cycles, depth over 3 and ids shared by a node and a group', () => {
+    expect(reason(arch({ groups: [{ id: 'za', title: 'Zone', parent: 'nope' }] }))).toBe('STRUCTURE');
+    expect(
+      reason(
+        arch({
+          nodes: [
+            { id: 'u', title: 'U', group: 'nope' },
+            { id: 'v', title: 'V' },
+          ],
+          edges: [['u', 'v']],
+        }),
+      ),
+    ).toBe('STRUCTURE');
+    expect(
+      reason(
+        arch({
+          groups: [
+            { id: 'a', title: 'A', parent: 'b' },
+            { id: 'b', title: 'B', parent: 'a' },
+          ],
+          nodes: [
+            { id: 'u', title: 'U', group: 'a' },
+            { id: 'v', title: 'V' },
+          ],
+          edges: [['u', 'v']],
+        }),
+      ),
+    ).toBe('STRUCTURE');
+    const deep = [
+      { id: 'g1', title: 'G1' },
+      { id: 'g2', title: 'G2', parent: 'g1' },
+      { id: 'g3', title: 'G3', parent: 'g2' },
+      { id: 'g4', title: 'G4', parent: 'g3' },
+    ];
+    expect(
+      reason(
+        arch({
+          groups: deep,
+          nodes: [
+            { id: 'u', title: 'U', group: 'g4' },
+            { id: 'v', title: 'V' },
+          ],
+          edges: [['u', 'v']],
+        }),
+      ),
+    ).toBe('STRUCTURE');
+    expect(reason(arch({ groups: [{ id: 'u', title: 'Same id as a node' }] }))).toBe('DUPLICATE_ID');
+  });
+
+  it('needs at least one connection', () => {
+    expect(reason(arch({ edges: [] }))).toBe('STRUCTURE');
+  });
+
+  it('strips architecture-only fields from the other types so their saved JSON does not change', () => {
+    const spec = parseInfographicSpec(
+      base({
+        groups: [{ id: 'g', title: 'G' }],
+        nodes: [{ id: '1', title: 'a', icon: 'server', group: 'g' }, node('2'), node('3')],
+        edges: [['1', '2', { label: 'x' }], ['2', '3']],
+      }),
+    );
+    expect(spec).not.toHaveProperty('groups');
+    expect(spec.nodes[0]).toEqual({ id: '1', title: 'a' });
+    expect(spec.edges).toEqual([
+      ['1', '2'],
+      ['2', '3'],
+    ]);
+  });
+
+  it('asks the model for groups, icons, labels and directions in the structured output schema', () => {
+    const schema = infographicJsonSchema() as {
+      required: string[];
+      properties: {
+        type: { enum: string[] };
+        nodes: { items: { required: string[]; properties: { icon: { enum: string[] } } } };
+        edges: { items: { required: string[] } };
+      };
+    };
+    expect(schema.properties.type.enum).toContain('architecture');
+    expect(schema.required).toContain('groups');
+    // 층 구조 분류는 기술 스택 글에만 묻는다 (저장 Spec에는 남지 않는다)
+    expect(schema.required).not.toContain('layers');
+    expect((infographicJsonSchema({ layers: true }) as { required: string[] }).required).toContain('layers');
+    expect(schema.properties.nodes.items.required).toEqual(['id', 'title', 'description', 'group', 'icon']);
+    expect(schema.properties.nodes.items.properties.icon.enum).toEqual([...ARCHITECTURE_ICONS, 'none']);
+    expect(schema.properties.edges.items.required).toEqual(['from', 'to', 'label', 'bidirectional']);
+  });
+});
+
+describe('architecture — lines between groups (layers)', () => {
+  const layers = (overrides: Record<string, unknown> = {}) => ({
+    version: 1,
+    type: 'architecture',
+    title: 'Blink — Application Architecture',
+    groups: [
+      { id: 'ui', title: 'User Interface' },
+      { id: 'core', title: 'Application Core' },
+      { id: 'res', title: 'Storage & AI' },
+    ],
+    nodes: [
+      { id: 'react', title: 'React 19.3', group: 'ui' },
+      { id: 'tiptap', title: 'Tiptap 3.31', group: 'ui' },
+      { id: 'electron', title: 'Electron 44.4', group: 'core' },
+      { id: 'sqlite', title: 'SQLite 3.53', icon: 'database', group: 'res' },
+    ],
+    edges: [
+      ['ui', 'core', { label: 'Preload / IPC' }],
+      ['core', 'res'],
+    ],
+    ...overrides,
+  });
+
+  it('lets a line start or end at a group: layer to layer, group to card and card to group', () => {
+    const spec = parseInfographicSpec(layers());
+    expect(spec.edges).toEqual([['ui', 'core', { label: 'Preload / IPC' }], ['core', 'res']]);
+    expect(parseInfographicSpec(spec)).toEqual(spec);
+    const mixed = parseInfographicSpec(
+      layers({
+        nodes: [
+          { id: 'u', title: 'Users', icon: 'user' },
+          { id: 'react', title: 'React', group: 'ui' },
+          { id: 'db', title: 'DB', group: 'res' },
+        ],
+        edges: [
+          ['u', 'ui'],
+          ['ui', 'db'],
+        ],
+      }),
+    );
+    expect(mixed.edges).toEqual([
+      ['u', 'ui'],
+      ['ui', 'db'],
+    ]);
+  });
+
+  it('still rejects lines to unknown ids, to an empty group that is dropped, and between a group and what it holds', () => {
+    expect(reason(layers({ edges: [['ui', 'nope']] }))).toBe('DANGLING_EDGE');
+    expect(reason(layers({ edges: [['ui', 'ui']] }))).toBe('SELF_EDGE');
+    expect(reason(layers({ groups: [...layers().groups, { id: 'empty', title: 'Empty' }], edges: [['ui', 'empty']] }))).toBe(
+      'DANGLING_EDGE',
+    );
+    expect(reason(layers({ edges: [['ui', 'react']] }))).toBe('STRUCTURE');
+    expect(
+      reason(
+        layers({
+          groups: [
+            { id: 'app', title: 'App' },
+            { id: 'ui', title: 'UI', parent: 'app' },
+          ],
+          nodes: [
+            { id: 'react', title: 'React', group: 'ui' },
+            { id: 'db', title: 'DB' },
+          ],
+          edges: [
+            ['app', 'react'],
+            ['react', 'db'],
+          ],
+        }),
+      ),
+    ).toBe('STRUCTURE');
+  });
+
+  it('does not let other types point lines at groups', () => {
+    expect(reason(base({ groups: [{ id: 'g', title: 'G' }], nodes: [{ ...node('1'), group: 'g' }, node('2')], edges: [['g', '2']] }))).toBe(
+      'DANGLING_EDGE',
+    );
+  });
+
+  it('calls a diagram a layer stack when every line joins two top-level groups and every card sits in one', () => {
+    expect(isLayerStack(parseInfographicSpec(layers()))).toBe(true);
+    // 카드에 닿는 선, 중첩된 그룹, 그룹 밖 카드, 그룹이 없는 그림은 아니다
+    expect(isLayerStack(parseInfographicSpec(layers({ edges: [['ui', 'core'], ['electron', 'sqlite']] })))).toBe(false);
+    expect(
+      isLayerStack(
+        parseInfographicSpec(
+          layers({
+            groups: [...layers().groups, { id: 'inner', title: 'Inner', parent: 'res' }],
+            nodes: [...layers().nodes, { id: 'x', title: 'X', group: 'inner' }],
+          }),
+        ),
+      ),
+    ).toBe(false);
+    expect(isLayerStack(parseInfographicSpec(layers({ nodes: [...layers().nodes, { id: 'u', title: 'Users' }] })))).toBe(false);
+    expect(
+      isLayerStack(
+        parseInfographicSpec({ ...layers(), groups: [], nodes: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }], edges: [['a', 'b']] }),
+      ),
+    ).toBe(false);
+  });
+
+  it('finds loose cards: no line of their own and no line on any group around them', () => {
+    expect(looseNodes(parseInfographicSpec(layers()))).toEqual([]);
+    const spec = parseInfographicSpec(
+      layers({
+        nodes: [...layers().nodes, { id: 'u', title: 'Users' }, { id: 'x', title: 'X' }],
+        edges: [['ui', 'core'], ['u', 'core']],
+      }),
+    );
+    // res(Storage)에는 선이 없다 → 그 안의 sqlite도 떠 있다
+    expect(looseNodes(spec).map((n) => n.id)).toEqual(['sqlite', 'x']);
   });
 });

@@ -72,6 +72,7 @@ Blink는 **Electron 기반 Local-first AI 노트 앱**이다. 제품 요구사�
 | D-17 | 보관함 색인 DB와 AI Job은 보관함 폴더가 아니라 **앱 데이터 폴더**(`userData/vaults/<보관함 경로 해시>.db`)에 둔다. AI Provider 설정(API Key)은 보관함과 무관한 앱 설정 DB(`userData/blink.db`)에 둔다. | §29, §34 | 사용자 폴더에 앱 내부 파일을 남기지 않는다(동기화·Git 충돌 방지). API Key가 보관함과 함께 복사되지 않는다. |
 | D-18 | Blink 전용 요소의 Markdown 표기: AI 처리 중 범위는 `<span data-ai-pending="jobId">…</span>`, 인포그래픽은 ```` ```blink-infographic ```` 코드 블록(JSON). 검색용 텍스트에서는 둘 다 태그·JSON을 뺀다. | §11, §15 | 표준 Markdown에 없는 요소를 다른 편집기에서도 깨지지 않는 형태로 보존한다. |
 | D-19 | 노트 자동 분류(분류하기·자동 배치·끌어다 놓기)는 **채팅 모델 한 번 호출**로 폴더 경로를 정한다. 제목 임베딩 + k-means 군집화는 쓰지 않는다. 미리보기→옮기기 흐름과 폴더 규칙은 그대로다. | §4.4(확장) | 군집화가 Main에서 동기로 돌아 노트 600개에서 앱이 20분 넘게 멈췄고, 같은 데이터에서 정확도도 채팅 모델 방식이 같거나 높았다(F1 85~94% 대 75~87%). 임베딩은 OpenAI 전용. 근거: `backend/organize/decision-chat-model-vs-embedding.md` |
+| D-20 | 아키텍처 다이어그램(`architecture` 유형)의 배치는 **elkjs**(ELK layered, 왼쪽→오른쪽, 직각 선)로 정하고, architecture 블록이 처음 그려질 때만 불러온다(lazy import). 아이콘은 lucide 18종. elkjs는 Vite가 renderer에 번들하므로 react·lucide-react 등 다른 renderer 라이브러리와 같이 `devDependencies`에 고정 버전(0.12.0)으로 둔다. | §15(확장) | 그룹 중첩·직각 선·선 라벨 자리를 직접 짜면 품질을 맞추기 어렵다. elkjs는 EPL-2.0으로 수정 없이 번들해 배포할 수 있다(라이선스 고지: 이 행). renderer CSP가 `script-src 'self'`이므로 eval·new Function을 쓰지 않는 `elkjs/lib/elk.bundled.js`를 쓴다. `dependencies`에 두면 이미 번들된 코드가 패키지의 node_modules에 한 번 더 들어간다. |
 
 ## 제품 결정 (확정: 2026-09-30)
 

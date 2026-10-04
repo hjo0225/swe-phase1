@@ -339,6 +339,20 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(outputs.filter((o) => /##\s+(Components|Flows)/.test(o.markdown))).toHaveLength(0);
   }, TIMEOUT * 2);
 
+  it('turns a few sentences about one idea into one polished paragraph without a heading, at least four runs in five', async () => {
+    // 데모 S09의 킥오프 메모 — 포스터 Description(한 문장) 자리에 들어간다
+    const memo =
+      'so the app we want: a desktop note app, you select text and ai refines it or draws it, and you can reuse old notes right there. ' +
+      'no more opening an ai site, copying and pasting back, which breaks your thinking every time';
+    const outputs = await Promise.all(
+      Array.from({ length: 5 }, () => new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal()) as Promise<{ markdown: string }>),
+    );
+    outputs.forEach((o, i) => console.log(`[ORGANIZE short run ${i + 1}]
+${o.markdown}`));
+    // 실제로 약 93% (30번 중 28번). 데모는 리허설에서 고른 회차를 쓴다
+    expect(outputs.filter((o) => /^\s*(#|[-*] |\d+\. )/m.test(o.markdown)).length).toBeLessThanOrEqual(1);
+  }, TIMEOUT * 2);
+
   describe('answers in the language of the selected text (English input → English output)', () => {
     const HANGUL = /[가-힣]/;
     it('organize', async () => {

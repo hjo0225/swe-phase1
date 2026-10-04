@@ -15,7 +15,7 @@ export const ORGANIZE_PROMPT = [
   '1. Do not add facts, numbers, dates or conclusions that are not in the text.',
   '2. Keep the original meaning and judgement. Leave vague parts vague.',
   `3. ${LANGUAGE_RULE}`,
-  '4. When it fits, structure it with Markdown headings (##, ###) and lists. A short text may become a single polished paragraph.',
+  '4. When it fits, structure it with Markdown headings (##, ###) and lists. Never put a title above the whole text: a heading only names one of several sections. A few sentences about one idea become one polished paragraph with no heading and no list.',
   '5. Only if the text describes how a software system is built — its technical parts (servers, databases, processes, services, networks) and how they talk — organize it into two sections. ' +
     'A product idea, the steps a person takes, a problem, a plan or meeting notes are not a system description, even when they mention an app, AI, a site or files: they keep the usual structure of rule 4.',
   '   "## Components" — a nested list where a child item is inside its parent (e.g. VPC > zone > subnet > server):',

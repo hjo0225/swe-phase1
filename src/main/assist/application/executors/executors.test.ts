@@ -77,6 +77,66 @@ describe('VisualizeExecutor', () => {
     expect(system).toContain('Do not restate the action');
   });
 
+  it('sends a components list whose flow components hold nothing, so they are drawn as cards', async () => {
+    const generateStructured = vi.fn().mockResolvedValue(llmSpec);
+    await new VisualizeExecutor().execute(
+      InputSnapshot.of('## Components\n- App\n  - Main\n    - Queue\n## Flows\n- Main → Queue'),
+      fakeProvider({ generateStructured }),
+      signal,
+    );
+    const { user } = generateStructured.mock.calls[0]![0] as { user: string };
+    expect(user).toBe('## Components\n- App\n  - Main\n  - Queue\n## Flows\n- Main → Queue');
+  });
+
+  describe('boxes the components list puts things in', () => {
+    const arch = (nodes: unknown[], groups: unknown[] = []) =>
+      vi.fn().mockResolvedValue({
+        version: 1,
+        type: 'architecture',
+        title: 'Electron app architecture',
+        groups,
+        nodes,
+        edges: [
+          { from: '1', to: '2', label: 'IPC', bidirectional: false },
+          { from: '2', to: '3', label: 'HTTPS', bidirectional: false },
+        ],
+      });
+    const card = (id: string, title: string, group = '') => ({ id, title, description: '', group, icon: 'server' });
+    const text = '## Components\n- Electron app\n  - UI (React)\n  - Main\n- OpenAI\n## Flows\n- UI → Main: IPC\n- Main → OpenAI: HTTPS';
+    const specOf = async (generateStructured: ReturnType<typeof arch>) =>
+      ((await new VisualizeExecutor().execute(InputSnapshot.of(text), fakeProvider({ generateStructured }), signal)) as {
+        spec: { groups?: unknown; nodes: unknown };
+      }).spec;
+
+    it('adds a box the model left out and puts its ungrouped parts in it', async () => {
+      const spec = await specOf(arch([card('1', 'UI (React)'), card('2', 'main'), card('3', 'OpenAI')]));
+      expect(spec.groups).toEqual([{ id: 'o1', title: 'Electron app' }]);
+      expect(spec.nodes).toEqual([
+        { id: '1', title: 'UI (React)', group: 'o1', icon: 'server' },
+        { id: '2', title: 'main', group: 'o1', icon: 'server' },
+        { id: '3', title: 'OpenAI', icon: 'server' },
+      ]);
+    });
+
+    it('keeps the box and the places the model already drew', async () => {
+      const spec = await specOf(
+        arch([card('1', 'UI', 'g1'), card('2', 'Main', 'g2'), card('3', 'OpenAI')], [
+          { id: 'g1', title: 'Electron app', parent: '' },
+          { id: 'g2', title: 'Main process', parent: 'g1' },
+        ]),
+      );
+      expect(spec.groups).toEqual([
+        { id: 'g1', title: 'Electron app' },
+        { id: 'g2', title: 'Main process', parent: 'g1' },
+      ]);
+      expect(spec.nodes).toEqual([
+        { id: '1', title: 'UI', group: 'g1', icon: 'server' },
+        { id: '2', title: 'Main', group: 'g2', icon: 'server' },
+        { id: '3', title: 'OpenAI', icon: 'server' },
+      ]);
+    });
+  });
+
   it('turns the model output into an architecture spec with groups, icons and labelled lines', async () => {
     const generateStructured = vi.fn().mockResolvedValue({
       version: 1,
@@ -129,6 +189,73 @@ describe('VisualizeExecutor', () => {
     expect(spec.groups[0]!.title).toHaveLength(30);
     expect(spec.edges[0]).toEqual(['u', 'lb', { label: 'HTTPS requests over por…', bidirectional: true }]);
     expect(spec.edges[0]![2].label).toHaveLength(24);
+  });
+
+  describe('a group and a card with the same name', () => {
+    const run = async (nodes: unknown[], edges: unknown[]) => {
+      const generateStructured = vi.fn().mockResolvedValue({
+        version: 1,
+        type: 'architecture',
+        title: 'App',
+        groups: [
+          { id: 'g1', title: 'Electron app', parent: '' },
+          { id: 'g2', title: 'Main', parent: 'g1' },
+        ],
+        nodes,
+        edges,
+      });
+      const result = await new VisualizeExecutor().execute(InputSnapshot.of('x'), fakeProvider({ generateStructured }), signal);
+      return (result as { spec: { groups?: unknown; nodes: unknown; edges: unknown } }).spec;
+    };
+    const node = (id: string, title: string, group: string) => ({ id, title, description: '', group, icon: 'server' });
+    const edge = (from: string, to: string) => ({ from, to, label: '', bidirectional: false });
+
+    it('drops a card without lines that only repeats a group name', async () => {
+      const spec = await run(
+        [node('1', 'Electron app', ''), node('2', 'UI', 'g1'), node('3', 'Main', 'g2'), node('4', 'Queue', 'g2')],
+        [edge('2', '3'), edge('3', '4')],
+      );
+      expect(spec.nodes).toEqual([
+        { id: '2', title: 'UI', group: 'g1', icon: 'server' },
+        { id: '3', title: 'Main', group: 'g1', icon: 'server' },
+        { id: '4', title: 'Queue', group: 'g1', icon: 'server' },
+      ]);
+    });
+
+    it('turns a box that a line points at into a card next to what it held, instead of failing the diagram', async () => {
+      const spec = await run(
+        [node('2', 'UI', 'g1'), node('4', 'Queue', 'g2')],
+        [edge('2', 'g2'), edge('g2', '4'), edge('4', '4')],
+      );
+      expect(spec.groups).toEqual([{ id: 'g1', title: 'Electron app' }]);
+      expect(spec.nodes).toEqual([
+        { id: '2', title: 'UI', group: 'g1', icon: 'server' },
+        { id: '4', title: 'Queue', group: 'g1', icon: 'server' },
+        { id: 'g2', title: 'Main', group: 'g1' },
+      ]);
+      // 자기 자신을 가리키는 선은 그릴 수 없어 뺀다
+      expect(spec.edges).toEqual([
+        ['2', 'g2'],
+        ['g2', '4'],
+      ]);
+    });
+
+    it('keeps a connected card and opens its same-named box, moving what was inside one level up', async () => {
+      const spec = await run(
+        [node('2', 'UI', 'g1'), node('3', 'main', 'g2'), node('4', 'Queue', 'g2')],
+        [edge('2', '3'), edge('3', '4')],
+      );
+      expect(spec.groups).toEqual([{ id: 'g1', title: 'Electron app' }]);
+      expect(spec.nodes).toEqual([
+        { id: '2', title: 'UI', group: 'g1', icon: 'server' },
+        { id: '3', title: 'main', group: 'g1', icon: 'server' },
+        { id: '4', title: 'Queue', group: 'g1', icon: 'server' },
+      ]);
+      expect(spec.edges).toEqual([
+        ['2', '3'],
+        ['3', '4'],
+      ]);
+    });
   });
 
   it('renames a group whose id is also a node id, and moves the nodes and child groups with it', async () => {

@@ -109,7 +109,7 @@ onJobCompleted(job):
   if !range: return                                   // 이 노트가 열려 있지 않음 → 나중에 UC-ASSIST-005
 
   tr = editor.state.tr   // 하나의 트랜잭션
-  if textBetween(range) != job.inputText:              // BR-ASSIST-08
+  if selectionText(range) != job.inputText:           // BR-ASSIST-08 (요청 때와 같은 함수로 읽는다)
       tr.removeMark(range, aiPending); dispatch; notify('원문이 바뀌어 적용하지 않았습니다'); return
 
   switch job.type:

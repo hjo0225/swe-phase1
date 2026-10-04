@@ -65,6 +65,78 @@ function flowLabels(lines: readonly string[]): string[] {
 /** 무엇이 오가는지가 아니라 동작만 다시 말한 라벨 ("sends to …", "calls …", "talks to …") */
 const ACTION_LABEL = /^(?:it\s+|they\s+)?(?:send|sends|sent|call|calls|called|talk|talks|hit|hits|reach|reaches|go|goes|connect|connects|forward|forwards|pass|passes|route|routes)\b/i;
 
+/** 데모 영상에 쓰는 메모 — 정리하기 → 시각화가 한눈에 읽히는 아키텍처가 되어야 한다 */
+const DEMO_MEMO =
+  "electron app. the ui is react + tiptap editor, it can't touch files, the db or the internet directly, it only sends requests to main through preload over ipc. " +
+  'main reads and writes the md files in the vault folder and watches it. sqlite index for search and links. ' +
+  'ai requests run in a job queue in main and go to openai or kimi over https. api keys are encrypted in the os keychain.';
+
+/** 가벼운 서비스 메모 — 담는 곳을 말하지 않으므로 그룹 없이 그려야 한다 (그룹은 선택) */
+const LIGHT_MEMO =
+  'users open a static website served from a cdn. the site calls one api function, and the function reads a single database.';
+
+/** 가벼운 서비스: architecture, 그룹 없음, 카드 3~5개, 모든 카드가 이어져 있다 */
+function judgeLightDiagram(spec: InfographicSpec): Record<string, boolean> {
+  const linked = new Set(spec.edges.flatMap(([from, to]) => [from, to]));
+  return {
+    'type architecture': spec.type === 'architecture',
+    'no groups': (spec.groups ?? []).length === 0,
+    '3-5 cards': spec.nodes.length >= 3 && spec.nodes.length <= 5,
+    'no loose cards': spec.nodes.every((n) => linked.has(n.id)),
+  };
+}
+
+/**
+ * 편집기에서 정리된 글을 선택했을 때 시각화로 보내는 글 (renderer selectionText와 같은 모양):
+ * 블록마다 한 줄, 빈 줄 없음, 목록은 "- "와 단계마다 2칸 들여쓰기, 굵게·코드 표시는 글만.
+ */
+function asSelectedText(markdown: string): string {
+  const out: string[] = [];
+  const indents: number[] = [];
+  const plain = (t: string) => t.replace(/\*\*|__|`/g, '');
+  for (const raw of markdown.split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    const item = /^(\s*)(?:[-*+]|(\d+)\.)\s+(.*)$/.exec(raw);
+    if (!item) {
+      indents.length = 0;
+      out.push(plain(raw.trim()));
+      continue;
+    }
+    // 들여쓰기 칸 수가 아니라 중첩 단계로 맞춘다
+    const indent = item[1]!.replace(/\t/g, '    ').length;
+    while (indents.length > 0 && indents[indents.length - 1]! > indent) indents.pop();
+    if (indents.length === 0 || indents[indents.length - 1]! < indent) indents.push(indent);
+    out.push(`${'  '.repeat(indents.length - 1)}${item[2] ? `${item[2]}. ` : '- '}${plain(item[3]!)}`);
+  }
+  return out.join('\n');
+}
+
+/** 데모 다이어그램이 한눈에 아키텍처로 읽히는지 (조건 1~5) */
+function judgeDemoDiagram(spec: InfographicSpec): Record<string, boolean> {
+  const groups = spec.groups ?? [];
+  const title = (id: string) => spec.nodes.find((n) => n.id === id)?.title ?? '';
+  const linked = new Set(spec.edges.flatMap(([from, to]) => [from, to]));
+  const find = (pattern: RegExp) => spec.nodes.filter((n) => pattern.test(n.title)).map((n) => n.id);
+  const connects = (from: string[], to: string[]) =>
+    spec.edges.some(
+      ([a, b, meta]) => (from.includes(a) && to.includes(b)) || (meta?.bidirectional === true && from.includes(b) && to.includes(a)),
+    );
+  const groupTitles = new Set(groups.map((g) => g.title.trim().toLowerCase()));
+  const ui = find(/\bui\b|renderer|user interface/i);
+  const preload = find(/preload/i);
+  const main = find(/\bmain\b/i);
+  const httpsTo = (pattern: RegExp) =>
+    spec.edges.some(([a, b, meta]) => (pattern.test(title(a)) || pattern.test(title(b))) && /https/i.test(meta?.label ?? ''));
+  return {
+    '1 electron app is a group': groups.some((g) => /electron/i.test(g.title)) && find(/^electron( app)?$/i).length === 0,
+    '2 at most one loose card, no card named like a group':
+      spec.nodes.filter((n) => !linked.has(n.id)).length <= 1 && spec.nodes.every((n) => !groupTitles.has(n.title.trim().toLowerCase())),
+    '3 ui -> preload -> main': connects(ui, preload) && connects(preload, main),
+    '4 react/tiptap are not loose cards': spec.nodes.every((n) => !/react|tiptap/i.test(n.title) || ui.includes(n.id) || linked.has(n.id)),
+    '5 https to openai and kimi': httpsTo(/openai/i) && httpsTo(/kimi/i),
+  };
+}
+
 describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   const llm = () => new OpenAIProvider({ apiKey: apiKey!, model });
   const signal = () => AbortSignal.timeout(TIMEOUT - 5_000);
@@ -143,6 +215,40 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(visual.spec.type).toBe('architecture');
     expect(visual.spec.groups?.length ?? 0).toBeGreaterThanOrEqual(2);
   }, TIMEOUT * 2);
+
+  /** 정리하기 → (편집기에서 결과 선택) → 시각화를 5번 연달아 돌려 조건마다 통과를 남긴다 */
+  async function fiveRuns(name: string, memo: string, judge: (spec: InfographicSpec) => Record<string, boolean>): Promise<string[][]> {
+    const runs: { organized: string; spec: InfographicSpec; failed: string[] }[] = [];
+    for (let run = 1; run <= 5; run++) {
+      const organized = (await new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal())) as { markdown: string };
+      const selected = asSelectedText(organized.markdown);
+      let visual: { spec: InfographicSpec };
+      try {
+        visual = (await new VisualizeExecutor().execute(InputSnapshot.of(selected), llm(), signal())) as { spec: InfographicSpec };
+      } catch (error) {
+        // 시각화 실패(검증 거절 등)도 그 회차의 실패로 남기고 다음 회차로 간다
+        runs.push({ organized: organized.markdown, spec: null as never, failed: [`visualize failed: ${String(error)}`] });
+        console.log(`[${name} run ${run}] FAIL visualize: ${String(error)}\n[${name} run ${run} organized]\n${organized.markdown}`);
+        continue;
+      }
+      const checks = judge(visual.spec);
+      const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([k]) => k);
+      runs.push({ organized: organized.markdown, spec: visual.spec, failed });
+      console.log(`[${name} run ${run}] ` + Object.entries(checks).map(([k, ok]) => `${ok ? 'PASS' : 'FAIL'} ${k}`).join(' | '));
+      if (failed.length > 0) console.log(`[${name} run ${run} organized]\n${organized.markdown}\n[${name} run ${run} spec] ${JSON.stringify(visual.spec)}`);
+    }
+    const last = runs[runs.length - 1]!;
+    console.log(`[${name} last organized]\n${last.organized}\n[${name} last spec] ${JSON.stringify(last.spec)}`);
+    return runs.map((r) => r.failed);
+  }
+
+  it('turns the demo memo into a diagram that reads as an architecture, five runs in a row', async () => {
+    expect(await fiveRuns('DEMO', DEMO_MEMO, judgeDemoDiagram)).toEqual([[], [], [], [], []]);
+  }, TIMEOUT * 10);
+
+  it('draws a light service memo without inventing groups, five runs in a row', async () => {
+    expect(await fiveRuns('LIGHT', LIGHT_MEMO, judgeLightDiagram)).toEqual([[], [], [], [], []]);
+  }, TIMEOUT * 10);
 
   it('keeps organizing an ordinary meeting memo without components and flows', async () => {
     const organized = (await new OrganizeExecutor().execute(

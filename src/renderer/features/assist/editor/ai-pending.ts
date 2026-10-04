@@ -3,6 +3,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { JobStatus } from '../../../../shared/ipc/assist';
+import { selectionText } from './selection-text';
 
 /** 이 meta가 붙은 트랜잭션만 잠긴 범위를 바꿀 수 있다 (Commit, Mark 제거). */
 export const AI_COMMIT_META = 'aiCommit';
@@ -41,7 +42,7 @@ export function findPendingRanges(doc: PMNode): Map<string, PendingRange> {
     const span = spans.get(jobId);
     spans.set(jobId, span ? { from: Math.min(span.from, pos), to: Math.max(span.to, end) } : { from: pos, to: end });
   });
-  return new Map([...spans].map(([id, s]) => [id, { ...s, text: doc.textBetween(s.from, s.to, '\n') }]));
+  return new Map([...spans].map(([id, s]) => [id, { ...s, text: selectionText(doc, s.from, s.to) }]));
 }
 
 /** 요청 직전: 선택 범위를 잠그고 커서를 범위 끝으로 옮긴다 (Bubble Menu가 닫힌다). */

@@ -11,9 +11,9 @@ import { getBlink } from '../../../shared/api/blink';
 import { toast } from '../../../shared/ui/toast';
 import { svgToPng } from '../export/svg-to-png';
 import { InfographicSvg } from '../renderers/InfographicSvg';
-import { layoutInfographic } from '../renderers/layout';
 import { infographicTheme as t } from '../theme/infographic-theme';
 import styles from './InfographicView.module.css';
+import { useInfographicLayout } from './use-infographic-layout';
 
 /** 이만큼(화면 px) 움직여야 끌기로 본다 — 그냥 누른 것은 위치를 저장하지 않는다 */
 const DRAG_THRESHOLD = 3;
@@ -52,6 +52,8 @@ export function InfographicView({ node, deleteNode, selected, editor, updateAttr
     () => (spec && override ? { ...spec, positions: { ...spec.positions, [override.id]: override.at } } : spec),
     [spec, override],
   );
+  // architecture는 ELK로 비동기 배치한다 — 그동안 layout이 null
+  const { layout, failed } = useInfographicLayout(shown);
 
   const savePosition = (id: string, position: CardPosition) => {
     const raw = node.attrs.spec as { positions?: Record<string, CardPosition> };
@@ -76,7 +78,7 @@ export function InfographicView({ node, deleteNode, selected, editor, updateAttr
     // 편집기가 블록을 선택하거나 블록째 끌기(드래그 앤 드롭)를 시작하지 않게 한다
     event.preventDefault();
     event.stopPropagation();
-    const card = layoutInfographic(spec).nodes.find((n) => n.id === id);
+    const card = layout?.nodes.find((n) => n.id === id);
     if (!card) return;
     const shownWidth = svgRef.current?.getBoundingClientRect().width ?? 0;
     const width = Number(svgRef.current?.getAttribute('width') ?? 0);
@@ -153,10 +155,12 @@ export function InfographicView({ node, deleteNode, selected, editor, updateAttr
       aria-label={spec?.title ?? 'Infographic'}
       contentEditable={false}
     >
-      {shown ? (
+      {layout ? (
         <div className={styles.canvas} data-editable={editable || undefined} data-dragging={drag?.moved || undefined}>
-          <InfographicSvg ref={svgRef} spec={shown} onCardPointerDown={editable ? onCardPointerDown : undefined} />
+          <InfographicSvg ref={svgRef} layout={layout} onCardPointerDown={editable ? onCardPointerDown : undefined} />
         </div>
+      ) : shown && !failed ? (
+        <p className={styles.invalid}>Laying out…</p>
       ) : (
         <p className={styles.invalid}>This infographic can't be displayed</p>
       )}

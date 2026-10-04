@@ -49,6 +49,15 @@
   font-weight: 650;
 }
 
+/* 소제목: 섹션(h3) 아래 항목 이름 — 본문보다 조금만 굵고 작게 */
+.prose :global(h4) {
+  margin: 1.3em 0 0.4em;
+  font-size: 15.5px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink-800);
+}
+
 .prose :global(ul),
 .prose :global(ol) {
   margin: 0 0 0.9em;

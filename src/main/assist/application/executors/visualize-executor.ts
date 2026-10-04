@@ -31,11 +31,40 @@ const MAX_GROUP_TITLE = 30;
 function fromLLMShape(raw: unknown): unknown {
   if (typeof raw !== 'object' || raw === null) return raw;
   const spec = raw as { edges?: unknown; nodes?: unknown; groups?: unknown };
+  const nodes = Array.isArray(spec.nodes) ? spec.nodes.map(toNode) : undefined;
+  const groups = Array.isArray(spec.groups) ? spec.groups.map(toGroup) : undefined;
   return {
     ...raw,
     ...(Array.isArray(spec.edges) ? { edges: spec.edges.map(toEdge) } : {}),
-    ...(Array.isArray(spec.nodes) ? { nodes: spec.nodes.map(toNode) } : {}),
-    ...(Array.isArray(spec.groups) ? { groups: spec.groups.map(toGroup) } : {}),
+    ...(nodes && groups ? separateGroupIds(nodes, groups) : { ...(nodes ? { nodes } : {}), ...(groups ? { groups } : {}) }),
+  };
+}
+
+/**
+ * LLM은 노드와 그룹에 번호를 따로 매기기도 한다(노드 "1", 그룹 "1"). 그룹 id는 노드 group·그룹 parent에서만
+ * 가리키므로, 노드 id와 겹치는 그룹 id는 "g1"처럼 바꾸고 그 참조도 함께 바꾼다. 그룹끼리 겹치는 id는 parse가 거절한다.
+ */
+function separateGroupIds(nodes: unknown[], groups: unknown[]): { nodes: unknown[]; groups: unknown[] } {
+  const idOf = (x: unknown): unknown => (typeof x === 'object' && x !== null ? (x as { id?: unknown }).id : undefined);
+  const nodeIds = new Set(nodes.map(idOf));
+  const taken = new Set([...nodeIds, ...groups.map(idOf)]);
+  const renamed = new Map<string, string>();
+  for (const id of groups.map(idOf)) {
+    if (typeof id !== 'string' || !nodeIds.has(id) || renamed.has(id)) continue;
+    let next = `g${id}`;
+    for (let i = 2; taken.has(next); i++) next = `g${id}-${i}`;
+    taken.add(next);
+    renamed.set(id, next);
+  }
+  if (renamed.size === 0) return { nodes, groups };
+  const rename = <T,>(x: T, key: 'id' | 'group' | 'parent'): T => {
+    if (typeof x !== 'object' || x === null) return x;
+    const value = (x as Record<string, unknown>)[key];
+    return typeof value === 'string' && renamed.has(value) ? { ...x, [key]: renamed.get(value) } : x;
+  };
+  return {
+    nodes: nodes.map((n) => rename(n, 'group')),
+    groups: groups.map((g) => rename(rename(g, 'id'), 'parent')),
   };
 }
 

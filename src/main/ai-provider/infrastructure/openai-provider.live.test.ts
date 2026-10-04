@@ -25,6 +25,46 @@ function groupBy<T>(items: readonly T[], key: (item: T) => string): [string, T[]
   return [...groups];
 }
 
+/** "## <heading>" 아래부터 다음 "## " 제목 전까지의 빈 줄이 아닌 줄 */
+function sectionLines(markdown: string, heading: string): string[] {
+  const lines = markdown.split(/\r?\n/);
+  const start = lines.findIndex((l) => new RegExp(`^##\\s+${heading}\\b`).test(l));
+  if (start < 0) return [];
+  const end = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
+  return lines.slice(start + 1, end < 0 ? undefined : end).filter((l) => l.trim());
+}
+
+/** 중첩 목록에서 pattern에 맞는 항목마다 그 항목을 품은 상위 항목들의 글 (들여쓰기 = 안에 있음) */
+function listAncestors(lines: readonly string[], pattern: RegExp): string[][] {
+  const items = lines
+    .map((l) => /^(\s*)[-*+]\s+(.*)$/.exec(l))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({ indent: m[1]!.replace(/\t/g, '    ').length, text: m[2]! }));
+  return items.flatMap((item, i) => {
+    if (!pattern.test(item.text)) return [];
+    const ancestors: string[] = [];
+    let indent = item.indent;
+    for (let j = i - 1; j >= 0; j--) {
+      if (items[j]!.indent < indent) {
+        ancestors.push(items[j]!.text);
+        indent = items[j]!.indent;
+      }
+    }
+    return [ancestors];
+  });
+}
+
+/** "A → B: 라벨"의 라벨 (없으면 제외) */
+function flowLabels(lines: readonly string[]): string[] {
+  return lines.flatMap((l) => {
+    const m = /(?:→|↔)[^:]*:\s*(.+)$/.exec(l);
+    return m ? [m[1]!.trim()] : [];
+  });
+}
+
+/** 무엇이 오가는지가 아니라 동작만 다시 말한 라벨 ("sends to …", "calls …", "talks to …") */
+const ACTION_LABEL = /^(?:it\s+|they\s+)?(?:send|sends|sent|call|calls|called|talk|talks|hit|hits|reach|reaches|go|goes|connect|connects|forward|forwards|pass|passes|route|routes)\b/i;
+
 describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   const llm = () => new OpenAIProvider({ apiKey: apiKey!, model });
   const signal = () => AbortSignal.timeout(TIMEOUT - 5_000);
@@ -86,6 +126,18 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(organized.markdown).toMatch(/^##\s+Components/m);
     expect(organized.markdown).toMatch(/^##\s+Flows/m);
     expect(organized.markdown).toMatch(/→|↔/);
+    const components = sectionLines(organized.markdown, 'Components');
+    const flows = sectionLines(organized.markdown, 'Flows');
+    // Flows에 나오는 사용자도 구성요소로 적는다
+    expect(components.some((l) => /\busers?\b/i.test(l))).toBe(true);
+    // 글은 WAS 서버가 어느 zone에 있는지 말하지 않는다 → zone 아래로 넣지 않는다
+    const wasAncestors = listAncestors(components, /\bwas\b/i);
+    expect(wasAncestors.length).toBeGreaterThan(0);
+    expect(wasAncestors.flat().filter((a) => /\bzone\b/i.test(a))).toEqual([]);
+    // 선 라벨은 오가는 것(프로토콜·데이터)만: 동작을 다시 말한 라벨은 없고, 글에 있는 HTTPS는 남는다
+    const labels = flowLabels(flows);
+    expect(labels.filter((l) => ACTION_LABEL.test(l) || l.length > 24)).toEqual([]);
+    expect(labels.some((l) => /https/i.test(l))).toBe(true);
     const visual = (await new VisualizeExecutor().execute(InputSnapshot.of(organized.markdown), llm(), signal())) as { spec: InfographicSpec };
     console.log('[VISUALIZE organized architecture] ' + JSON.stringify(visual.spec));
     expect(visual.spec.type).toBe('architecture');

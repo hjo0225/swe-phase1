@@ -127,6 +127,10 @@ describe('assist use cases', () => {
       expect(system).toContain('same language as the selected text');
       expect(system).toContain('## Components');
       expect(system).toContain('## Flows');
+      // 원문에 없는 위치·라벨을 만들지 않는다
+      expect(system).toContain('only when the text says it is there');
+      expect(system).toContain('including users');
+      expect(system).toContain('Do not restate the action');
     });
   });
 });

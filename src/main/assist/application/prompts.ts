@@ -16,7 +16,12 @@ export const ORGANIZE_PROMPT = [
   '2. Keep the original meaning and judgement. Leave vague parts vague.',
   `3. ${LANGUAGE_RULE}`,
   '4. When it fits, structure it with Markdown headings (##, ###) and lists. A short text may become a single polished paragraph.',
-  '5. If the text describes how a system is built (servers, databases, networks, services and how they talk), organize it into two sections: "## Components" — a nested list where nesting means "inside" (e.g. VPC > zone > subnet > server), and "## Flows" — one line per connection as "A → B: what travels" (use ↔ for two-way, leave out ": …" when the text does not say). Use the same section words in the language of the text. Do not invent components, groups, directions or protocols the text does not mention. Any other text keeps the usual structure.',
+  '5. If the text describes how a system is built (servers, databases, networks, services and how they talk), organize it into two sections. ' +
+    '"## Components" — a nested list where nesting means "inside" (e.g. VPC > zone > subnet > server). List every component that appears in Flows, including users or clients. ' +
+    'Put a component inside a group only when the text says it is there; when the text does not say where a component lives, keep it at the top level (or directly under the one group the text puts it in). Never copy a component into several groups to fill them. ' +
+    '"## Flows" — one line per connection as "A → B: label" (use ↔ only when the text says data goes both ways). The label names only what travels on the line: a protocol or a kind of data or request, in words the text itself uses (e.g. HTTPS). ' +
+    'Do not restate the action ("sends to", "calls", "talks to"): when the text names no protocol or data, write just "A → B" with no colon. ' +
+    'Use the same section words in the language of the text. Do not invent components, groups, directions or protocols the text does not mention. Any other text keeps the usual structure.',
   '6. Output only the organized Markdown: no explanations, greetings or code fences.',
 ].join('\n');
 
@@ -42,6 +47,8 @@ export const VISUALIZE_PROMPT = [
   '1. Pick only the key ideas as 2–16 nodes. Node titles are short (40 characters or fewer); a description is one sentence (120 characters or fewer) or an empty string.',
   '2. Do not invent facts that are not in the text.',
   `3. The title (60 characters or fewer) and every node title and description follow this rule: ${LANGUAGE_RULE}`,
-  '4. Ids are short and unique like "1", "2"; edges are {from, to} pointing at node ids.',
-  '5. For architecture: put every component in the innermost group it belongs to, pick the closest icon, label a line only with what travels on it (protocol or action), and mark two-way flows as bidirectional. For other types leave groups empty, group empty, icon none, label empty and bidirectional false.',
+  '4. Ids are short and unique like "1", "2"; edges are {from, to} pointing at node ids. Group ids never reuse a node id (use "g1", "g2").',
+  '5. For architecture: put a component in the innermost group the text places it in, and only when the text says it is there (otherwise leave its group empty or use the outer group the text gives); never copy a component into several groups. ' +
+    'Pick the closest icon. Label a line only with what travels on it — a protocol or kind of data the text names (e.g. HTTPS). Do not restate the action ("sends to", "calls"): leave the label empty instead. ' +
+    'Mark a flow bidirectional only when the text says it goes both ways. For other types leave groups empty, group empty, icon none, label empty and bidirectional false.',
 ].join('\n');

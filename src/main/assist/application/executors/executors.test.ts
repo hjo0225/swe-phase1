@@ -72,6 +72,9 @@ describe('VisualizeExecutor', () => {
       schemaName: 'infographic_spec',
       jsonSchema: { type: 'object' },
     });
+    const { system } = generateStructured.mock.calls[0]![0] as { system: string };
+    expect(system).toContain('only when the text says it is there');
+    expect(system).toContain('Do not restate the action');
   });
 
   it('turns the model output into an architecture spec with groups, icons and labelled lines', async () => {
@@ -126,6 +129,39 @@ describe('VisualizeExecutor', () => {
     expect(spec.groups[0]!.title).toHaveLength(30);
     expect(spec.edges[0]).toEqual(['u', 'lb', { label: 'HTTPS requests over por…', bidirectional: true }]);
     expect(spec.edges[0]![2].label).toHaveLength(24);
+  });
+
+  it('renames a group whose id is also a node id, and moves the nodes and child groups with it', async () => {
+    const generateStructured = vi.fn().mockResolvedValue({
+      version: 1,
+      type: 'architecture',
+      title: 'Web service',
+      groups: [
+        { id: '1', title: 'VPC A', parent: '' },
+        { id: '2', title: 'Zone A', parent: '1' },
+      ],
+      nodes: [
+        { id: '1', title: 'Users', description: '', group: '', icon: 'user' },
+        { id: '2', title: 'Load Balancer', description: '', group: '1', icon: 'load-balancer' },
+        { id: '3', title: 'Web', description: '', group: '2', icon: 'server' },
+      ],
+      edges: [
+        { from: '1', to: '2', label: 'HTTPS', bidirectional: false },
+        { from: '2', to: '3', label: '', bidirectional: false },
+      ],
+    });
+    const result = await new VisualizeExecutor().execute(InputSnapshot.of('x'), fakeProvider({ generateStructured }), signal);
+    const spec = (result as { spec: { groups: unknown; nodes: unknown; edges: unknown } }).spec;
+    expect(spec.groups).toEqual([
+      { id: 'g1', title: 'VPC A' },
+      { id: 'g2', title: 'Zone A', parent: 'g1' },
+    ]);
+    expect(spec.nodes).toEqual([
+      { id: '1', title: 'Users', icon: 'user' },
+      { id: '2', title: 'Load Balancer', group: 'g1', icon: 'load-balancer' },
+      { id: '3', title: 'Web', group: 'g2', icon: 'server' },
+    ]);
+    expect(spec.edges).toEqual([['1', '2', { label: 'HTTPS' }], ['2', '3']]);
   });
 
   it('rejects specs that break the structure rules', async () => {

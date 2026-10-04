@@ -20,6 +20,9 @@ describe('techLogoFor', () => {
     expect(techLogoFor('Load balancer')).toBeNull();
     expect(techLogoFor('Users')).toBeNull();
     expect(techLogoFor('Reactor pattern')).toBeNull(); // 단어 일부만 같으면 아니다
+    // 여러 서비스를 함께 적은 카드에 한쪽 로고를 붙이지 않는다
+    expect(techLogoFor('OpenAI SDK 7 (OpenAI, Kimi)')).toBeNull();
+    expect(techLogoFor('OpenAI / Kimi')).toBeNull();
   });
 
   it('darkens brand colours that would vanish on a white card', () => {

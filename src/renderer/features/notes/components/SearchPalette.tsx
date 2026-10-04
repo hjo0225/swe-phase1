@@ -9,6 +9,7 @@ import { useDebouncedValue } from '../../../shared/hooks/use-debounced-value';
 import { formatRelativeTime } from '../../../shared/lib/relative-time';
 import { useActiveEditor } from '../../editor/ActiveEditorContext';
 import { fetchNotePreview, useNoteList, useNoteSearch } from '../api/note-queries';
+import { insertImportedContent } from '../model/insert-imported-content';
 import { sanitizeImportedContent } from '../model/sanitize-imported-content';
 import { NotePreviewPane } from './NotePreviewPane';
 import styles from './SearchPalette.module.css';
@@ -40,7 +41,8 @@ export function SearchPalette({ onClose }: { onClose(): void }) {
   const insert = (content: JSONContent[]) => {
     if (!active) return;
     const { editor } = active;
-    editor.chain().focus().insertContentAt(editor.state.selection.to, sanitizeImportedContent(content)).run();
+    // 커서 자리에 넣고 그 아래 새 줄로 — 이어서 가져와도 앞 노트의 목록 안에 들어가지 않는다
+    insertImportedContent(editor, sanitizeImportedContent(content));
     onClose();
   };
 

@@ -56,7 +56,8 @@ const RULES: [RegExp, SimpleIcon][] = [
   [/\bvitest\b/i, siVitest],
   [/\bvite\b/i, siVite],
   [/\bpnpm\b/i, siPnpm],
-  [/\bkimi\b|\bmoonshot\b/i, siMoonshotai],
+  // OpenAI와 함께 적힌 카드("OpenAI SDK 7 (OpenAI, Kimi)")는 Kimi 로고가 아니다 — 기본 AI 아이콘
+  [/^(?!.*openai).*\b(kimi|moonshot)\b/i, siMoonshotai],
   [/\bclaude\b/i, siClaude],
   [/\banthropic\b/i, siAnthropic],
 ];

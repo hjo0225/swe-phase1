@@ -2,6 +2,7 @@ import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react';
 import { Download, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
+import { PRINT_BUSY_ATTRIBUTE } from '../../../../shared/print/print-page';
 import {
   parseInfographicSpec,
   type CardPosition,
@@ -158,6 +159,8 @@ export function InfographicView({ node, deleteNode, selected, editor, updateAttr
       data-selected={selected}
       aria-label={spec?.title ?? 'Infographic'}
       contentEditable={false}
+      // ELK가 배치하는 동안 PDF 인쇄·미리보기가 기다린다 (src/shared/print/print-page.ts)
+      {...(!layout && shown && !failed ? { [PRINT_BUSY_ATTRIBUTE]: '' } : {})}
     >
       {layout ? (
         <div className={styles.canvas} data-editable={editable || undefined} data-dragging={drag?.moved || undefined}>

@@ -155,4 +155,46 @@ describe('Export a note as a one-page A4 PDF', () => {
       await app.close();
     }
   });
+
+  it('previews and exports a poster whose architecture diagram is laid out asynchronously', async () => {
+    const layers = {
+      version: 1,
+      type: 'architecture',
+      title: 'Blink Architecture',
+      groups: [
+        { id: 'g1', title: 'Screen' },
+        { id: 'g2', title: 'Main' },
+        { id: 'g3', title: 'Resources' },
+      ],
+      nodes: [
+        { id: '1', title: 'React 19.3', group: 'g1', icon: 'client' },
+        { id: '2', title: 'Tiptap 3.31', group: 'g1' },
+        { id: '3', title: 'Electron 44.4', group: 'g2', icon: 'container' },
+        { id: '4', title: 'Markdown files', group: 'g3', icon: 'storage' },
+        { id: '5', title: 'SQLite 3.53', group: 'g3', icon: 'database' },
+      ],
+      edges: [
+        ['g1', 'g2', { label: 'preload / ipc' }],
+        ['g2', 'g3'],
+      ],
+    };
+    const markdown = posterMarkdown().replace('## 결과', ['```blink-infographic', JSON.stringify(layers), '```', '', '## 결과'].join('\n'));
+    writeFileSync(join(userData.vault, '구조 포스터.md'), markdown);
+    const pdfPath = join(userData.dir, 'architecture.pdf');
+    const { app, page } = await launchApp(userData.dir, { BLINK_E2E_PDF_PATH: pdfPath });
+    try {
+      await exportOpenNote(page, '구조 포스터', async (dialog) => {
+        // 요약이 나온 순간(측정이 끝난 뒤) 미리보기의 그림은 층 상자와 카드까지 다 그려져 있다
+        await dialog.getByText(/^1 page · /).waitFor({ timeout: 30_000 });
+        const figure = dialog.locator('figure[aria-label="Blink Architecture"]');
+        expect(await figure.locator('[data-card]').count()).toBe(5);
+        expect(await figure.getAttribute('data-print-busy')).toBeNull();
+      });
+      await page.getByText('Saved as PDF', { exact: true }).waitFor({ timeout: 30_000 });
+      expect(pdfPageCount(readFileSync(pdfPath))).toBe(1);
+      if (process.env.BLINK_E2E_SHOTS) copyFileSync(pdfPath, `${process.env.BLINK_E2E_SHOTS}/architecture-poster.pdf`);
+    } finally {
+      await app.close();
+    }
+  });
 });

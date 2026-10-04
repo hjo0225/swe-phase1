@@ -123,4 +123,27 @@ describe('print route', () => {
     render(<App />);
     await waitFor(() => expect(document.documentElement).toHaveAttribute('data-print-ready', 'error'));
   });
+
+  it('waits for an architecture diagram to be laid out before signalling ready', async () => {
+    const architecture = {
+      version: 1,
+      type: 'architecture',
+      title: 'Web service',
+      groups: [{ id: 'vpc', title: 'VPC A' }],
+      nodes: [
+        { id: 'u', title: 'Users', icon: 'user' },
+        { id: 'w', title: 'Web server', icon: 'server', group: 'vpc' },
+      ],
+      edges: [['u', 'w', { label: 'HTTPS' }]],
+    };
+    const note = await seedNote('구조', ['```blink-infographic', JSON.stringify(architecture), '```'].join('\n'));
+    window.location.hash = `#/print/${note.id}`;
+    render(<App />);
+
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-print-ready', 'true'), { timeout: 5000 });
+    // 신호를 준 순간 그림은 이미 다 그려져 있다 ("Laying out…"이 아니다)
+    const figure = screen.getByRole('figure', { name: 'Web service' });
+    expect(figure.querySelectorAll('[data-card]')).toHaveLength(2);
+    expect(figure).not.toHaveAttribute('data-print-busy');
+  });
 });

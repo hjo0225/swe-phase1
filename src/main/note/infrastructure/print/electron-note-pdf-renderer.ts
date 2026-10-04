@@ -1,5 +1,6 @@
 import { BrowserWindow, type WebContents } from 'electron';
-import { A4_PRINT, fitToPageWidth } from '../../../../shared/print/page-fit';
+import { fitToPageWidth, type WidthFit } from '../../../../shared/print/page-fit';
+import { pageGeometry, type PdfExportOptions } from '../../../../shared/print/pdf-options';
 import { PRINT_BUSY_ATTRIBUTE, PRINT_READY_ATTRIBUTE, PRINT_ROOT_ATTRIBUTE, printRoutePath } from '../../../../shared/print/print-page';
 import { loadRenderer, lockNavigation, secureWebPreferences } from '../../../window';
 import type { NotePdfRenderer } from '../../application/export-note-pdf';
@@ -10,15 +11,17 @@ const READY_TIMEOUT_MS = 30_000;
 const RELAYOUT_TIMEOUT_MS = 5_000;
 
 /**
- * 숨은 창에 앱 자신의 인쇄 화면(`#/print/<noteId>`)을 열어 PDF로 만든다.
+ * 숨은 창에 앱 자신의 인쇄 화면(`#/print/<noteId>?설정`)을 열어 PDF로 만든다.
+ * 한 장 맞춤이면 종이 폭을 채우는 배율로 첫 장만, 아니면 배율 1로 모든 장을 인쇄한다.
  * 창은 메인 창과 같은 보안 설정(preload·contextIsolation·sandbox)을 쓰고, 끝나면(실패해도) 바로 없앤다.
  */
 export class ElectronNotePdfRenderer implements NotePdfRenderer {
-  async render(noteId: string): Promise<{ pdf: Uint8Array; scale: number; clipped: boolean }> {
+  async render(noteId: string, options: PdfExportOptions): Promise<{ pdf: Uint8Array; scale: number; clipped: boolean }> {
+    const page = pageGeometry(options);
     const window = new BrowserWindow({
       show: false,
       // 인쇄 화면은 인쇄 영역 폭으로 그린다. 창 폭은 스크롤바가 생겨도 줄바꿈이 바뀌지 않을 만큼만 넉넉히
-      width: Math.ceil(A4_PRINT.printableWidthPx) + 40,
+      width: Math.ceil(page.printableWidthPx) + 40,
       height: 1200,
       useContentSize: true,
       backgroundColor: '#FFFFFF',
@@ -27,21 +30,24 @@ export class ElectronNotePdfRenderer implements NotePdfRenderer {
     });
     try {
       lockNavigation(window);
-      await loadRenderer(window, printRoutePath(noteId));
+      await loadRenderer(window, printRoutePath(noteId, options));
       const contents = window.webContents;
       await waitUntilReady(contents, READY_TIMEOUT_MS);
       // 길면 넓게 다시 배치해 보고 종이 폭을 채우는 배율을 찾는다 → 고른 폭으로 배치한 채 인쇄
-      const { scale, clipped, layoutWidthPx } = await fitToPageWidth((width) => measureAt(contents, width));
-      await measureAt(contents, layoutWidthPx);
-      const margin = A4_PRINT.marginInches;
+      const fit: WidthFit = options.fitToOnePage
+        ? await fitToPageWidth((width) => measureAt(contents, width), page)
+        : { scale: 1, clipped: false, layoutWidthPx: page.printableWidthPx };
+      const { scale, clipped } = fit;
+      await measureAt(contents, fit.layoutWidthPx);
+      const margin = page.marginInches;
       const data = await contents.printToPDF({
-        pageSize: 'A4',
-        landscape: false,
+        pageSize: options.pageSize,
+        landscape: options.orientation === 'landscape',
         printBackground: true,
         margins: { top: margin, bottom: margin, left: margin, right: margin },
         scale,
-        // 늘 한 장: 최소 배율로도 넘치는 아주 긴 노트는 아래쪽이 잘린다 (clipped)
-        pageRanges: '1',
+        // 한 장 맞춤: 최소 배율로도 넘치는 아주 긴 노트는 아래쪽이 잘린다 (clipped)
+        ...(options.fitToOnePage ? { pageRanges: '1' } : {}),
         preferCSSPageSize: false,
       });
       return { pdf: new Uint8Array(data), scale, clipped };

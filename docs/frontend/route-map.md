@@ -11,8 +11,8 @@ Renderer는 **Electron + React + Vite 단일 페이지 앱**이다. Next.js/Nuxt
 | Route | 화면 | 관련 Use Case | Layout | Primary Data | Main Actions |
 | --- | --- | --- | --- | --- | --- |
 | `#/` | 시작 | UC-NOTE-002 | AppShell | 노트 목록 | 가장 최근 노트로 redirect, 노트가 없으면 빈 상태 + `새 노트` |
-| `#/notes/:noteId` | 노트 편집 | UC-NOTE-003·004·005·007·008·009, UC-ASSIST-001~005, UC-VIS-001 | AppShell | 노트 상세, 이 노트의 AI Job, 링크 | 편집(자동 저장), 제목 변경, 삭제, PDF 내보내기, AI 작업, 검색·연결·가져오기, PNG 저장 |
-| `#/print/:noteId` | 인쇄 화면 (PDF 내보내기 전용) | — | 없음 (AppShell 밖) | 노트 상세 | 없음. 제목 + 읽기 전용 본문만 그리고 준비되면 `<html data-print-ready>`를 단다. Main의 숨은 인쇄 창만 연다 ([note api-contract](../backend/note/api-contract.md)) |
+| `#/notes/:noteId` | 노트 편집 | UC-NOTE-003·004·005·007·008·009, UC-ASSIST-001~005, UC-VIS-001 | AppShell | 노트 상세, 이 노트의 AI Job, 링크 | 편집(자동 저장), 제목 변경, 삭제, PDF 내보내기(미리보기 창),  AI 작업, 검색·연결·가져오기, PNG 저장 |
+| `#/print/:noteId?size&orientation&margin&fit&title` | 인쇄 화면 (PDF 내보내기 전용) | — | 없음 (AppShell 밖) | 노트 상세 | 없음. 쿼리의 종이 폭으로 제목(선택) + 읽기 전용 본문만 그리고 준비되면 `<html data-print-ready>`를 단다. Main의 숨은 인쇄 창만 연다 ([note api-contract](../backend/note/api-contract.md)) |
 | `#/settings/ai` | AI 설정 | UC-AIP-001~003 | AppShell | Provider 설정 | 저장, 연결 테스트 |
 | `*` | — | — | — | — | `#/`로 redirect |
 

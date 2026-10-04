@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_PDF_OPTIONS } from '../../../shared/print/pdf-options';
 import { DomainError } from '../../platform/errors';
 import { ExportNotePdf, pdfFileName, type NotePdfRenderer, type PdfFileSaver } from './export-note-pdf';
 
@@ -30,8 +31,15 @@ describe('ExportNotePdf', () => {
       clipped: false,
     });
     expect(files.askSavePath).toHaveBeenCalledWith('포스터.pdf');
-    expect(renderer.render).toHaveBeenCalledWith(NOTE_ID);
+    expect(renderer.render).toHaveBeenCalledWith(NOTE_ID, DEFAULT_PDF_OPTIONS);
     expect(files.write).toHaveBeenCalledWith('C:/Downloads/포스터.pdf', expect.any(Uint8Array));
+  });
+
+  it('renders with the chosen page settings', async () => {
+    const { renderer, exportPdf } = setup();
+    const options = { pageSize: 'Letter' as const, orientation: 'landscape' as const, margin: 'none' as const, includeTitle: false, fitToOnePage: false };
+    await exportPdf.execute({ id: NOTE_ID, options });
+    expect(renderer.render).toHaveBeenCalledWith(NOTE_ID, options);
   });
 
   it('treats a cancelled dialog as not saved and does not render', async () => {

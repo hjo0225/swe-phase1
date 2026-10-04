@@ -1,21 +1,10 @@
 /**
- * 노트 → 한 장짜리 A4 세로 PDF 규칙. Main(printToPDF 옵션·배율)과 Renderer(인쇄 화면 폭)가 같은 값을 쓴다.
- * CSS px는 인치당 96이다 (Chromium 인쇄 기준).
+ * 노트 → 한 장짜리 PDF 규칙. Main(printToPDF 옵션·배율)과 Renderer(인쇄 화면 폭)가 같은 값을 쓴다.
  */
-const MM_PER_INCH = 25.4;
-const CSS_PX_PER_INCH = 96;
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297;
-const MARGIN_MM = 12;
+import { DEFAULT_PDF_OPTIONS, pageGeometry } from './pdf-options';
 
-const mmToPx = (mm: number) => (mm / MM_PER_INCH) * CSS_PX_PER_INCH;
-
-export const A4_PRINT = {
-  marginInches: MARGIN_MM / MM_PER_INCH,
-  /** 여백을 뺀 인쇄 영역. 인쇄 화면은 이 폭으로 그려 배율 1에서 화면과 PDF의 줄바꿈이 같다 */
-  printableWidthPx: mmToPx(A4_WIDTH_MM - 2 * MARGIN_MM),
-  printableHeightPx: mmToPx(A4_HEIGHT_MM - 2 * MARGIN_MM),
-} as const;
+/** 기본 종이(A4 세로, 여백 12mm) */
+export const A4_PRINT = pageGeometry(DEFAULT_PDF_OPTIONS);
 
 /** Chromium printToPDF가 받는 배율 범위의 아래 끝 (0.1~2) */
 export const MIN_PDF_SCALE = 0.1;

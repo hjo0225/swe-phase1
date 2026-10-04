@@ -1,0 +1,63 @@
+/* 21st.dev halaska-studio Switch: 44×24 트랙, 스프링처럼 튀는 손잡이 */
+.row {
+  display: grid;
+  gap: 4px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.track {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: var(--ink-300);
+  cursor: pointer;
+  transition: background var(--dur-ui) var(--ease-standard);
+}
+
+.track[aria-checked='true'] {
+  background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+}
+
+.track:focus-visible {
+  outline: 2px solid var(--blue-400);
+  outline-offset: 2px;
+}
+
+.knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 33, 61, 0.18);
+  transition: left 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.track[aria-checked='true'] .knob {
+  left: 22px;
+}
+
+.text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-800);
+}
+
+.hint {
+  margin: 0 0 0 56px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-500);
+}

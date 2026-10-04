@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
 import { resetBlinkForTests } from '../../shared/api/blink';
 import { seedNote } from '../../test/seed-note';
+import { pageGeometry } from '../../../shared/print/pdf-options';
 import { resetAutosaveForTests } from '../notes/autosave/autosave';
 
 const SPEC = {
@@ -66,6 +67,29 @@ describe('print route', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '연구 개요' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: '수업 포스터' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('follows the title setting in the address over the automatic choice', async () => {
+    const note = await seedNote('수업 포스터', POSTER);
+    window.location.hash = `#/print/${note.id}?title=1`;
+    const { unmount } = render(<App />);
+    expect(await screen.findByRole('heading', { level: 1, name: '수업 포스터' })).toBeInTheDocument();
+    unmount();
+
+    const plain = await seedNote('메모', '제목 없이 시작한다.');
+    window.location.hash = `#/print/${plain.id}?title=0`;
+    render(<App />);
+    expect(await screen.findByText('제목 없이 시작한다.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '메모' })).not.toBeInTheDocument();
+  });
+
+  it('lays the sheet out at the printable width of the chosen paper', async () => {
+    const note = await seedNote('수업 포스터', POSTER);
+    window.location.hash = `#/print/${note.id}?size=Letter&orientation=landscape&margin=none&fit=1`;
+    render(<App />);
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-print-ready', 'true'));
+    const width = pageGeometry({ pageSize: 'Letter', orientation: 'landscape', margin: 'none' }).printableWidthPx;
+    expect((document.querySelector('[data-print-root]') as HTMLElement).style.width).toBe(`${width}px`);
   });
 
   it('renders only the note as a read-only document — body, image and infographic — and signals when it is ready', async () => {

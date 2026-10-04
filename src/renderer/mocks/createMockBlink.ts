@@ -1,4 +1,5 @@
 import { missingCapabilities, type Capabilities } from '../../shared/assist/capabilities';
+import type { PdfExportOptions } from '../../shared/print/pdf-options';
 import type { ProviderId, ProviderSettingsView } from '../../shared/ipc/ai-provider';
 import type { AIJobView, JobResultDto } from '../../shared/ipc/assist';
 import type { RawBlinkApi } from '../../shared/ipc/blink-api';
@@ -31,8 +32,8 @@ export interface MockControls {
   externalEdit(noteId: string, content: string): void;
   /** 경로의 파일 내용 (테스트 확인용). */
   contentOf(path: string): string | undefined;
-  /** notes.exportPdf가 불린 노트와 그때 파일 내용 (테스트 확인용). */
-  pdfExports(): { id: string; content: string }[];
+  /** notes.exportPdf가 불린 노트, 그때 파일 내용, 설정 (테스트 확인용). */
+  pdfExports(): { id: string; content: string; options?: PdfExportOptions }[];
 }
 
 interface MockNote {
@@ -170,7 +171,7 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
     return ok({ note: summary(note), updatedNoteIds: relink(before, new Map([[note.id, path]])) });
   };
 
-  const pdfExports: { id: string; content: string }[] = [];
+  const pdfExports: { id: string; content: string; options?: PdfExportOptions }[] = [];
 
   if (options.controls) {
     options.controls.externalEdit = (noteId, content) => {
@@ -287,11 +288,12 @@ export function createMockBlink(options: MockBlinkOptions = {}): RawBlinkApi {
         notes.delete(id);
         return ok({ deleted: true as const });
       },
-      // 본문에 `#clip-pdf`가 있으면 한 장에 다 들어가지 않은 것처럼 답한다 (UI 시험용)
-      exportPdf: ({ id }) => {
+      // 본문에 `#clip-pdf`가 있으면 한 장에 다 들어가지 않은 것처럼, `#cancel-pdf`면 저장 창을 취소한 것처럼 답한다 (UI 시험용)
+      exportPdf: ({ id, options }) => {
         const note = notes.get(id);
         if (!note) return fail('NOTE_NOT_FOUND', id);
-        pdfExports.push({ id, content: note.content });
+        pdfExports.push(options ? { id, content: note.content, options } : { id, content: note.content });
+        if (note.content.includes('#cancel-pdf')) return ok({ saved: false as const });
         const clipped = note.content.includes('#clip-pdf');
         return ok({ saved: true as const, filePath: `mock/${titleOf(note.path)}.pdf`, scale: clipped ? 0.1 : 1, clipped });
       },

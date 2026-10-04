@@ -20,6 +20,10 @@
   animation: rise var(--dur-ui) var(--ease-standard);
 }
 
+.wide {
+  width: min(1040px, 100%);
+}
+
 .header {
   display: flex;
   align-items: center;

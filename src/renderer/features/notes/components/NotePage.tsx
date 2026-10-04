@@ -7,6 +7,7 @@ import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import { getBlink } from '../../../shared/api/blink';
 import { Dialog } from '../../../shared/ui/Dialog';
 import { toast } from '../../../shared/ui/toast';
+import { ExportPdfDialog } from '../../print/ExportPdfDialog';
 import { AIActionBubble } from '../../assist/components/AIActionBubble';
 import { useAssistBridge } from '../../assist/components/use-assist-bridge';
 import { useActiveEditor } from '../../editor/ActiveEditorContext';
@@ -62,6 +63,7 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
   const [editor, setEditor] = useState<Editor | null>(null);
   const deleteNote = useDeleteNote();
   const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<{ id: string; title: string; content: string } | null>(null);
   const { setActive } = useActiveEditor();
 
   // 저장 시점에 최신 본문을 읽는다.
@@ -105,15 +107,13 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
   // AI Job 상태 ↔ 편집기 (잠금·Pulse·Commit)
   useAssistBridge(note.id, editor);
 
-  // 한 장짜리 A4 PDF. Main이 파일에서 노트를 다시 읽어 그리므로 대기 중인 편집을 먼저 저장한다.
-  const exportPdf = async () => {
+  // PDF 내보내기 창. Main이 파일에서 노트를 다시 읽어 그리므로 대기 중인 편집을 먼저 저장하고,
+  // 미리보기는 지금 편집기의 내용으로 그린다.
+  const openExport = async () => {
     setExporting(true);
     try {
       await queue.flush();
-      const result = await getBlink().notes.exportPdf({ id: note.id });
-      if (result.saved) {
-        toast.show(result.clipped ? 'Saved as PDF, but the note was too long and the bottom was cut off' : 'Saved as PDF');
-      }
+      setExportNote({ id: note.id, title: note.title, content: editorRef.current?.getMarkdown() ?? note.content });
     } catch {
       toast.show("Couldn't export the PDF");
     } finally {
@@ -136,7 +136,7 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
               title="Export PDF"
               disabled={exporting}
               aria-busy={exporting || undefined}
-              onClick={() => void exportPdf()}
+              onClick={() => void openExport()}
             >
               <FileDown size={16} strokeWidth={1.75} />
             </button>
@@ -174,6 +174,8 @@ function NoteWorkspace({ note, onReload }: { note: NoteDetail; onReload(): void 
         {/* 21st Table of Contents: 제목이 둘 이상일 때만 */}
         <aside className={styles.tocColumn}>{editor && <NoteToc editor={editor} />}</aside>
       </div>
+
+      {exportNote && <ExportPdfDialog note={exportNote} onClose={() => setExportNote(null)} />}
 
       {confirmingDelete && (
         <Dialog

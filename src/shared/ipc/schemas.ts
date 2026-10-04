@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { JOB_TYPES } from '../assist/capabilities';
+import { MARGINS, ORIENTATIONS, PAGE_SIZES } from '../print/pdf-options';
 
 // 전송 검증은 모양만 본다. 비즈니스 제약(제목 길이, 본문 형식·크기)은 도메인이 검사한다.
 
@@ -28,8 +29,18 @@ export const FolderPathRequest = z.object({ path: RelativePathSchema }).strict()
 
 export const NoteIdRequest = z.object({ id: NoteIdSchema }).strict();
 
-/** 저장 경로·파일 이름은 받지 않는다 — Main이 Dialog로 묻는다 */
-export const ExportNotePdfRequest = z.object({ id: NoteIdSchema }).strict();
+export const PdfExportOptionsSchema = z
+  .object({
+    pageSize: z.enum(PAGE_SIZES),
+    orientation: z.enum(ORIENTATIONS),
+    margin: z.enum(MARGINS),
+    includeTitle: z.boolean().optional(),
+    fitToOnePage: z.boolean(),
+  })
+  .strict();
+
+/** 저장 경로·파일 이름은 받지 않는다 — Main이 Dialog로 묻는다. 설정이 없으면 기본(A4 세로 한 장) */
+export const ExportNotePdfRequest = z.object({ id: NoteIdSchema, options: PdfExportOptionsSchema.optional() }).strict();
 
 export const SearchNotesRequest = z
   .object({

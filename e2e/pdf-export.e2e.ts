@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import type { Page } from 'playwright-core';
+import type { Locator, Page } from 'playwright-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RawBlinkApi } from '../src/shared/ipc/blink-api';
 import { createUserDataDir, launchApp } from './support/app';
@@ -57,10 +57,19 @@ function posterMarkdown(extraParagraphs = 0): string {
   ].join('\n');
 }
 
-async function exportOpenNote(page: Page, title: string) {
+/** 노트를 열고 Export PDF → 미리보기 창에서 설정을 고르고(choose) → Export. 미리보기의 요약 줄을 돌려준다 */
+async function exportOpenNote(page: Page, title: string, choose?: (dialog: Locator) => Promise<void>): Promise<string> {
   await page.getByRole('region', { name: 'Note list' }).getByRole('link', { name: title, exact: true }).click();
   await page.getByRole('heading', { name: '연구 개요' }).waitFor();
   await page.getByRole('button', { name: 'Export PDF' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export PDF' });
+  await choose?.(dialog);
+  const summary = dialog.getByText(/^\d+ pages? · /);
+  await summary.waitFor({ timeout: 30_000 });
+  const text = (await summary.textContent()) ?? '';
+  if (process.env.BLINK_E2E_SHOTS) await page.screenshot({ path: `${process.env.BLINK_E2E_SHOTS}/export-dialog-${title}.png` });
+  await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+  return text;
 }
 
 describe('Export a note as a one-page A4 PDF', () => {
@@ -94,7 +103,7 @@ describe('Export a note as a one-page A4 PDF', () => {
 
       // 한 장보다 긴 노트도 (잘리지 않고) 고르게 줄여서 한 장
       rmSync(pdfPath);
-      await exportOpenNote(page, '긴 포스터');
+      const summary = await exportOpenNote(page, '긴 포스터');
       await expect
         .poll(() => existsSync(pdfPath) && readFileSync(pdfPath).subarray(-16).toString('latin1').includes('%%EOF'), { timeout: 30_000 })
         .toBe(true);
@@ -111,7 +120,37 @@ describe('Export a note as a one-page A4 PDF', () => {
       expect(scale).toBeGreaterThan(0.1);
       expect(scale).toBeLessThan(1);
       expect(pdfPageCount(readFileSync(pdfPath))).toBe(1);
+      // 미리보기가 PDF와 같은 배율을 보여 준다
+      const previewPercent = Number(/(\d+)%$/.exec(summary)?.[1]);
+      expect(summary).toMatch(/^1 page · A4 portrait · /);
+      expect(Math.abs(previewPercent - scale * 100)).toBeLessThanOrEqual(2);
       if (process.env.BLINK_E2E_SHOTS) copyFileSync(pdfPath, `${process.env.BLINK_E2E_SHOTS}/long-poster.pdf`);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('exports with the page settings chosen in the preview — Letter landscape over several pages', async () => {
+    writeFileSync(join(userData.vault, '긴 포스터.md'), posterMarkdown(14));
+    const pdfPath = join(userData.dir, 'letter.pdf');
+    const { app, page } = await launchApp(userData.dir, { BLINK_E2E_PDF_PATH: pdfPath });
+    try {
+      const summary = await exportOpenNote(page, '긴 포스터', async (dialog) => {
+        await dialog.getByRole('radio', { name: 'Letter' }).click();
+        await dialog.getByRole('radio', { name: 'Landscape' }).click();
+        await dialog.getByRole('switch', { name: 'Fit to one page' }).click();
+      });
+      await page.getByText('Saved as PDF', { exact: true }).waitFor({ timeout: 30_000 });
+      const pdf = readFileSync(pdfPath);
+      const [width, height] = pdfMediaBox(pdf) ?? [0, 0];
+      expect(width).toBeCloseTo(792, -1); // Letter 가로 = 792 × 612 pt
+      expect(height).toBeCloseTo(612, -1);
+      const pages = pdfPageCount(pdf);
+      expect(pages).toBeGreaterThan(1);
+      // 미리보기의 장 수는 근사다 (Chromium은 줄 중간에서 자르지 않으려고 조금 일찍 넘긴다)
+      const previewPages = Number(/^(\d+) pages? · Letter landscape · 100%$/.exec(summary)?.[1]);
+      expect(Math.abs(previewPages - pages)).toBeLessThanOrEqual(1);
+      if (process.env.BLINK_E2E_SHOTS) copyFileSync(pdfPath, `${process.env.BLINK_E2E_SHOTS}/letter-landscape.pdf`);
     } finally {
       await app.close();
     }

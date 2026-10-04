@@ -21,6 +21,7 @@ import type {
 } from './ai-provider';
 import type { AIJobView, CreateJobInput, JobId } from './assist';
 import type { ImportNoteResult, OrganizeApplyResult, OrganizePlan, PlaceNoteResult } from './organize';
+import type { PdfExportOptions } from '../print/pdf-options';
 import type { IpcResult } from './result';
 
 export interface AppInfo {
@@ -53,7 +54,7 @@ export interface BlinkApi {
     move(input: { id: NoteId; folder: string }): Promise<RelocateNoteResult>;
     delete(input: { id: NoteId }): Promise<{ deleted: true }>;
     /** 한 장짜리 A4 PDF로 내보낸다. Main이 저장 Dialog를 띄운다. 취소하면 { saved: false } */
-    exportPdf(input: { id: NoteId }): Promise<ExportPdfResult>;
+    exportPdf(input: { id: NoteId; options?: PdfExportOptions }): Promise<ExportPdfResult>;
     search(input: SearchNotesInput): Promise<{ items: NoteSearchHit[] }>;
     listLinks(input: { noteId: NoteId }): Promise<NoteLinks>;
   };

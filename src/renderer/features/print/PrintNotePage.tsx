@@ -1,21 +1,19 @@
-import type { Editor } from '@tiptap/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router';
+import { useCallback, useEffect } from 'react';
+import { useParams, useSearchParams } from 'react-router';
 import type { NoteDetail } from '../../../shared/ipc/notes';
-import { A4_PRINT } from '../../../shared/print/page-fit';
-import { PRINT_READY_ATTRIBUTE, PRINT_ROOT_ATTRIBUTE, type PrintReadyState } from '../../../shared/print/print-page';
-import { NoteEditor } from '../editor/NoteEditor';
+import { pageGeometry, parsePrintQuery } from '../../../shared/print/pdf-options';
+import { PRINT_READY_ATTRIBUTE, type PrintReadyState } from '../../../shared/print/print-page';
 import { useNoteDetail } from '../notes/api/note-queries';
-import styles from './PrintNotePage.module.css';
-import { waitForPrintReady } from './print-readiness';
+import { PrintDocument } from './PrintDocument';
 import { startsWithTopLevelHeading } from './print-title';
 
 const html = () => document.documentElement;
 const signal = (state: PrintReadyState) => html().setAttribute(PRINT_READY_ATTRIBUTE, state);
 
 /**
- * 인쇄 화면 `#/print/<noteId>`. Main이 숨은 창으로 열어 PDF로 만든다.
+ * 인쇄 화면 `#/print/<noteId>?설정`. Main이 숨은 창으로 열어 PDF로 만든다.
  * 앱 화면(사이드바·머리줄·도구막대) 없이 제목과 본문만 읽기 전용으로 그리고, 준비되면 data-print-ready를 단다.
+ * 종이 크기·여백은 인쇄 폭을, title은 제목 줄을 정한다(없으면 본문이 `# 제목`으로 시작하지 않을 때만).
  */
 export function PrintNotePage() {
   const { noteId = '' } = useParams();
@@ -40,33 +38,16 @@ export function PrintNotePage() {
 }
 
 function PrintSheet({ note }: { note: NoteDetail }) {
-  const rootRef = useRef<HTMLElement>(null);
-  const [editor, setEditor] = useState<Editor | null>(null);
-  const onReady = useCallback((ready: Editor) => setEditor(ready), []);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!editor || !root) return;
-    let cancelled = false;
-    void waitForPrintReady(root).then(() => {
-      if (!cancelled) signal('true');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [editor]);
-
+  const [search] = useSearchParams();
+  const options = parsePrintQuery(search);
+  const includeTitle = options.includeTitle ?? !startsWithTopLevelHeading(note.content);
+  const onPrintReady = useCallback(() => signal('true'), []);
   return (
-    <main
-      ref={rootRef}
-      {...{ [PRINT_ROOT_ATTRIBUTE]: '' }}
-      className={styles.sheet}
-      // 인쇄 영역과 같은 폭으로 그린다 — 배율 1에서 화면과 PDF의 줄바꿈이 같다. 길면 Main이 더 넓게 다시 배치한다
-      // 그림·인포그래픽은 넓게 다시 배치해도 이 폭을 넘지 않는다 (PrintNotePage.module.css)
-      style={{ width: A4_PRINT.printableWidthPx, ['--print-media-width' as string]: `${A4_PRINT.printableWidthPx}px` }}
-    >
-      {!startsWithTopLevelHeading(note.content) && <h1 className={styles.title}>{note.title}</h1>}
-      <NoteEditor noteId={note.id} initialMarkdown={note.content} editable={false} onReady={onReady} onChange={() => undefined} />
-    </main>
+    <PrintDocument
+      note={note}
+      includeTitle={includeTitle}
+      printableWidthPx={pageGeometry(options).printableWidthPx}
+      onPrintReady={onPrintReady}
+    />
   );
 }

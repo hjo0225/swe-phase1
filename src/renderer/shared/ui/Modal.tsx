@@ -7,13 +7,15 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   onClose(): void;
+  /** 미리보기처럼 넓은 내용 (기본 640px → 1040px) */
+  wide?: boolean;
 }
 
 /**
  * 화면 위에 띄우는 큰 창 (설정 등). 닫기 버튼·Escape·바깥 클릭으로 닫힌다. 내용이 길면 창 안에서 스크롤한다.
  * Dialog처럼 body에 그린다 — backdrop-filter가 있는 조상에 갇히지 않게.
  */
-export function Modal({ title, children, onClose }: ModalProps) {
+export function Modal({ title, children, onClose, wide = false }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -40,7 +42,7 @@ export function Modal({ title, children, onClose }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`glass-elevated ${styles.panel}`}
+        className={`glass-elevated ${styles.panel}${wide ? ` ${styles.wide}` : ''}`}
       >
         <header className={styles.header}>
           <h2 id={titleId} className={styles.title}>

@@ -1,0 +1,52 @@
+/* 21st.dev halaska-studio Segmented Control: 옅은 유리 칸 + 흰 손잡이 */
+.group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: rgba(214, 224, 235, 0.55);
+  backdrop-filter: blur(var(--blur-sm));
+}
+
+.thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(31, 87, 174, 0.12);
+  transition:
+    left 350ms cubic-bezier(0.2, 0, 0, 1),
+    width 250ms var(--ease-standard);
+}
+
+.option {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-500);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-hover) ease-out;
+}
+
+.option:hover {
+  color: var(--ink-700);
+}
+
+.option[aria-checked='true'] {
+  color: var(--ink-900);
+  font-weight: 600;
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--blue-400);
+  outline-offset: 1px;
+}

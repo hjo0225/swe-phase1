@@ -1,4 +1,5 @@
 import type { ExportPdfResult } from '../../../shared/ipc/notes';
+import { DEFAULT_PDF_OPTIONS, type PdfExportOptions } from '../../../shared/print/pdf-options';
 import { DomainError } from '../../platform/errors';
 
 const PDF_SIGNATURE = '%PDF';
@@ -11,9 +12,9 @@ export interface PdfFileSaver {
   write(path: string, bytes: Uint8Array): Promise<void>;
 }
 
-/** 노트를 문서 모양(앱 화면 없이)으로 그려 한 장짜리 A4 PDF로 만든다. */
+/** 노트를 문서 모양(앱 화면 없이)으로 그려 설정대로(종이·여백·제목·한 장 맞춤) PDF로 만든다. */
 export interface NotePdfRenderer {
-  render(noteId: string): Promise<{ pdf: Uint8Array; scale: number; clipped: boolean }>;
+  render(noteId: string, options: PdfExportOptions): Promise<{ pdf: Uint8Array; scale: number; clipped: boolean }>;
 }
 
 export interface ExportNotePdfDeps {
@@ -23,18 +24,18 @@ export interface ExportNotePdfDeps {
   renderer: NotePdfRenderer;
 }
 
-/** 노트를 한 장짜리 A4 PDF로 내보낸다. 저장할 곳을 먼저 묻고(취소하면 아무것도 그리지 않는다) 그 경로에만 쓴다. */
+/** 노트를 PDF로 내보낸다(기본: A4 세로 한 장). 저장할 곳을 먼저 묻고(취소하면 아무것도 그리지 않는다) 그 경로에만 쓴다. */
 export class ExportNotePdf {
   constructor(private readonly deps: ExportNotePdfDeps) {}
 
-  async execute(input: { id: string }): Promise<ExportPdfResult> {
+  async execute(input: { id: string; options?: PdfExportOptions }): Promise<ExportPdfResult> {
     const { title } = this.deps.notes.get(input.id);
     const path = await this.deps.files.askSavePath(pdfFileName(title));
     if (!path) return { saved: false };
 
     let rendered: Awaited<ReturnType<NotePdfRenderer['render']>>;
     try {
-      rendered = await this.deps.renderer.render(input.id);
+      rendered = await this.deps.renderer.render(input.id, input.options ?? DEFAULT_PDF_OPTIONS);
     } catch (error) {
       if (error instanceof DomainError) throw error;
       throw new DomainError('EXPORT_RENDER_FAILED', 'Could not render the note as PDF');

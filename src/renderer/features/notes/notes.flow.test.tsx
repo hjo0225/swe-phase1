@@ -107,7 +107,7 @@ describe('notes flow (vault)', () => {
     expect(await titleInput()).toHaveValue('최근 노트');
   });
 
-  it('exports the note as a PDF from the header after saving the latest edits', async () => {
+  it('previews the PDF with page settings and exports with them after saving the latest edits', async () => {
     const user = userEvent.setup();
     const note = await seedNote('포스터');
     window.location.hash = `#/notes/${note.id}`;
@@ -118,8 +118,64 @@ describe('notes flow (vault)', () => {
     // debounce를 기다리지 않고 바로 누른다 — Main은 파일을 다시 읽어 그리므로 먼저 저장해야 한다
     await user.click(screen.getByRole('button', { name: 'Export PDF' }));
 
+    const dialog = await screen.findByRole('dialog', { name: 'Export PDF' });
+    const inDialog = within(dialog);
+    expect(inDialog.getByRole('switch', { name: 'Include note title' })).toHaveAttribute('aria-checked', 'true');
+    expect(inDialog.getByRole('radio', { name: 'A4' })).toHaveAttribute('aria-checked', 'true');
+    expect(inDialog.getByRole('radio', { name: 'Portrait' })).toHaveAttribute('aria-checked', 'true');
+    expect(inDialog.getByRole('radio', { name: 'Default' })).toHaveAttribute('aria-checked', 'true');
+    expect(inDialog.getByRole('switch', { name: 'Fit to one page' })).toHaveAttribute('aria-checked', 'true');
+    expect(await inDialog.findByText('1 page · A4 portrait · 100%')).toBeInTheDocument();
+
+    await user.click(inDialog.getByRole('radio', { name: 'Letter' }));
+    await user.click(inDialog.getByRole('radio', { name: 'Landscape' }));
+    await user.click(inDialog.getByRole('radio', { name: 'None' }));
+    await user.click(inDialog.getByRole('switch', { name: 'Fit to one page' }));
+    await user.click(inDialog.getByRole('switch', { name: 'Include note title' }));
+    expect(await inDialog.findByText('1 page · Letter landscape · 100%')).toBeInTheDocument();
+
+    await user.click(inDialog.getByRole('button', { name: 'Export' }));
     expect(await screen.findByText('Saved as PDF')).toBeInTheDocument();
-    expect(controls.pdfExports!()).toEqual([{ id: note.id, content: '마지막 문장' }]);
+    expect(screen.queryByRole('dialog', { name: 'Export PDF' })).not.toBeInTheDocument();
+    expect(controls.pdfExports!()).toEqual([
+      {
+        id: note.id,
+        content: '마지막 문장',
+        options: { pageSize: 'Letter', orientation: 'landscape', margin: 'none', includeTitle: false, fitToOnePage: false },
+      },
+    ]);
+  });
+
+  it('leaves the title out by default when the note already starts with a heading', async () => {
+    const user = userEvent.setup();
+    const note = await seedNote('포스터', '# 연구 개요\n\n본문');
+    window.location.hash = `#/notes/${note.id}`;
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Export PDF' }));
+    const toggle = within(await screen.findByRole('dialog', { name: 'Export PDF' })).getByRole('switch', { name: 'Include note title' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).toHaveAccessibleDescription('The note already starts with a heading');
+  });
+
+  it('closes without exporting on Cancel and stays open when the save dialog is cancelled', async () => {
+    const user = userEvent.setup();
+    const note = await seedNote('포스터', '#cancel-pdf');
+    window.location.hash = `#/notes/${note.id}`;
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Export PDF' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Export PDF' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Export PDF' })).not.toBeInTheDocument();
+    expect(controls.pdfExports!()).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Export PDF' }));
+    dialog = await screen.findByRole('dialog', { name: 'Export PDF' });
+    await user.click(within(dialog).getByRole('button', { name: 'Export' }));
+    await waitFor(() => expect(controls.pdfExports!()).toHaveLength(1));
+    expect(screen.getByRole('dialog', { name: 'Export PDF' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Export' })).toBeEnabled();
   });
 
   it('warns when the note was too long to fit on one page', async () => {
@@ -129,6 +185,7 @@ describe('notes flow (vault)', () => {
     render(<App />);
 
     await user.click(await screen.findByRole('button', { name: 'Export PDF' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Export PDF' })).getByRole('button', { name: 'Export' }));
     expect(await screen.findByText('Saved as PDF, but the note was too long and the bottom was cut off')).toBeInTheDocument();
   });
 

@@ -191,8 +191,8 @@ const README_ARCHITECTURE_MEMO =
   "the renderer process is react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
   'so it goes through preload / ipc to the main process. the main process is electron 44.4 for the desktop application ' +
   'and node.js 24 for the application logic and file i/o. ' +
-  'main talks to the connected resources: sqlite 3.53 for the search and link index, better-sqlite3 / drizzle orm for database access, ' +
-  'openai sdk 7 for llm api communication, and openai / kimi for the ai processing.';
+  'main talks to the connected resources: sqlite 3.53 for the search and link index ' +
+  'and openai sdk 7 for llm api communication.';
 
 describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   const llm = () => new OpenAIProvider({ apiKey: apiKey!, model });

@@ -77,8 +77,8 @@ const ARCHITECTURE_MEMO =
   "the renderer process is react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
   'so it goes through preload / ipc to the main process. the main process is electron 44.4 for the desktop application ' +
   'and node.js 24 for the application logic and file i/o. ' +
-  'main talks to the connected resources: sqlite 3.53 for the search and link index, better-sqlite3 / drizzle orm for database access, ' +
-  'openai sdk 7 for llm api communication, and openai / kimi for the ai processing.';
+  'main talks to the connected resources: sqlite 3.53 for the search and link index ' +
+  'and openai sdk 7 for llm api communication.';
 
 const INBOX = {
   'What is a container': 'A process isolated with its own filesystem, network and limits, sharing the host kernel.',
@@ -655,7 +655,7 @@ try {
 
   await scene('S11', 'Visualize — architecture', async () => {
     const first = 'ok architecture for the poster';
-    const last = 'for the ai processing.';
+    const last = 'for llm api communication.';
     const figure = body.getByRole('figure').first();
     await line('S11-1', 1.5, async () => {
       await newLineAfter('2. Tools & Architecture');
@@ -702,7 +702,7 @@ try {
     await line('S12-1', 7, async (skip) => {
       // 그림이 생겼으니 메모 원문은 지운다 — 포스터에는 그림만 남긴다
       await fast(2, skip, async () => {
-        await dragSelect('ok architecture for the poster', 'for the ai processing.');
+        await dragSelect('ok architecture for the poster', 'for llm api communication.');
         await key('Backspace', 200);
         await key('Backspace', 300); // 남은 빈 줄도 — 그림이 섹션 제목 바로 아래에 오게
       });

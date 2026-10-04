@@ -106,6 +106,8 @@ const files = {
   'Phase 1/Poster template.md': POSTER_TEMPLATE,
   'Phase 1/Kickoff meeting.md': KICKOFF,
   'Phase 1/Architecture memo.md': ARCHITECTURE_MEMO,
+  // 포스터 제목 자리에 검색으로 가져올 워드마크 노트 (그림은 Features/images에서 파일 이름으로 찾는다)
+  'Phase 1/Blink logo.md': '# ![Blink](blink-wordmark.svg)\n',
   'Phase 1/Scratch.md': 'test',
   ...Object.fromEntries(Object.entries(INBOX).map(([title, body]) => [`Inbox/${title}.md`, body])),
 };
@@ -116,6 +118,8 @@ for (const [path, body] of Object.entries(files)) {
 }
 // 보관함 맨 위에 둔다: Phase 1에 하위 폴더가 있으면 S06에서 새 노트 제목을 정할 때 자동 배치가 노트를 옮긴다
 cpSync(FEATURES, join(vault, 'Features'), { recursive: true });
+// 포스터 제목 자리에 넣을 Blink 워드마크 (앱의 그림 그대로). Blink logo 노트가 `![Blink](blink-wordmark.svg)`로 가리킨다 — 보관함에서 파일 이름으로 찾는다
+cpSync(join(repo, 'src', 'renderer', 'assets', 'blink-wordmark.svg'), join(vault, 'Features', 'images', 'blink-wordmark.svg'));
 
 // 처음 실행처럼: 보관함 선택 화면, AI 설정 없음
 writeFileSync(join(userData, 'app-config.json'), JSON.stringify({ lastVault: null, recentVaults: [] }));
@@ -177,6 +181,33 @@ const markers = [];
 const cursorLog = [];
 const lines = [];
 const mark = (type, extra = {}) => markers.push({ type, t: now(), ...extra });
+/** 글을 선택하면 뜨는 AI 도구 막대(Expand·Organize·Visualize)를 보여 주고 누른다. 편집은 그동안 막대를 확대한다 */
+async function useAiToolbar(name) {
+  const toolbar = page.getByRole('toolbar', { name: 'AI actions' });
+  await toolbar.waitFor();
+  const box = await toolbar.boundingBox();
+  mark('focus-start', { name: 'ai-toolbar', rect: box });
+  await pause(700); // 세 버튼을 보여 준다
+  await click(aiButton(name));
+  await pulse().waitFor();
+  mark('focus-end', { name: 'ai-toolbar' });
+}
+
+/** 선택한 글과 그 위 AI 도구 막대를 함께 담는 영역 (CSS px) */
+async function selectionWithToolbar() {
+  const toolbar = await page.getByRole('toolbar', { name: 'AI actions' }).boundingBox();
+  const selection = await page.evaluate(() => {
+    const r = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
+    return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
+  });
+  const boxes = [toolbar, selection].filter(Boolean);
+  const x = Math.min(...boxes.map((b) => b.x)) - 24;
+  const y = Math.min(...boxes.map((b) => b.y)) - 4; // 막대 바로 위에서 — 윗줄 글이 반쯤 걸리지 않게
+  const right = Math.max(...boxes.map((b) => b.x + b.width)) + 24;
+  const bottom = Math.max(...boxes.map((b) => b.y + b.height)) + 16;
+  return { x, y, width: right - x, height: bottom - y };
+}
+
 /** 기능 문서 스크린샷으로 쓸 순간 (feature-docs.py가 이 시각의 프레임을 쓴다) */
 const shot = async (name, region, { belowChrome = false } = {}) => {
   // region: 잘라 낼 영역 (locator 또는 {x,y,width,height}, CSS px). 화면 밖은 잘라 낸다
@@ -508,8 +539,12 @@ try {
         await click(body, { after: 200 });
         await searchAndImport('template', 'Poster template');
         await body.getByText('Project title').waitFor();
+        // 제목 자리는 비우고, 워드마크도 검색으로 가져온다 (Blink logo 노트)
         await dragSelect('Project title');
-        await type('Blink', 60);
+        await key('Backspace', 200);
+        await searchAndImport('logo', 'Blink logo');
+        await body.locator('h1 img[alt="Blink"]').waitFor();
+        await key('Backspace', 200); // 가져온 뒤 생긴 빈 줄은 지운다
         await dragSelect('Team members | Department');
         await type('Jeong-O Heo · Seokjun Park | Department of Information Systems', 18);
         await page.getByText('Saved', { exact: true }).waitFor();
@@ -536,6 +571,10 @@ try {
       await click(page.getByRole('menuitem', { name: 'Organize' }));
       await dialog.waitFor();
       await waitAI(skip, (o) => preview.waitFor(o), { showMs: 900 });
+      await pause(400);
+      // 포스터 사진: 미리보기 위쪽(폴더 두세 개)만 — 목록 전체는 세로로 길어 포스터 글이 좁아진다
+      const organizeBox = await dialog.boundingBox();
+      await shot('05-organize', { ...organizeBox, height: Math.min(organizeBox.height, 330) });
     });
     await line('S07-3', 5, async () => {
       const box = await preview.boundingBox();
@@ -564,8 +603,7 @@ try {
       await fast(3, skip, () => type(sentence, 12));
       await pause(300);
       await dragSelect(sentence);
-      await click(aiButton('Expand'));
-      await pulse().waitFor();
+      await useAiToolbar('Expand');
     });
     await line('S08-3', 4, async (skip) => {
       await waitAI(skip, (o) => pulse().waitFor({ state: 'detached', ...o }), { showMs: 300 });
@@ -574,7 +612,6 @@ try {
       await hover(body.getByText('Sources', { exact: true }), 300);
       const source = body.locator('a[href^="http"]').first();
       if (await source.count()) await hover(source, 700);
-      await shot('02-writing', body, { belowChrome: true });
     });
   });
 
@@ -592,8 +629,8 @@ try {
     });
     await line('S09-3', 5, async () => {
       await dragSelect(first, last);
-      await click(aiButton('Organize'));
-      await pulse().waitFor();
+      await shot('02-writing', await selectionWithToolbar()); // 포스터 사진: 선택한 글 위의 AI 도구 막대
+      await useAiToolbar('Organize');
       await pause(900);
       // 깜빡이는 동안 다른 곳에서 계속 쓴다 — 쓴 줄은 지워 원래대로
       await newLineAfter('1. Key Features');
@@ -666,8 +703,7 @@ try {
         await body.getByText(first, { exact: false }).waitFor();
       });
       await dragSelect(first, last);
-      await click(aiButton('Visualize'));
-      await pulse().waitFor();
+      await useAiToolbar('Visualize');
       await waitAI(skip, async (o) => {
         await pulse().waitFor({ state: 'detached', ...o });
         await figure.locator('[data-card]').first().waitFor(o); // ELK 배치까지

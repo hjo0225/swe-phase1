@@ -30,18 +30,21 @@ FIT_MAX = 2.0  # 맞추기로 더 빠르게 할 수 있는 최대 배율
 #   start: 'wait-start'/'wait-end' — 문장 안의 그 표시부터 (기본: 문장 시작)
 #   until: (다음 문장, 초) — 그 문장 시작 + 초(녹화 시각)까지 이어서 (기본: 문장 끝)
 #   focus: (x, y) CSS px — 커서 대신 이 점을 중심으로
+#   marker: 녹화가 남긴 focus-start(이름·영역)~focus-end 사이만 확대하고, 그 영역 가운데를 본다 (끝난 뒤 0.8초 더)
 ZOOM = {
-    'S05-2': {'scale': 1.5},
+    'S05-2': {'scale': 1.25},
     # 미리보기 목록: 목록이 뜬 순간부터, 다음 문장에서 커서가 목록을 훑는 동안까지. 커서는 사이드바에 있어 목록 가운데를 본다
-    'S07-2': {'scale': 1.4, 'start': 'wait-end', 'until': ('S07-3', 2.5), 'focus': (720, 455)},
-    'S08-3': {'scale': 1.6},
-    'S09-3': {'scale': 1.6},
-    'S09-4': {'scale': 1.4},
-    'S10-2': {'scale': 1.5},
-    'S11-3': {'scale': 1.3},
-    'S11-4': {'scale': 1.5},
-    'S12-1': {'scale': 1.3},
-    'S13-1': {'scale': 1.3, 'start': 'wait-start'},  # 미리보기 창이 뜬 뒤 ~ Export
+    'S07-2': {'scale': 1.2, 'start': 'wait-end', 'until': ('S07-3', 2.5), 'focus': (720, 455)},
+    # 글을 선택하면 뜨는 AI 도구 막대(Expand·Organize·Visualize): 막대가 뜬 순간부터 누른 직후까지 막대를 가운데에
+    'S08-2': {'scale': 1.4, 'marker': 'ai-toolbar'},
+    'S08-3': {'scale': 1.15},
+    'S09-3': {'scale': 1.4, 'marker': 'ai-toolbar'},
+    'S09-4': {'scale': 1.15},
+    'S10-2': {'scale': 1.2},
+    'S11-2': {'scale': 1.4, 'marker': 'ai-toolbar'},
+    'S11-4': {'scale': 1.2},
+    'S12-1': {'scale': 1.15},
+    'S13-1': {'scale': 1.15, 'start': 'wait-start'},  # 미리보기 창이 뜬 뒤 ~ Export
 }
 ZOOM_RAMP = 0.4  # 들어갈 때·나올 때
 FOLLOW_TAU = 0.22  # 화면이 커서를 따라가는 부드러움 (초, 앞뒤 두 번 거른다)
@@ -231,6 +234,14 @@ class Timeline:
                 nxt, extra = opt['until']
                 b = min(self.lines[nxt]['start'] + extra, self.lines[nxt]['end'])
             focus = opt.get('focus')
+            if 'marker' in opt:
+                begin = next((m for m in self.markers if m['type'] == 'focus-start' and m.get('name') == opt['marker'] and a <= m['t'] <= b), None)
+                if not begin:
+                    continue
+                done = next((m for m in self.markers if m['type'] == 'focus-end' and m.get('name') == opt['marker'] and m['t'] >= begin['t']), None)
+                a, b = begin['t'], (done['t'] if done else b) + 0.8
+                r = begin['rect']
+                focus = (r['x'] + r['width'] / 2, r['y'] + r['height'] / 2)
             segs.append((self.video(a), self.video(b), opt['scale'], focus))
         return sorted(segs)
 

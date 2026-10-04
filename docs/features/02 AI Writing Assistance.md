@@ -3,4 +3,4 @@
 - **Organize:** Restructure rough notes into clear, organized writing.
 - **Expand:** Enrich selected text with web-grounded explanations and sources.
 
-![Expand result with sources](images/02-writing.png)
+![Select text to Expand, Organize or Visualize](images/02-writing.png)

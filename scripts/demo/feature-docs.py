@@ -1,4 +1,4 @@
-"""녹화 결과에서 기능 문서 5개(docs/features)를 만든다 — README Key Features 문장. 화면 예시는 02·04에만 한 장씩.
+"""녹화 결과에서 기능 문서 5개(docs/features)를 만든다 — README Key Features 문장. 화면 예시는 02·04·05에만 한 장씩.
 
 스크린샷은 record-demo.mjs가 남긴 shot 표시(markers.json) 순간의 프레임이다. 데모 S10에서 이 문서들을 보관함에 넣어 쓴다.
 
@@ -21,7 +21,7 @@ DOCS = [
     ('02 AI Writing Assistance', '02. AI Writing Assistance',
      ['**Organize:** Restructure rough notes into clear, organized writing.',
       '**Expand:** Enrich selected text with web-grounded explanations and sources.'],
-     '02-writing', 'Expand result with sources'),
+     '02-writing', 'Select text to Expand, Organize or Visualize'),
     ('03 AI Visualization', '03. AI Visualization',
      ['Transform selected text into diagrams and infographics.', 'Edit layouts and export visualizations as PNG.'],
      None, None),
@@ -31,7 +31,7 @@ DOCS = [
      '04-search', 'Search with Open, Link, Import and Preview'),
     ('05 AI Folder Organization', '05. AI Folder Organization',
      ['Automatically classify notes into relevant folders using AI.', 'Preview and confirm the suggested folder structure.'],
-     None, None),
+     '05-organize', 'Suggested folders before moving'),
 ]
 
 markers = json.loads((RUN / 'markers.json').read_text(encoding='utf8'))
@@ -51,7 +51,7 @@ def frame_at(t: float) -> Path:
 (OUT / 'images').mkdir(parents=True, exist_ok=True)
 for file, heading, lines, image, alt in DOCS:
     if image is None:
-        # 글만 — 포스터 사진은 화면 예시 2장(02·04)과 아키텍처 그림뿐
+        # 글만 — 포스터 사진은 화면 예시 3장(02·04·05)과 아키텍처 그림뿐
         body = [f'#### {heading}', '', *[f'- {line}' for line in lines], '']
         (OUT / f'{file}.md').write_text('\n'.join(body), encoding='utf8')
         print(f'{file}.md  (text only)')

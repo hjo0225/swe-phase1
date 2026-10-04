@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SearchQuery } from '../../domain/search-query';
 import { JsonAppConfigStore } from './app-config-store';
 import { NodeVaultFileSystem } from './node-vault-file-system';
+import { openNoteVault } from './open-note-vault';
 import { openVaultIndex, type VaultIndexDatabase } from './vault-index-db';
 import { SqliteNoteIndex } from './sqlite-note-index';
 
@@ -63,6 +64,37 @@ describe('NodeVaultFileSystem', () => {
       await expect.poll(() => changes.flat(), { timeout: 3000 }).toContain('밖에서 만든 노트.md');
     } finally {
       stop();
+    }
+  });
+});
+
+describe('vault images', () => {
+  it('lists every file except hidden ones', () => {
+    put('회의록.md');
+    put('프로젝트/그림.png');
+    put('.obsidian/icon.png');
+    expect(new NodeVaultFileSystem(root).listFiles().sort()).toEqual(['프로젝트/그림.png', '회의록.md']);
+  });
+
+  it('answers which file a note image points to, with its content type', () => {
+    put('docs/features/01-notes.md', '![Main](images/main%20screen.png)');
+    put('docs/features/images/main screen.png', 'png-bytes');
+    put('Phase 1/Poster.md', '![Main](images/main%20screen.png)');
+    const indexDir = mkdtempSync(join(tmpdir(), 'blink-index-'));
+    let next = 0;
+    const vault = openNoteVault(root, { indexDir, clock: { now: () => new Date(0) }, nextId: () => `id-${++next}` });
+    try {
+      vault.sync.full();
+      const idOf = (path: string) => vault.notes.tree().notes.find((n) => n.path === path)!.id;
+      const expected = { path: join(root, 'docs', 'features', 'images', 'main screen.png'), type: 'image/png' };
+      expect(vault.images.resolve(idOf('docs/features/01-notes.md'), 'images/main%20screen.png')).toEqual(expected);
+      // 다른 폴더로 가져온 이미지도 이름으로 찾는다
+      expect(vault.images.resolve(idOf('Phase 1/Poster.md'), 'images/main%20screen.png')).toEqual(expected);
+      expect(vault.images.resolve(idOf('Phase 1/Poster.md'), '../../secret.png')).toBeNull();
+      expect(vault.images.resolve('no-such-note', 'images/main%20screen.png')).toBeNull();
+    } finally {
+      vault.close();
+      rmSync(indexDir, { recursive: true, force: true });
     }
   });
 });

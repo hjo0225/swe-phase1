@@ -118,3 +118,24 @@
 .prose:focus-visible {
   box-shadow: none;
 }
+
+/* 노트 속 이미지: 본문 폭에 맞춰 줄이고, 선택하면 테두리로 알린다 */
+.prose :global(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0;
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-sm);
+}
+
+.prose :global(img.ProseMirror-selectednode) {
+  outline: 2px solid var(--blue-300);
+  outline-offset: 2px;
+}
+
+.prose :global(img.ProseMirror-separator) {
+  display: inline;
+  margin: 0;
+  border: none;
+}

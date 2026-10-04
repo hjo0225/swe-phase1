@@ -24,6 +24,8 @@ export interface VaultFileSystem {
   readonly root: string;
   listMarkdownFiles(): ({ path: string } & FileStat)[];
   listFolders(): string[];
+  /** 숨김 폴더·파일을 뺀 모든 파일 (노트 속 이미지를 이름으로 찾을 때) */
+  listFiles(): string[];
   read(path: string): string;
   stat(path: string): FileStat | null;
   writeAtomic(path: string, text: string): void;
@@ -58,6 +60,14 @@ export class NodeVaultFileSystem implements VaultFileSystem {
         const stat = this.stat(path);
         if (stat) files.push({ path, ...stat });
       }
+    });
+    return files;
+  }
+
+  listFiles(): string[] {
+    const files: string[] = [];
+    this.walk('', (path, isDirectory) => {
+      if (!isDirectory) files.push(path);
     });
     return files;
   }

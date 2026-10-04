@@ -3,6 +3,7 @@ import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { IpcChannels, IpcEvents } from '../shared/ipc/channels';
 import { EmptyRequest } from '../shared/ipc/schemas';
+import { handleVaultImages } from './note/presentation/vault-image-protocol';
 import { ActiveLLM } from './ai-provider/application/active-llm';
 import { ProviderSettingsService } from './ai-provider/application/provider-settings-service';
 import { DrizzleAIProviderSettingsRepository } from './ai-provider/infrastructure/drizzle-ai-provider-settings-repository';
@@ -71,6 +72,8 @@ export function bootstrap(): { openWindow: () => BrowserWindow } {
     },
     onChanged: (event) => broadcast(IpcEvents.vaultChanged, event),
   });
+  // 노트 속 이미지: 열린 보관함 안의 파일만 내준다
+  handleVaultImages((noteId, src) => vaults.session().images.resolve(noteId, src));
   app.on('will-quit', () => {
     vaults.close();
     database.close();

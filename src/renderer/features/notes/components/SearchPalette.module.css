@@ -190,3 +190,13 @@
     transform: rotate(360deg);
   }
 }
+
+.previewProse img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.previewProse img.ProseMirror-separator {
+  display: inline;
+}

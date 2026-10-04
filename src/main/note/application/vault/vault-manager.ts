@@ -20,6 +20,8 @@ export interface VaultSession {
 export interface NoteVaultSession extends VaultSession {
   readonly notes: VaultNoteService;
   readonly folders: FolderService;
+  /** 노트 속 이미지 → 보관함 안의 실제 파일 (blink-vault: 프로토콜이 쓴다) */
+  readonly images: { resolve(noteId: string, src: string): { path: string; type: string } | null };
 }
 
 interface VaultManagerDeps<S extends VaultSession> {

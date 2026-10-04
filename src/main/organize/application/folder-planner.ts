@@ -84,6 +84,7 @@ export function folderPlanRequest(input: { parentPath: string; groups: readonly 
 
 /**
  * 작은 묶음마다 폴더 경로(지금 폴더 기준, 1~3층)를 gpt에게 받는다. 묶음 순서대로 돌려준다.
+ * 하위 폴더 하나만 담는 겹은 뺀다 (collapseLoneFolders).
  * 쓸 수 없는 답이 오거나 AI 호출이 실패하면 ORGANIZE_NAMING_FAILED.
  */
 export async function planFolders(
@@ -101,7 +102,39 @@ export async function planFolders(
   }
   const paths = parsePaths(answer, input.groups.length);
   if (!paths) throw new DomainError('ORGANIZE_NAMING_FAILED', 'AI returned an unusable folder plan');
-  return paths;
+  return collapseLoneFolders(paths);
+}
+
+/**
+ * 하위 폴더 하나만 담고 노트는 없을 폴더를 뺀다 — 열어 봐야 폴더 하나만 나오는 겹은 쓸모가 없다
+ * (맨 위 한 겹은 넓은 분류라 남긴다 — 예: 공부 > Spring, Rust)
+ * (실제 답: 모든 묶음이 "Work > Coding > …" 아래 → Coding > …). 남는 쪽은 더 구체적인 아래 폴더다.
+ */
+export function collapseLoneFolders(paths: readonly (readonly string[])[]): string[][] {
+  let result = paths.map((path) => [...path]);
+  const key = (path: readonly string[], length: number) => JSON.stringify(path.slice(0, length));
+  for (;;) {
+    const lone = findLoneFolder(result, key);
+    if (!lone) return result;
+    const { prefix, depth } = lone;
+    result = result.map((path) => (key(path, depth) === prefix ? [...path.slice(0, depth - 1), ...path.slice(depth)] : path));
+  }
+}
+
+function findLoneFolder(
+  paths: readonly string[][],
+  key: (path: readonly string[], length: number) => string,
+): { prefix: string; depth: number } | null {
+  for (const path of paths) {
+    for (let depth = 1; depth < path.length; depth += 1) {
+      const prefix = key(path, depth);
+      const under = paths.filter((other) => key(other, depth) === prefix && other.length >= depth);
+      const holdsNotes = under.some((other) => other.length === depth);
+      const children = new Set(under.map((other) => other[depth]));
+      if (!holdsNotes && children.size === 1) return { prefix, depth };
+    }
+  }
+  return null;
 }
 
 function parsePaths(answer: unknown, count: number): string[][] | null {

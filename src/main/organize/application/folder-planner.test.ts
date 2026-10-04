@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '../../ai-provider/application/ports';
 import { fakeProvider } from '../../ai-provider/testing';
-import { folderPlanRequest, planFolders } from './folder-planner';
+import { collapseLoneFolders, folderPlanRequest, planFolders } from './folder-planner';
 
 const signal = new AbortController().signal;
 const GROUPS = [['spring boot 실무 1편', 'spring 시큐리티 기초'], ['rust 소유권 정리']];
@@ -81,5 +81,36 @@ describe('planFolders', () => {
     await expect(planFolders(llm, { parentPath: '', groups: GROUPS }, signal)).rejects.toMatchObject({
       code: 'ORGANIZE_NAMING_FAILED',
     });
+  });
+});
+
+describe('collapseLoneFolders', () => {
+  it('drops folders that would only hold one other folder, at the top and further down', () => {
+    // 데모에서 실제로 나온 답: 모든 묶음이 Work > Coding 아래 — Work는 Coding 하나만 담는다. 맨 위 넓은 분류(Coding)는 남긴다
+    expect(
+      collapseLoneFolders([
+        ['Work', 'Coding', 'Containers'],
+        ['Work', 'Coding', 'Kubernetes'],
+        ['Work', 'Coding', 'Process'],
+      ]),
+    ).toEqual([['Coding', 'Containers'], ['Coding', 'Kubernetes'], ['Coding', 'Process']]);
+    expect(
+      collapseLoneFolders([
+        ['Study', 'Rust', 'Ownership'],
+        ['Study', 'Rust', 'Traits'],
+        ['Cooking', 'Korean'],
+        ['Cooking', 'Baking'],
+      ]),
+    ).toEqual([['Rust', 'Ownership'], ['Rust', 'Traits'], ['Cooking', 'Korean'], ['Cooking', 'Baking']]);
+  });
+
+  it('keeps a folder that holds notes of its own or several folders', () => {
+    const paths = [['Study', 'Rust'], ['Study'], ['Cooking']];
+    expect(collapseLoneFolders(paths)).toEqual(paths);
+    expect(collapseLoneFolders([['Spring', 'JPA'], ['Spring', 'Security'], ['Rust']])).toEqual([['Spring', 'JPA'], ['Spring', 'Security'], ['Rust']]);
+  });
+
+  it('keeps one folder when everything goes into a single path', () => {
+    expect(collapseLoneFolders([['Work', 'Coding'], ['Work', 'Coding']])).toEqual([['Coding'], ['Coding']]);
   });
 });

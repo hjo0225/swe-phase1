@@ -37,4 +37,20 @@ export const infographicTheme = {
   },
   /** comparison 열 배경 */
   panel: { fill: '#FFFFFF', fillOpacity: 0.45, stroke: 'rgba(123,177,241,0.28)', radius: 24 },
+  /** architecture: 아이콘 카드·그룹 상자·화살표·선 라벨 */
+  architecture: {
+    card: { width: 128, padding: 12, iconSize: 28, iconGap: 8 },
+    title: { size: 13, weight: 600, lineHeight: 17, maxWidth: 9 },
+    group: {
+      header: 34,
+      padding: 20,
+      label: { size: 12, weight: 700, color: '#2059C1' },
+      outer: { stroke: '#6BA8F6', dash: '6 4', fill: 'none' },
+      inner: { stroke: 'rgba(107,168,246,0.55)', fill: '#FFFFFF', fillOpacity: 0.45 },
+    },
+    edge: { color: '#62758D', width: 1.4, arrowSize: 7 },
+    label: { size: 11, color: '#40536E', background: '#F3F8FF', paddingX: 4, height: 16 },
+    spacing: { nodeNode: 36, betweenLayers: 72 },
+    icon: { color: '#2F6DDB', stroke: 1.75 },
+  },
 } as const;

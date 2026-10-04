@@ -63,3 +63,45 @@ export const VISUALIZE_PROMPT = [
     'Keep every step of a flow the text gives (A → B → C stays two lines, not A → C); when a line or its label says it goes through or via another component, draw that component as a node with two lines. Pick the closest icon. Label a line only with what travels on it — a protocol or kind of data the text names (e.g. HTTPS). Do not restate the action ("sends to", "calls"): leave the label empty instead. ' +
     'Mark a flow bidirectional only when the text says it goes both ways. For other types leave groups empty, group empty, icon none, label empty and bidirectional false.',
 ].join('\n');
+
+/**
+ * 층 구조(기술 스택) 글에만 덧붙이는 규칙 (Task 7). 기술 이름 + 버전으로 쌓은 글(isTechStackText)일 때만 보낸다 —
+ * 모든 글에 보내면 비슷한 구성요소 글(Electron UI → Preload → Main)까지 층으로 정리·시각화해 기존 그림이 깨졌다(실제 API에서 재현).
+ */
+const LAYER_EXAMPLE_TEXT =
+  '"the frontend is vue 3 with pinia, it calls the backend over rest. the backend is django 5 on python 3.12. it keeps data in postgres 16 and caches in redis 7."';
+
+export const ORGANIZE_LAYER_RULES = [
+  'Layers: this text names its technologies with version numbers. If it presents the system as a stack of layers — what each layer is built with (frameworks, runtimes, languages, libraries, file formats, SDKs) and how one layer reaches the next — write the two sections with these rules instead of the component rules in rule 5:',
+  '- "## Components": one top-level item per layer, from the top layer down, named by its role in a few words (e.g. "User Interface", "Application Core", "Storage & AI") with the word the text uses for it in parentheses. Its child items are the technologies the text names for that layer, each as the text names it with its version, in the order the text names them. What the text says a layer keeps or talks to (files, databases, libraries, SDKs) is the layer below it, together. Use only this nested list, no headings for layers.',
+  '- "## Flows": only one line between each pair of neighbouring layers, from the top layer down (e.g. "User Interface → Application Core: Preload / IPC"). What one layer goes through to reach the next (e.g. preload / IPC) is the label of that line, never a component. Technologies get no flow lines; services a technology calls stay in parentheses after it (e.g. "OpenAI SDK 7 (OpenAI, Kimi)").',
+  `Example — ${LAYER_EXAMPLE_TEXT} becomes:`,
+  '## Components',
+  '- Frontend',
+  '  - Vue 3',
+  '  - Pinia',
+  '- Backend',
+  '  - Django 5',
+  '  - Python 3.12',
+  '- Data',
+  '  - Postgres 16',
+  '  - Redis 7',
+  '## Flows',
+  '- Frontend → Backend: REST',
+  '- Backend → Data',
+  'Before you answer a layer stack, check: there are only as many layers as the text describes (what a layer keeps or talks to — files, an index, SDKs — is technologies inside the next layer, never layers of their own), every flow line joins two neighbouring layers, and what a layer goes through (e.g. preload / IPC) is only a label, never a listed item.',
+  'A text that tells what its parts do and how requests move between them keeps the component rules in rule 5.',
+].join('\n');
+
+export const VISUALIZE_LAYER_RULES = [
+  'Layers: this text names its technologies with version numbers. If it presents the system as a stack of layers — what each layer is built with (frameworks, runtimes, languages, libraries, SDKs) and how one layer reaches the next — or is a nested list whose top items are connected by flows while their own child items take part in no flow, it is a layer stack: set layers to true and draw an architecture this way, which overrides rules 4 and 5 (set layers to false for anything else):',
+  '- Each layer is one top-level group named by its role in a few words (e.g. "User Interface", "Application Core", "Storage & AI"), from the top layer down. What the text says a layer keeps or talks to (files, databases, libraries, SDKs) is the layer below it, together.',
+  '- Each technology the text names is one node inside its layer, in the order the text names them, titled as the text names it with its version. Services a technology calls stay in its title in parentheses (e.g. "OpenAI SDK 7 (OpenAI, Kimi)").',
+  '- The only edges are one edge between each pair of neighbouring layers, from group id to group id, from the top layer down. What one layer goes through to reach the next (e.g. preload / IPC) is the label of that edge, never a node or a group. Technology nodes have no edges.',
+  `Example — ${LAYER_EXAMPLE_TEXT} → groups g1 Frontend, g2 Backend, g3 Data; nodes Vue 3 and Pinia in g1, Django 5 and Python 3.12 in g2, Postgres 16 and Redis 7 in g3; edges g1 → g2 (label REST) and g2 → g3.`,
+  'Before you answer a layer stack, check: there are only as many groups as the layers the text describes (what a layer keeps or talks to is nodes inside the next layer, never extra groups), every edge joins two neighbouring groups, each such edge carries what the layer goes through as its label (e.g. preload / IPC), and no node is named after that (no "Preload / IPC" node).',
+].join('\n');
+
+/** 정리·시각화 지시문. 기술 스택 글이면 층 규칙을 덧붙인다 */
+export const organizePrompt = (techStack: boolean) => (techStack ? `${ORGANIZE_PROMPT}\n${ORGANIZE_LAYER_RULES}` : ORGANIZE_PROMPT);
+export const visualizePrompt = (techStack: boolean) => (techStack ? `${VISUALIZE_PROMPT}\n${VISUALIZE_LAYER_RULES}` : VISUALIZE_PROMPT);

@@ -8,7 +8,7 @@ import { VisualizeExecutor } from '../../assist/application/executors/visualize-
 import { InputSnapshot } from '../../assist/domain/input-snapshot';
 import { openNoteVault } from '../../note/infrastructure/vault/open-note-vault';
 import { OrganizeService } from '../../organize/application/organize-service';
-import type { InfographicSpec } from '../../../shared/visualization/infographic-spec';
+import { isLayerStack, looseNodes, type InfographicSpec } from '../../../shared/visualization/infographic-spec';
 import { OPENAI_MODELS, OpenAIProvider } from './openai-provider';
 
 /**
@@ -109,6 +109,54 @@ function asSelectedText(markdown: string): string {
     out.push(`${'  '.repeat(indents.length - 1)}${item[2] ? `${item[2]}. ` : '- '}${plain(item[3]!)}`);
   }
   return out.join('\n');
+}
+
+/**
+ * 층으로 설명한 포스터용 메모 (plan Task 7). 앱에서 한 문단으로 쓴 메모를 선택하면 이 글이 그대로 간다.
+ * 줄바꿈 없이 한 문단이다.
+ */
+const LAYER_MEMO =
+  "ok architecture for the poster. the screen is react 19.3 with tiptap 3.31 as the editor, it can't touch files itself, " +
+  'it goes through preload / ipc to main. main is electron 44.4 on node.js 24, all written in typescript 6.0. ' +
+  'main is what talks to the resources: notes stay as plain markdown files, sqlite 3.53 keeps the search and link index ' +
+  '(we use better-sqlite3 and drizzle orm to reach it), and openai sdk 7 calls both openai and kimi.';
+
+/** 카드 제목이 메모에서 처음 나오는 자리 (제목의 단어 중 메모에 있는 첫 단어). 없으면 undefined */
+function memoPosition(memo: string, title: string): number | undefined {
+  const text = memo.toLowerCase();
+  for (const word of title.toLowerCase().split(/[\s/()&,]+/)) {
+    if (word.length >= 3 && text.includes(word)) return text.indexOf(word);
+  }
+  return undefined;
+}
+
+/** 층 다이어그램: 층 3개(UI → Core → Storage & AI), 층 사이 선 2개(첫 선에 Preload / IPC), 층 안 카드는 메모 순서, stack 배치, 떠 있는 카드 없음 */
+function judgeLayerDiagram(spec: InfographicSpec): Record<string, boolean> {
+  const groups = spec.groups ?? [];
+  const groupIds = new Set(groups.map((g) => g.id));
+  const title = (id: string) => groups.find((g) => g.id === id)?.title ?? '';
+  // 위 층부터: 들어오는 선이 없는 층 → 그 층에서 나가는 선을 따라간다
+  const first = spec.edges.find(([from]) => !spec.edges.some(([, to]) => to === from));
+  const second = first && spec.edges.find(([from]) => from === first[1]);
+  const order = first && second ? [first[0], first[1], second[1]] : [];
+  const inMemoOrder = groups.every((g) => {
+    const positions = spec.nodes
+      .filter((n) => n.group === g.id)
+      .map((n) => memoPosition(LAYER_MEMO, n.title))
+      .filter((p): p is number => p !== undefined);
+    // 같은 단어에서 시작하는 카드(OpenAI SDK 7 → OpenAI)는 같은 자리여도 된다
+    return positions.every((p, i) => i === 0 || positions[i - 1]! <= p);
+  });
+  return {
+    'type architecture': spec.type === 'architecture',
+    '3 layer groups': groups.length === 3 && groups.every((g) => !g.parent),
+    '2 lines between layers': spec.edges.length === 2 && spec.edges.every(([from, to]) => groupIds.has(from) && groupIds.has(to)),
+    'ui -> core -> storage': order.length === 3 && /ui|user interface|renderer|screen/i.test(title(order[0]!)) && /core|main/i.test(title(order[1]!)) && /storage|resource|ai|data/i.test(title(order[2]!)),
+    'preload / ipc on the first line': first !== undefined && /preload/i.test(first[2]?.label ?? '') && /ipc/i.test(first[2]?.label ?? ''),
+    'cards in memo order': inMemoOrder,
+    'stack layout': isLayerStack(spec),
+    'no loose cards': looseNodes(spec).length === 0,
+  };
 }
 
 /** 데모 다이어그램이 한눈에 아키텍처로 읽히는지 (조건 1~5) */
@@ -216,12 +264,22 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(visual.spec.groups?.length ?? 0).toBeGreaterThanOrEqual(2);
   }, TIMEOUT * 2);
 
-  /** 정리하기 → (편집기에서 결과 선택) → 시각화를 5번 연달아 돌려 조건마다 통과를 남긴다 */
-  async function fiveRuns(name: string, memo: string, judge: (spec: InfographicSpec) => Record<string, boolean>): Promise<string[][]> {
+  /**
+   * 정리하기 → (편집기에서 결과 선택) → 시각화를 5번 연달아 돌려 조건마다 통과를 남긴다.
+   * direct면 정리하지 않고 메모 문단을 그대로 선택해 바로 시각화한다 (데모 영상의 순서).
+   */
+  async function fiveRuns(
+    name: string,
+    memo: string,
+    judge: (spec: InfographicSpec) => Record<string, boolean>,
+    { direct = false }: { direct?: boolean } = {},
+  ): Promise<string[][]> {
     const runs: { organized: string; spec: InfographicSpec; failed: string[] }[] = [];
     for (let run = 1; run <= 5; run++) {
-      const organized = (await new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal())) as { markdown: string };
-      const selected = asSelectedText(organized.markdown);
+      const organized = direct
+        ? { markdown: memo }
+        : ((await new OrganizeExecutor().execute(InputSnapshot.of(memo), llm(), signal())) as { markdown: string });
+      const selected = direct ? memo : asSelectedText(organized.markdown);
       let visual: { spec: InfographicSpec };
       try {
         visual = (await new VisualizeExecutor().execute(InputSnapshot.of(selected), llm(), signal())) as { spec: InfographicSpec };
@@ -248,6 +306,14 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
 
   it('draws a light service memo without inventing groups, five runs in a row', async () => {
     expect(await fiveRuns('LIGHT', LIGHT_MEMO, judgeLightDiagram)).toEqual([[], [], [], [], []]);
+  }, TIMEOUT * 10);
+
+  it('draws the layered poster memo as stacked layers after organizing it, five runs in a row', async () => {
+    expect(await fiveRuns('LAYERS', LAYER_MEMO, judgeLayerDiagram)).toEqual([[], [], [], [], []]);
+  }, TIMEOUT * 10);
+
+  it('draws the layered poster memo as stacked layers when visualized directly, five runs in a row', async () => {
+    expect(await fiveRuns('LAYERS DIRECT', LAYER_MEMO, judgeLayerDiagram, { direct: true })).toEqual([[], [], [], [], []]);
   }, TIMEOUT * 10);
 
   it('keeps organizing an ordinary meeting memo without components and flows', async () => {

@@ -37,7 +37,7 @@ export function SettingsPanel() {
   const { data: appInfo } = useQuery({ queryKey: ['app', 'info'], queryFn: () => getBlink().app.getInfo(), staleTime: Infinity });
   return (
     <section className={styles.panel}>
-      <p className={styles.lead}>Choose your AI provider and model, and add your own API key. The key is encrypted in this computer's secure storage.</p>
+      <p className={styles.lead}>Choose a provider and a model, enter your API key, then test the connection and save.</p>
       {/* 지금 쓰는 AI는 설정 화면에서만 보여 준다 */}
       <div className={styles.current}>
         <span className={styles.currentLabel}>In use</span>

@@ -227,6 +227,21 @@ describe('layoutArchitectureBase — stacked layers', () => {
     expect(base.width).toBe(Math.max(...base.groups.map((g) => g.x + g.width), ...base.edges.map((e) => e.label!.x + e.label!.width)) + t.spacing.margin);
   });
 
+  it('writes the role of a technology under its name, and makes the row as tall as a card with a role', async () => {
+    const withRoles = parseInfographicSpec({
+      ...layers,
+      nodes: layers.nodes.map((n) => (n.id === 'react' ? { ...n, description: 'User Interface' } : n.id === 'md' ? { ...n, description: '' } : n)),
+    });
+    const base = await layoutArchitectureBase(withRoles);
+    const node = (id: string) => base.nodes.find((n) => n.id === id)!;
+    expect(node('react').descriptionLines).toEqual(['User Interface']);
+    expect(node('tiptap').descriptionLines).toEqual([]);
+    expect(node('react').height).toBe(cardSize('React 19.3', 'User Interface').height);
+    expect(cardSize('React 19.3', 'User Interface').height).toBeGreaterThan(cardSize('React 19.3').height);
+    expect(node('tiptap').height).toBe(node('react').height); // 같은 줄은 같은 높이
+    expect(node('md').descriptionLines).toEqual([]); // 빈 역할은 줄을 만들지 않는다
+  });
+
   it('puts the cards of a layer in one row in the order of the text, four per row, all as tall as the tallest in the row', async () => {
     const base = await layoutArchitectureBase(layers);
     const node = (id: string) => base.nodes.find((n) => n.id === id)!;

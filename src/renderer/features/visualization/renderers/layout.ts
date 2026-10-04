@@ -1,5 +1,6 @@
 import type { ArchitectureIcon, InfographicNode, InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { infographicTheme as t } from '../theme/infographic-theme';
+import type { TechLogo } from './tech-logos';
 
 export interface LayoutNode {
   id: string;
@@ -13,6 +14,8 @@ export interface LayoutNode {
   emphasis: boolean;
   /** architecture: 아이콘 카드로 그린다 ('generic' = 기본 상자) */
   icon?: ArchitectureIcon | 'generic';
+  /** architecture: 이름이 알려진 기술이면 아이콘 대신 그 로고 (tech-logos.ts) */
+  logo?: TechLogo;
 }
 
 export interface EdgeLabel {

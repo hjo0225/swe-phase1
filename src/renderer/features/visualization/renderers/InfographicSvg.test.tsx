@@ -136,6 +136,30 @@ describe('InfographicSvg', () => {
     expect(container.querySelector('[data-card="w"] svg')).not.toBeNull();
   });
 
+  it('draws the role of a technology under its name on an architecture card', async () => {
+    const spec = parseInfographicSpec({
+      version: 1,
+      type: 'architecture',
+      title: 'Stack',
+      groups: [
+        { id: 'ui', title: 'Renderer Process' },
+        { id: 'core', title: 'Main Process' },
+      ],
+      nodes: [
+        { id: 'r', title: 'React 19.3', description: 'User Interface', icon: 'client', group: 'ui' },
+        { id: 'n', title: 'Node.js 24', icon: 'server', group: 'core' },
+      ],
+      edges: [['ui', 'core', { label: 'Preload / IPC' }]],
+    });
+    const layout = placeArchitecture(await layoutArchitectureBase(spec), spec);
+    const { container } = render(<InfographicSvg layout={layout} />);
+    expect(container.querySelector('[data-card="r"]')!.textContent).toContain('User Interface');
+    expect(container.querySelector('[data-card="n"]')!.textContent).toBe('Node.js 24');
+    // 알려진 기술은 그 로고로, 나머지는 기본 아이콘으로
+    expect(container.querySelector('[data-card="r"] [data-logo]')!.getAttribute('data-logo')).toBe('React');
+    expect(container.querySelector('[data-card="n"] [data-logo]')!.getAttribute('data-logo')).toBe('Node.js');
+  });
+
   it('keeps drawing the existing types with an end dot and no arrow marker', () => {
     const spec: InfographicSpec = {
       version: 1,

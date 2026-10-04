@@ -53,6 +53,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",
+    "simple-icons": "^16.33.0",
     "typescript": "^6.0.3",
     "vite": "^7.3.6",
     "vitest": "^5.0.2"

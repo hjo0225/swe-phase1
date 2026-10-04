@@ -164,16 +164,47 @@ export const InfographicSvg = forwardRef<SVGSVGElement, InfographicSvgProps>(fun
                 stroke={t.card.stroke}
                 filter={`url(#${shadowId})`}
               />
-              <Icon
-                ref={withoutClass}
-                x={cx - a.card.iconSize / 2}
-                y={iconTop}
-                width={a.card.iconSize}
-                height={a.card.iconSize}
-                color={a.icon.color}
-                strokeWidth={a.icon.stroke}
-                aria-hidden
-              />
+              {node.logo ? (
+                // 알려진 기술은 그 로고 (simple-icons — viewBox 24)
+                <svg
+                  x={cx - a.card.iconSize / 2}
+                  y={iconTop}
+                  width={a.card.iconSize}
+                  height={a.card.iconSize}
+                  viewBox="0 0 24 24"
+                  data-logo={node.logo.name}
+                  aria-hidden
+                >
+                  <path d={node.logo.path} fill={node.logo.color} />
+                </svg>
+              ) : (
+                <Icon
+                  ref={withoutClass}
+                  x={cx - a.card.iconSize / 2}
+                  y={iconTop}
+                  width={a.card.iconSize}
+                  height={a.card.iconSize}
+                  color={a.icon.color}
+                  strokeWidth={a.icon.stroke}
+                  aria-hidden
+                />
+              )}
+              {node.descriptionLines.length > 0 && (
+                // 역할: 이름 아래 작고 옅게 (층 구조 카드)
+                <text
+                  x={cx}
+                  y={textTop + (node.titleLines.length - 1) * a.title.lineHeight + a.role.gap + a.role.lineHeight}
+                  fontSize={a.role.size}
+                  fill={a.role.color}
+                  textAnchor="middle"
+                >
+                  {node.descriptionLines.map((line, i) => (
+                    <tspan key={i} x={cx} dy={i === 0 ? 0 : a.role.lineHeight}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+              )}
               <text x={cx} y={textTop} fontSize={a.title.size} fontWeight={a.title.weight} fill={t.nodeTitle.color} textAnchor="middle">
                 {node.titleLines.map((line, i) => (
                   <tspan key={i} x={cx} dy={i === 0 ? 0 : a.title.lineHeight}>

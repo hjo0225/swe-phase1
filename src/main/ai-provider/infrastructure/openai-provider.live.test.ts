@@ -185,6 +185,15 @@ function judgeDemoDiagram(spec: InfographicSpec): Record<string, boolean> {
   };
 }
 
+/** 데모 S11 메모 — README Tools & Architecture를 그대로 옮긴 거친 메모 (scripts/demo/record-demo.mjs와 같다) */
+const README_ARCHITECTURE_MEMO =
+  'ok architecture for the poster. ' +
+  "the renderer process is react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
+  'so it goes through preload / ipc to the main process. the main process is electron 44.4 for the desktop application ' +
+  'and node.js 24 for the application logic and file i/o. ' +
+  'main talks to the connected resources: sqlite 3.53 for the search and link index, better-sqlite3 / drizzle orm for database access, ' +
+  'openai sdk 7 for llm api communication, and openai / kimi for the ai processing.';
+
 describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   const llm = () => new OpenAIProvider({ apiKey: apiKey!, model });
   const signal = () => AbortSignal.timeout(TIMEOUT - 5_000);
@@ -315,6 +324,31 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   it('draws the layered poster memo as stacked layers when visualized directly, five runs in a row', async () => {
     expect(await fiveRuns('LAYERS DIRECT', LAYER_MEMO, judgeLayerDiagram, { direct: true })).toEqual([[], [], [], [], []]);
   }, TIMEOUT * 10);
+
+  it('draws the README architecture memo as three named layers with the role of each technology, five runs in a row', async () => {
+    // 데모 S11: 포스터 README의 Tools & Architecture를 메모로 적은 글 — 바로 시각화한다
+    const memo = README_ARCHITECTURE_MEMO;
+    const specs = await Promise.all(
+      Array.from({ length: 5 }, () => new VisualizeExecutor().execute(InputSnapshot.of(memo), llm(), signal()) as Promise<{ spec: InfographicSpec }>),
+    );
+    const failures = specs.map(({ spec }, run) => {
+      const groups = spec.groups ?? [];
+      const titles = groups.map((g) => g.title.toLowerCase());
+      const withRole = spec.nodes.filter((n) => (n.description ?? '').trim().length > 0);
+      const checks = {
+        'architecture': spec.type === 'architecture',
+        'three layers named renderer / main / connected resources':
+          groups.length === 3 && /renderer/.test(titles[0] ?? '') && /main/.test(titles[1] ?? '') && /resource/.test(titles[2] ?? ''),
+        'preload / ipc labels the first line': spec.edges.some(([, , o]) => /preload|ipc/i.test(o?.label ?? '')),
+        'react and tiptap carry their roles': ['react', 'tiptap'].every((t) => withRole.some((n) => n.title.toLowerCase().includes(t))),
+        'most technologies carry a role': withRole.length >= Math.ceil(spec.nodes.length * 0.7),
+      };
+      const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([name]) => name);
+      console.log(`[README ARCH run ${run + 1}] ${failed.length ? 'FAIL ' + failed.join(', ') : 'PASS'} :: ${JSON.stringify(spec)}`);
+      return failed;
+    });
+    expect(failures).toEqual([[], [], [], [], []]);
+  }, TIMEOUT * 2);
 
   it('keeps organizing an ordinary meeting memo without components and flows', async () => {
     const organized = (await new OrganizeExecutor().execute(

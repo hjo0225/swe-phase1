@@ -41,6 +41,8 @@ export const infographicTheme = {
   architecture: {
     card: { width: 128, padding: 12, iconSize: 28, iconGap: 8 },
     title: { size: 13, weight: 600, lineHeight: 17, maxWidth: 9 },
+    /** 층 구조 카드의 역할 (이름 아래 작은 글씨, 두 줄까지) */
+    role: { size: 10.5, lineHeight: 13, maxWidth: 11, maxLines: 2, gap: 3, color: '#62758D' },
     group: {
       header: 34,
       padding: 20,

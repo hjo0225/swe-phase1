@@ -2,6 +2,7 @@ import type { ELK, ElkExtendedEdge, ElkNode, ElkPoint } from 'elkjs/lib/elk-api'
 import { isLayerStack, type InfographicGroup, type InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { infographicTheme } from '../theme/infographic-theme';
 import { widthOf, wrapText, type EdgeLabel, type InfographicLayout, type LayoutEdge, type LayoutGroup, type LayoutNode } from './layout';
+import { techLogoFor } from './tech-logos';
 
 const t = infographicTheme;
 const a = infographicTheme.architecture;
@@ -28,11 +29,23 @@ const loadElk = (): Promise<ELK> =>
     },
   ));
 
-/** 아이콘 카드 크기: 아이콘 위, 제목 아래 */
-export function cardSize(title: string): { titleLines: string[]; height: number } {
+/** 아이콘 카드 크기: 아이콘 위, 이름 아래, 역할(있으면) 그 아래 작게 */
+export function cardSize(title: string, role = ''): { titleLines: string[]; roleLines: string[]; height: number } {
   const titleLines = wrapText(title, a.title.maxWidth);
-  return { titleLines, height: a.card.padding * 2 + a.card.iconSize + a.card.iconGap + titleLines.length * a.title.lineHeight };
+  const roleLines = role.trim() ? wrapText(role, a.role.maxWidth).slice(0, a.role.maxLines) : [];
+  const roleHeight = roleLines.length > 0 ? a.role.gap + roleLines.length * a.role.lineHeight : 0;
+  return {
+    titleLines,
+    roleLines,
+    height: a.card.padding * 2 + a.card.iconSize + a.card.iconGap + titleLines.length * a.title.lineHeight + roleHeight,
+  };
 }
+
+/** 이름이 알려진 기술이면 그 로고를 단다 */
+const logoOf = (title: string) => {
+  const logo = techLogoFor(title);
+  return logo ? { logo } : {};
+};
 
 /** 그룹 상자 안쪽 여백 — 위쪽은 그룹 이름 자리 */
 const padding = `[top=${a.group.header},left=${a.group.padding},bottom=${a.group.padding},right=${a.group.padding}]`;
@@ -104,6 +117,7 @@ async function layoutWithElk(spec: InfographicSpec): Promise<ArchitectureBase> {
       descriptionLines: [],
       emphasis: false,
       icon: n.icon ?? 'generic',
+      ...logoOf(n.title),
     };
   });
   const layoutGroups: LayoutGroup[] = groups.map((g) => {
@@ -307,7 +321,8 @@ export function stackLayers(spec: InfographicSpec): ArchitectureBase {
   order.forEach((g, i) => {
     let y = top + a.group.header;
     for (const row of rowsOf[i]!) {
-      const sizes = row.map((n) => cardSize(n.title));
+      // 층 구조 카드는 역할(description)을 이름 아래에 쓴다 — 기술마다 무엇을 맡는지 (README "React 19.3 — User Interface")
+      const sizes = row.map((n) => cardSize(n.title, n.description));
       const height = Math.max(...sizes.map((size) => size.height));
       const left = centre - rowWidth(row.length) / 2;
       row.forEach((n, j) => {
@@ -318,9 +333,10 @@ export function stackLayers(spec: InfographicSpec): ArchitectureBase {
           width: a.card.width,
           height,
           titleLines: sizes[j]!.titleLines,
-          descriptionLines: [],
+          descriptionLines: sizes[j]!.roleLines,
           emphasis: false,
           icon: n.icon ?? 'generic',
+          ...logoOf(n.title),
         });
       });
       y += height + s.cardGap;

@@ -3,7 +3,8 @@ import { z } from 'zod';
 /**
  * InfographicSpec — Shared Kernel (docs/backend/visualization/domain-model.md, D-11).
  * Main은 LLM 결과 검증에, Renderer는 본문에 저장된 Spec을 그리기 전 검증에 같은 규칙을 쓴다.
- * LLM이 정하는 것(유형·제목·노드·연결)만 담는다. 좌표·색·폰트는 Blink가 정한다.
+ * LLM이 정하는 것(유형·제목·노드·연결)을 담는다. 좌표·색·폰트는 Blink가 정한다.
+ * 예외로 사용자가 손으로 옮긴 카드 위치(positions)를 담는다 — LLM 스키마에는 없고 편집기에서만 쓴다.
  */
 
 /** LLM에 허용하는 유형 = Renderer가 구현한 유형 (BR-VIS-01). Renderer를 추가할 때 함께 늘린다. */
@@ -22,6 +23,13 @@ export interface InfographicSpec {
   title: string;
   nodes: InfographicNode[];
   edges: [from: string, to: string][];
+  /** 사용자가 끌어다 놓은 카드의 왼쪽 위 좌표 (노드 id별). 없는 카드는 기본 배치를 따른다. */
+  positions?: Record<string, CardPosition>;
+}
+
+export interface CardPosition {
+  x: number;
+  y: number;
 }
 
 export type InfographicSpecErrorReason =
@@ -58,6 +66,7 @@ const ShapeSchema = z.object({
     }),
   ),
   edges: z.array(z.tuple([z.string().trim(), z.string().trim()])),
+  positions: z.record(z.string(), z.object({ x: z.number().refine(Number.isFinite), y: z.number().refine(Number.isFinite) })).optional(),
 });
 
 /** 형식 검증 → 정규화 → 구조 불변식. 같은 Spec에 다시 적용해도 결과가 같다. */
@@ -103,7 +112,20 @@ export function parseInfographicSpec(raw: unknown): InfographicSpec {
       : { version: 1, type, title: input.title, nodes, edges };
   if (spec.nodes.length > MAX_NODES) throw new InfographicSpecError('NODE_COUNT', `Expected ${MIN_NODES}-${MAX_NODES} nodes`);
   STRUCTURE_RULES[type](spec);
-  return spec;
+  const positions = keepPositions(input.positions, spec.nodes);
+  return positions ? { ...spec, positions } : spec;
+}
+
+/** 지금 있는 카드의 위치만 정수로 남긴다. 하나도 없으면 undefined (기본 배치). */
+function keepPositions(
+  raw: Record<string, CardPosition> | undefined,
+  nodes: readonly InfographicNode[],
+): Record<string, CardPosition> | undefined {
+  if (!raw) return undefined;
+  const kept = Object.fromEntries(
+    nodes.filter((n) => raw[n.id]).map((n) => [n.id, { x: Math.round(raw[n.id]!.x), y: Math.round(raw[n.id]!.y) }]),
+  );
+  return Object.keys(kept).length > 0 ? kept : undefined;
 }
 
 /**

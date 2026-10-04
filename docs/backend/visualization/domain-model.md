@@ -11,6 +11,8 @@ type InfographicSpec = {
   title: string;
   nodes: { id: string; title: string; description?: string }[];
   edges: [from: string, to: string][];
+  /** 사용자가 끌어다 놓은 카드의 왼쪽 위 좌표 (선택). LLM 스키마에는 없다 */
+  positions?: Record<string, { x: number; y: number }>;
 };
 ```
 
@@ -23,7 +25,7 @@ InfographicSpec.parse(raw: unknown): InfographicSpec   // 실패 시 Infographic
 ```
 
 1. **형식 검증** (Zod) — 필드 타입, 길이
-2. **정규화** — 문자열 trim, 중복 edge 제거, `process`의 빈 edges를 노드 순서 체인으로 채움
+2. **정규화** — 문자열 trim, 중복 edge 제거, `process`의 빈 edges를 노드 순서 체인으로 채움, `positions`는 지금 있는 노드 것만 정수로 남김(없으면 필드 자체를 뺌)
 3. **구조 불변식** — 공통 규칙 + 유형별 규칙
 
 같은 함수가 LLM 결과(Main)와 저장된 Spec(Renderer) 모두에 쓰인다. 결과가 같은 Spec이면 멱등이다.
@@ -58,3 +60,5 @@ InfographicSpec.parse(raw: unknown): InfographicSpec   // 실패 시 Infographic
 | 유형, 제목, 노드와 설명, 연결 | 좌표, 크기, 색상, 폰트, 간격, 아이콘 |
 
 Spec에 색상·좌표 필드가 없다는 것 자체가 "디자인은 Blink가 관리한다"(§17)를 강제한다.
+
+**예외 — 사용자가 옮긴 카드 위치 (`positions`)**: 편집기에서 카드를 끌어 놓으면 그 카드의 좌표만 Spec에 남는다. LLM이 정하는 값이 아니므로 Structured Output 스키마에는 넣지 않는다. 렌더러는 기본 배치를 먼저 계산하고 옮긴 카드만 덮어쓴 뒤, 연결선(나란하면 옆면끼리, 아니면 윗면·아랫면끼리)·comparison 열 배경·캔버스 크기를 실제 위치에 맞춰 다시 잡는다. 카드는 제목 영역과 왼쪽 여백 밖으로는 놓이지 않는다. "Reset layout"은 `positions`를 지워 기본 배치로 돌아간다.

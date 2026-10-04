@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Editor } from '@tiptap/core';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
@@ -38,6 +38,38 @@ describe('visualize and expand', () => {
   });
   afterEach(() => {
     window.location.hash = '';
+  });
+
+  it('moves a card where it is dragged, saves the spot in the note and can reset the layout', async () => {
+    const { user, note } = await runAction('노트를 쓰면 AI가 분석해서 결과를 만든다', '노트를 쓰면 AI가 분석해서 결과를 만든다', /Visualize/);
+    const figure = await screen.findByRole('figure', { name: '처리 과정' }, { timeout: 3000 });
+    const cardOf = () => within(figure).getByText('결과').closest('[data-card]') as SVGGElement;
+    const rectOf = () => cardOf().querySelector('rect')!;
+    const startX = Number(rectOf().getAttribute('x'));
+    const startY = Number(rectOf().getAttribute('y'));
+    expect(within(figure).queryByRole('button', { name: 'Reset layout' })).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(cardOf(), { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 160, clientY: 220 });
+    // 끄는 동안 카드가 따라온다
+    expect(Number(rectOf().getAttribute('x'))).toBe(startX + 60);
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 160, clientY: 220 });
+
+    expect(Number(rectOf().getAttribute('y'))).toBe(startY + 120);
+    await waitFor(
+      async () => {
+        const content = (await getBlink().notes.get({ id: note.id })).content;
+        expect(content).toContain('"positions"');
+        expect(content).toContain(`"x": ${startX + 60}`);
+      },
+      { timeout: 3000 },
+    );
+
+    await user.click(within(figure).getByRole('button', { name: 'Reset layout' }));
+    expect(Number(rectOf().getAttribute('x'))).toBe(startX);
+    await waitFor(async () => expect((await getBlink().notes.get({ id: note.id })).content).not.toContain('"positions"'), {
+      timeout: 3000,
+    });
   });
 
   it('keeps the original text and inserts the infographic below it', async () => {

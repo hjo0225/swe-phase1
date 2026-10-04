@@ -63,3 +63,14 @@
   color: var(--blue-700);
   background: var(--blue-100);
 }
+
+/* 카드 끌기 (편집 가능한 노트에서만) */
+.canvas[data-editable] [data-card] {
+  cursor: grab;
+}
+
+.canvas[data-dragging],
+.canvas[data-dragging] [data-card] {
+  cursor: grabbing;
+  user-select: none;
+}

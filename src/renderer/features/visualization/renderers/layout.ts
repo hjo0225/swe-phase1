@@ -102,8 +102,16 @@ function measure(node: InfographicNode) {
   return { titleLines, descriptionLines, height };
 }
 
-/** Spec → 좌표. 순수 함수라 React 없이 테스트한다. 디자인(좌표·크기)은 전부 여기서 Blink가 정한다. */
+/**
+ * Spec → 좌표. 순수 함수라 React 없이 테스트한다. 디자인(좌표·크기)은 전부 여기서 Blink가 정한다.
+ * 사용자가 옮긴 카드(spec.positions)가 있으면 그 자리에 두고 선·열 배경·캔버스 크기를 실제 위치에 맞춰 다시 잡는다.
+ */
 export function layoutInfographic(spec: InfographicSpec): InfographicLayout {
+  const base = defaultLayout(spec);
+  return spec.positions ? placeMovedCards(spec, base, spec.positions) : base;
+}
+
+function defaultLayout(spec: InfographicSpec): InfographicLayout {
   switch (spec.type) {
     case 'process':
       return layoutProcess(spec);
@@ -114,6 +122,84 @@ export function layoutInfographic(spec: InfographicSpec): InfographicLayout {
     case 'mindmap':
       return layoutMindmap(spec);
   }
+}
+
+/** 옮긴 카드를 놓인 자리에 두고(제목 영역·왼쪽 바깥으로는 못 나간다) 나머지를 실제 위치에 맞춘다. */
+function placeMovedCards(
+  spec: InfographicSpec,
+  base: InfographicLayout,
+  positions: NonNullable<InfographicSpec['positions']>,
+): InfographicLayout {
+  const nodes = base.nodes.map((node) => {
+    const moved = positions[node.id];
+    return moved ? { ...node, x: Math.max(t.spacing.margin, moved.x), y: Math.max(t.spacing.header, moved.y) } : node;
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const route = spec.type === 'mindmap' ? routeSidewaysFirst : routeByRow;
+  const edges = spec.type === 'comparison' ? [] : spec.edges.map(([from, to]) => route(byId.get(from)!, byId.get(to)!));
+
+  // comparison: 열 배경은 그 열(비교 대상 + 특징) 카드를 감싼다
+  const pad = t.spacing.panelPadding;
+  const panels =
+    spec.type === 'comparison'
+      ? (() => {
+          const { children, roots } = childrenOf(spec);
+          return roots.map((id) => boundsOf([id, ...children.get(id)!].map((m) => byId.get(m)!), pad));
+        })()
+      : base.panels;
+
+  const boxes = [...nodes, ...panels];
+  const titleWidth = t.spacing.margin * 2 + widthOf(spec.title) * t.title.size;
+  return {
+    ...base,
+    nodes,
+    edges,
+    panels,
+    width: Math.max(titleWidth, ...boxes.map((b) => b.x + b.width + t.spacing.margin)),
+    height: Math.max(...boxes.map((b) => b.y + b.height + t.spacing.margin)),
+  };
+}
+
+function boundsOf(cards: readonly LayoutNode[], pad: number): LayoutPanel {
+  const left = Math.min(...cards.map((c) => c.x)) - pad;
+  const top = Math.min(...cards.map((c) => c.y)) - pad;
+  const right = Math.max(...cards.map((c) => c.x + c.width)) + pad;
+  const bottom = Math.max(...cards.map((c) => c.y + c.height)) + pad;
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+const overlapX = (a: LayoutNode, b: LayoutNode) => a.x < b.x + b.width && b.x < a.x + a.width;
+const overlapY = (a: LayoutNode, b: LayoutNode) => a.y < b.y + b.height && b.y < a.y + a.height;
+
+/** process·hierarchy: 나란히 있으면 옆면끼리, 아니면 윗면·아랫면끼리 잇는다. */
+function routeByRow(a: LayoutNode, b: LayoutNode): LayoutEdge {
+  return !overlapX(a, b) && overlapY(a, b) ? sideways(a, b) : vertical(a, b);
+}
+
+/** mindmap: 가로로 떨어져 있으면 옆면끼리, 위아래로 겹쳐 쌓였을 때만 윗면·아랫면끼리. */
+function routeSidewaysFirst(a: LayoutNode, b: LayoutNode): LayoutEdge {
+  return overlapX(a, b) ? vertical(a, b) : sideways(a, b);
+}
+
+/** 마주 보는 옆면 가운데끼리 — 두 카드가 가까울수록 선이 짧다. */
+function sideways(a: LayoutNode, b: LayoutNode): LayoutEdge {
+  const toRight = b.x >= a.x;
+  const x1 = toRight ? a.x + a.width : a.x;
+  const x2 = toRight ? b.x : b.x + b.width;
+  const [y1, y2] = [a.y + a.height / 2, b.y + b.height / 2];
+  const bend = (x2 - x1) / 2;
+  return { from: a.id, to: b.id, path: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`, end: { x: x2, y: y2 } };
+}
+
+/** 마주 보는 윗면·아랫면 가운데끼리. */
+function vertical(a: LayoutNode, b: LayoutNode): LayoutEdge {
+  const down = b.y >= a.y;
+  const x1 = a.x + a.width / 2;
+  const x2 = b.x + b.width / 2;
+  const y1 = down ? a.y + a.height : a.y;
+  const y2 = down ? b.y : b.y + b.height;
+  const bend = (y2 - y1) / 2;
+  return { from: a.id, to: b.id, path: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`, end: { x: x2, y: y2 } };
 }
 
 function childrenOf(spec: InfographicSpec) {

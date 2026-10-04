@@ -1,4 +1,4 @@
-import { forwardRef, useId } from 'react';
+import { forwardRef, useId, type PointerEvent } from 'react';
 import type { InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { infographicTheme as t } from '../theme/infographic-theme';
 import { layoutInfographic } from './layout';
@@ -7,7 +7,16 @@ import { layoutInfographic } from './layout';
  * Spec → SVG. 모든 유형(process, hierarchy, comparison, mindmap)이 같은 카드·연결선 디자인을 쓴다 (디자인 일관성, 명세서 §18).
  * PNG 변환을 위해 CSS 없이 속성만으로 그린다.
  */
-export const InfographicSvg = forwardRef<SVGSVGElement, { spec: InfographicSpec }>(function InfographicSvg({ spec }, ref) {
+interface InfographicSvgProps {
+  spec: InfographicSpec;
+  /** 있으면 카드를 끌 수 있다 (편집 가능한 노트에서만) */
+  onCardPointerDown?: (id: string, event: PointerEvent<SVGGElement>) => void;
+}
+
+export const InfographicSvg = forwardRef<SVGSVGElement, InfographicSvgProps>(function InfographicSvg(
+  { spec, onCardPointerDown },
+  ref,
+) {
   const layout = layoutInfographic(spec);
   const uid = useId().replace(/:/g, '');
   const shadowId = `shadow-${uid}`;
@@ -75,7 +84,11 @@ export const InfographicSvg = forwardRef<SVGSVGElement, { spec: InfographicSpec 
         const descStartY =
           node.y + t.card.padding + node.titleLines.length * t.nodeTitle.lineHeight + t.spacing.descGap + t.nodeDescription.size;
         return (
-          <g key={node.id}>
+          <g
+            key={node.id}
+            data-card={node.id}
+            onPointerDown={onCardPointerDown ? (event) => onCardPointerDown(node.id, event) : undefined}
+          >
             <rect
               x={node.x}
               y={node.y}

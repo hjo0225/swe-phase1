@@ -70,6 +70,23 @@ describe('parseInfographicSpec — common rules', () => {
   });
 });
 
+describe('parseInfographicSpec — moved cards', () => {
+  it('keeps the positions people dragged cards to, rounded to whole pixels', () => {
+    const spec = parseInfographicSpec(base({ positions: { '2': { x: 300.4, y: 120.6 } } }));
+    expect(spec.positions).toEqual({ '2': { x: 300, y: 121 } });
+  });
+
+  it('drops positions of unknown cards and leaves positions out when there are none', () => {
+    expect(parseInfographicSpec(base({ positions: { '9': { x: 1, y: 2 } } }))).not.toHaveProperty('positions');
+    expect(parseInfographicSpec(base({}))).not.toHaveProperty('positions');
+  });
+
+  it('rejects positions that are not finite numbers', () => {
+    expect(reason(base({ positions: { '2': { x: 'left', y: 0 } } }))).toBe('SHAPE');
+    expect(reason(base({ positions: { '2': { x: Number.POSITIVE_INFINITY, y: 0 } } }))).toBe('SHAPE');
+  });
+});
+
 describe('parseInfographicSpec — process', () => {
   it('chains nodes in order when edges are empty', () => {
     expect(parseInfographicSpec(base({ edges: [] })).edges).toEqual([

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { layoutInfographic, wrapText } from './layout';
+import { infographicTheme as t } from '../theme/infographic-theme';
 
 const process = (count: number): InfographicSpec => ({
   version: 1,
@@ -54,6 +55,68 @@ describe('layoutInfographic — process', () => {
       expect(n.x + n.width).toBeLessThanOrEqual(layout.width);
       expect(n.y + n.height).toBeLessThanOrEqual(layout.height);
     }
+  });
+});
+
+describe('layoutInfographic — moved cards', () => {
+  const endOf = (path: string) => path.split(' ').slice(-2).map(Number);
+  const startOf = (path: string) => path.split(' ').slice(1, 3).map(Number);
+
+  it('draws a moved card where it was dropped and leaves the others in place', () => {
+    const before = layoutInfographic(process(3));
+    const after = layoutInfographic({ ...process(3), positions: { '3': { x: 900, y: 400 } } });
+    expect(after.nodes[2]).toMatchObject({ x: 900, y: 400 });
+    expect(after.nodes.slice(0, 2)).toEqual(before.nodes.slice(0, 2));
+  });
+
+  it('reconnects the lines to where the cards are, so moving a card closer shortens its line', () => {
+    const before = layoutInfographic(process(2));
+    const [a, b] = before.nodes;
+    // 둘째 카드를 첫째 카드 바로 옆(간격 16)으로 당긴다
+    const after = layoutInfographic({ ...process(2), positions: { '2': { x: a!.x + a!.width + 16, y: b!.y } } });
+    const lengthOf = (path: string) => endOf(path)[0]! - startOf(path)[0]!;
+    expect(lengthOf(after.edges[0]!.path)).toBe(16);
+    expect(lengthOf(after.edges[0]!.path)).toBeLessThan(lengthOf(before.edges[0]!.path));
+    expect(after.edges[0]!.end).toEqual({ x: a!.x + a!.width + 16, y: b!.y + b!.height / 2 });
+  });
+
+  it('joins top and bottom edges when a card is dragged below the other', () => {
+    const [a] = layoutInfographic(process(2)).nodes;
+    const after = layoutInfographic({ ...process(2), positions: { '2': { x: a!.x, y: a!.y + a!.height + 80 } } });
+    expect(startOf(after.edges[0]!.path)).toEqual([a!.x + a!.width / 2, a!.y + a!.height]);
+    expect(after.edges[0]!.end).toEqual({ x: a!.x + a!.width / 2, y: a!.y + a!.height + 80 });
+  });
+
+  it('grows the canvas to hold a card dragged past the edge and keeps cards out of the title area', () => {
+    const after = layoutInfographic({ ...process(2), positions: { '2': { x: 1500, y: 700 }, '1': { x: -50, y: -50 } } });
+    const [a, b] = after.nodes;
+    expect(after.width).toBe(1500 + b!.width + t.spacing.margin);
+    expect(after.height).toBe(700 + b!.height + t.spacing.margin);
+    expect([a!.x, a!.y]).toEqual([t.spacing.margin, t.spacing.header]);
+  });
+
+  it('stretches a comparison column background around its cards after one is moved', () => {
+    const spec: InfographicSpec = {
+      version: 1,
+      type: 'comparison',
+      title: 'A vs B',
+      nodes: [
+        { id: 'a', title: 'A' },
+        { id: 'b', title: 'B' },
+        { id: 'a1', title: 'a1' },
+        { id: 'b1', title: 'b1' },
+      ],
+      edges: [
+        ['a', 'a1'],
+        ['b', 'b1'],
+      ],
+      positions: { a1: { x: 40, y: 600 } },
+    };
+    const layout = layoutInfographic(spec);
+    const a1 = layout.nodes.find((n) => n.id === 'a1')!;
+    const panel = layout.panels[0]!;
+    expect(panel.y + panel.height).toBe(a1.y + a1.height + t.spacing.panelPadding);
+    expect(panel.x).toBeLessThanOrEqual(a1.x - t.spacing.panelPadding);
   });
 });
 

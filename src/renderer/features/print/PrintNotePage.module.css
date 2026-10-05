@@ -110,3 +110,17 @@
 .sheet :global(.ProseMirror > p:has(> br.ProseMirror-trailingBreak:only-child)) {
   display: none;
 }
+
+/*
+ * 인포그래픽은 단(또는 종이) 폭을 꽉 채운다 — 원래 크기로 두면 감싼 상자만 넓어 좌우가 빈다.
+ * 스크린샷(img)은 위의 규칙대로 1:1 폭을 넘지 않는다. 카드 안 로고(안쪽 svg)는 role이 없어 해당하지 않는다.
+ */
+.sheet :global(figure svg[role='img']) {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.sheet :global(figure.glass) {
+  padding: 4px;
+}

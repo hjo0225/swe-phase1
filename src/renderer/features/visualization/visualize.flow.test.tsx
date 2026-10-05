@@ -104,6 +104,27 @@ describe('visualize and expand', () => {
     expect(within(figure).getByText('VPC A')).toBeInTheDocument();
   });
 
+  it('leaves the layout untouched when a card is dragged away and dropped back where it was', async () => {
+    const { note } = await runAction(
+      'architecture: users call a web server in a VPC',
+      'architecture: users call a web server in a VPC',
+      /Visualize/,
+    );
+    const figure = await screen.findByRole('figure', { name: 'Web service' }, { timeout: 3000 });
+    await within(figure).findByText('VPC A', {}, { timeout: 3000 });
+    const cardOf = () => within(figure).getByText('Web server').closest('[data-card]') as SVGGElement;
+    await waitFor(async () => expect((await getBlink().notes.get({ id: note.id })).content).toContain('blink-infographic'), { timeout: 3000 });
+
+    fireEvent.pointerDown(cardOf(), { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 160, clientY: 150 }); // 연결선이 따라오는 걸 보여 주고
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 100, clientY: 100 }); // 제자리로
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 100, clientY: 100 });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500)); // 자동 저장이 돌았을 시간
+    expect((await getBlink().notes.get({ id: note.id })).content).not.toContain('"positions"');
+    expect(within(figure).queryByRole('button', { name: /Reset layout/ })).not.toBeInTheDocument();
+  }, 15_000);
+
   it('saves a card dropped against the title area exactly where it is drawn', async () => {
     const { note } = await runAction(
       'architecture: users call a web server in a VPC',

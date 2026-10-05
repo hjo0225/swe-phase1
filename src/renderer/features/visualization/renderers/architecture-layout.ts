@@ -310,10 +310,13 @@ export function stackLayers(spec: InfographicSpec): ArchitectureBase {
     return Array.from({ length: Math.ceil(cards.length / s.perRow) }, (_, i) => cards.slice(i * s.perRow, (i + 1) * s.perRow));
   });
   const rowWidth = (count: number) => count * a.card.width + (count - 1) * s.cardGap;
-  const widths = order.map((g, i) =>
-    Math.max(groupTitleWidth(g.title), ...rowsOf[i]!.map((row) => rowWidth(row.length) + a.group.padding * 2)),
+  // 모든 층은 같은 폭 — 가장 넓은 층과 그림 제목 중 넓은 쪽. 제목이 넓어도 층이 한쪽으로 쏠려 옆이 비지 않는다
+  const layerWidth = Math.max(
+    widthOf(spec.title) * t.title.size,
+    ...order.map((g, i) => Math.max(groupTitleWidth(g.title), ...rowsOf[i]!.map((row) => rowWidth(row.length) + a.group.padding * 2))),
   );
-  const centre = t.spacing.margin + Math.max(...widths) / 2;
+  const widths = order.map(() => layerWidth);
+  const centre = t.spacing.margin + layerWidth / 2;
 
   const nodes: LayoutNode[] = [];
   const boxes = new Map<string, LayoutGroup>();

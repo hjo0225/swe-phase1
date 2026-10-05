@@ -1,7 +1,9 @@
+import { FolderPlus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { BlinkIpcError } from '../../../../shared/ipc/errors';
 import { Dialog } from '../../../shared/ui/Dialog';
 import { useOrganizeApply, useOrganizePreview } from '../api/organize-queries';
+import styles from './OrganizeDialog.module.css';
 
 const ERRORS: Partial<Record<string, string>> = {
   AI_PROVIDER_NOT_CONFIGURED: 'Connect OpenAI in Settings',
@@ -62,10 +64,16 @@ export function OrganizeDialog({ folder, onClose }: { folder: string; onClose():
       )}
       {plan && empty && <p>{SKIPPED[plan.skipped ?? 'NO_CLEAR_GROUPS']}</p>}
       {plan && !empty && (
-        <ul aria-label="Organize preview">
+        <ul aria-label="Organize preview" className={styles.preview}>
           {plan.newFolders.map((group) => (
             <li key={`new:${group.path.join('/')}`}>
-              <strong>{`New folder ${group.path.join(' / ')}`}</strong>
+              {/* 경로가 폴더 이름이다 — "new folder"는 새로 만든다는 표시일 뿐 이름에 붙지 않는다 */}
+              <div className={styles.folder}>
+                <FolderPlus size={15} strokeWidth={1.75} aria-hidden className={styles.icon} />
+                <strong>{group.path.join(' / ')}</strong>
+                <span className={styles.badge}>new folder</span>
+                <span className={styles.count}>{`${group.notes.length} ${group.notes.length === 1 ? 'note' : 'notes'}`}</span>
+              </div>
               <ul>
                 {group.notes.map((note) => (
                   <li key={note.id}>{note.title}</li>

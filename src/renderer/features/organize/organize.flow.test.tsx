@@ -34,7 +34,11 @@ describe('organize flow', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
     const dialog = await screen.findByRole('dialog', { name: 'Organize — Top of vault' });
-    expect(await within(dialog).findByText('New folder 공부 / Spring')).toBeInTheDocument();
+    // 폴더 경로가 이름으로 보이고, "new folder"는 이름이 아니라 따로 붙은 꼬리표다
+    const folderRow = (await within(dialog).findByText('공부 / Spring')).closest('li')!;
+    expect(within(folderRow).getByText('new folder')).toBeInTheDocument();
+    expect(within(folderRow).getByText('2 notes')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/^New folder /)).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Move' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

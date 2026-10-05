@@ -122,6 +122,8 @@ export function InfographicView({ node, deleteNode, selected, editor, updateAttr
       if (!current || event.pointerId !== current.pointerId) return;
       setDrag(null);
       if (!current.moved) return;
+      // 끌었다가 제자리에 다시 놓았으면 배치를 건드리지 않는다 — 위치를 저장하면 자동 배치를 다시 쓰지 못한다
+      if (Math.hypot(event.clientX - current.startClient.x, event.clientY - current.startClient.y) < DRAG_THRESHOLD) return;
       const at = drawnAtRef.current(current.id, current.current);
       if (!at) return;
       setDropped({ id: current.id, at });

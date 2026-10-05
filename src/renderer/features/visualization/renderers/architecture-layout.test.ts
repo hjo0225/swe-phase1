@@ -227,6 +227,34 @@ describe('layoutArchitectureBase — stacked layers', () => {
     expect(base.width).toBe(Math.max(...base.groups.map((g) => g.x + g.width), ...base.edges.map((e) => e.label!.x + e.label!.width)) + t.spacing.margin);
   });
 
+  it('makes every layer as wide as the diagram, also when the title is wider than the cards, leaving no empty side', async () => {
+    const twoPerLayer = parseInfographicSpec({
+      version: 1,
+      type: 'architecture',
+      title: 'Renderer and Main Process Architecture of the App',
+      groups: [
+        { id: 'ui', title: 'Renderer Process' },
+        { id: 'core', title: 'Main Process' },
+      ],
+      nodes: [
+        { id: 'r', title: 'React 19.3', group: 'ui' },
+        { id: 't', title: 'Tiptap 3.31', group: 'ui' },
+        { id: 'e', title: 'Electron 44.4', group: 'core' },
+      ],
+      edges: [['ui', 'core']],
+    });
+    const base = await layoutArchitectureBase(twoPerLayer);
+    for (const g of base.groups) {
+      expect(g.x).toBe(t.spacing.margin);
+      expect(g.x + g.width).toBeCloseTo(base.width - t.spacing.margin);
+    }
+    // 카드는 층 가운데
+    const ui = base.groups.find((g) => g.id === 'ui')!;
+    const cards = base.nodes.filter((n) => n.id === 'r' || n.id === 't');
+    const middle = (cards[0]!.x + cards[1]!.x + cards[1]!.width) / 2;
+    expect(middle).toBeCloseTo(ui.x + ui.width / 2);
+  });
+
   it('writes the role of a technology under its name, and makes the row as tall as a card with a role', async () => {
     const withRoles = parseInfographicSpec({
       ...layers,

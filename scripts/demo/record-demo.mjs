@@ -70,15 +70,13 @@ const KICKOFF =
   'Blink = gets rid of the hassle of jumping between ai tools, copy pasting text & digging thru old notes... ' +
   'by putting everything in one seamless writing experience';
 
-// README Tools & Architecture를 메모로 — 층 이름과 기술별 역할이 그대로 그림에 들어간다
-// (openai-provider.live.test.ts의 README_ARCHITECTURE_MEMO와 같다. 실제 AI로 바로 시각화 10번 중 10번)
+// README Tools & Architecture를 메모로 — Electron이 두 프로세스를 감싸고, Main에서 SQLite·OpenAI SDK로 나간다
+// (openai-provider.live.test.ts의 README_ARCHITECTURE_MEMO와 같다. 실제 AI로 바로 시각화 10번 중 9번)
 const ARCHITECTURE_MEMO =
-  'ok architecture for the poster. ' +
-  "the renderer process is react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
-  'so it goes through preload / ipc to the main process. the main process is electron 44.4 for the desktop application ' +
-  'and node.js 24 for the application logic and file i/o. ' +
-  'main talks to the connected resources: sqlite 3.53 for the search and link index ' +
-  'and openai sdk 7 for llm api communication.';
+  'ok architecture for the poster. electron 44.4 is the desktop application and it wraps two processes. ' +
+  "the renderer process has react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
+  'so it talks to the main process over the ipc / preload bridge. the main process runs node.js 24 for the application logic and file i/o. ' +
+  'from main we use sqlite 3.53 for the search and link index and openai sdk 7 for llm api communication.';
 
 const INBOX = {
   'What is a container': 'A process isolated with its own filesystem, network and limits, sharing the host kernel.',
@@ -560,7 +558,7 @@ try {
   });
 
   await scene('S07', 'AI folder organization', async () => {
-    const dialog = page.getByRole('dialog', { name: 'Organize — Inbox' });
+    const dialog = page.getByRole('dialog', { name: 'Organize Inbox' });
     const preview = dialog.getByRole('list', { name: 'Organize preview' });
     await line('S07-1', 3, async () => {
       await expandFolder('Inbox');
@@ -615,7 +613,7 @@ try {
     });
   });
 
-  await scene('S09', 'Organize — Description', async () => {
+  await scene('S09', 'Organize: Description', async () => {
     const first = 'Blink = gets rid of';
     const last = 'one seamless writing experience';
     await line('S09-1', 3, async () => {

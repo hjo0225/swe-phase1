@@ -531,6 +531,38 @@ describe('architecture — lines between groups (layers)', () => {
     ).toBe(false);
   });
 
+  it('also calls it a layer stack when one outer box holds the layers and lines run from a layer to cards outside', () => {
+    // README: Electron이 Renderer·Main을 감싸고, Main에서 SQLite·OpenAI SDK로 나간다
+    const framed = (over: Partial<Record<'groups' | 'nodes' | 'edges', unknown>> = {}) => ({
+      version: 1,
+      type: 'architecture',
+      title: 'Blink',
+      groups: [
+        { id: 'app', title: 'Electron 44.4' },
+        { id: 'ui', title: 'Renderer Process', parent: 'app' },
+        { id: 'core', title: 'Main Process', parent: 'app' },
+      ],
+      nodes: [
+        { id: 'react', title: 'React 19.3', group: 'ui' },
+        { id: 'node', title: 'Node.js 24', group: 'core' },
+        { id: 'sqlite', title: 'SQLite 3.53' },
+        { id: 'sdk', title: 'OpenAI SDK 7' },
+      ],
+      edges: [
+        ['ui', 'core', { label: 'IPC / Preload Bridge' }],
+        ['core', 'sqlite'],
+        ['core', 'sdk'],
+      ],
+      ...over,
+    });
+    expect(isLayerStack(parseInfographicSpec(framed()))).toBe(true);
+    // 바깥 상자가 카드를 직접 품거나, 선이 카드끼리 잇거나, 바깥 상자에 닿거나, 바깥 카드에 선이 없으면 아니다
+    expect(isLayerStack(parseInfographicSpec(framed({ nodes: [...(framed().nodes as object[]), { id: 'shell', title: 'Shell', group: 'app' }] })))).toBe(false);
+    expect(isLayerStack(parseInfographicSpec(framed({ edges: [['ui', 'core'], ['node', 'sqlite'], ['core', 'sdk']] })))).toBe(false);
+    expect(isLayerStack(parseInfographicSpec(framed({ edges: [['ui', 'core'], ['app', 'sqlite'], ['core', 'sdk']] })))).toBe(false);
+    expect(isLayerStack(parseInfographicSpec(framed({ edges: [['ui', 'core'], ['core', 'sqlite']] })))).toBe(false);
+  });
+
   it('finds loose cards: no line of their own and no line on any group around them', () => {
     expect(looseNodes(parseInfographicSpec(layers()))).toEqual([]);
     const spec = parseInfographicSpec(

@@ -62,13 +62,16 @@ function collapseLayers(shape: unknown, layers: boolean): unknown {
   if (spec.type !== 'architecture' || !Array.isArray(spec.nodes) || !Array.isArray(spec.groups) || !Array.isArray(spec.edges)) return shape;
   const groups = spec.groups as Named[];
   if (groups.length < 2) return shape;
-  const parentOf = new Map(groups.map((g) => [g.id, g.parent]));
+  // 층들을 감싼 바깥 상자(예: Electron)가 하나 있으면 그 안의 상자들이 층이다. 바깥 상자는 테두리로 남긴다
+  const holders = groups.filter((g) => !g.parent && groups.some((c) => c.parent === g.id));
+  const frame = holders.length === 1 && groups.filter((c) => c.parent === holders[0]!.id).length >= 2 ? holders[0]! : undefined;
+  const parentOf = new Map(groups.map((g) => [g.id, g.parent === frame?.id && frame ? undefined : g.parent]));
   const layerOf = (group: unknown): unknown => {
     let g = group;
     for (let hops = 0; parentOf.get(g) && hops < 16; hops++) g = parentOf.get(g);
     return g;
   };
-  const top = groups.filter((g) => !g.parent);
+  const top = groups.filter((g) => g !== frame && !parentOf.get(g.id));
 
   // 층 안의 상자 → 그 층의 카드 (품던 카드 바로 앞)
   let nodes: Named[] = [];
@@ -88,7 +91,7 @@ function collapseLayers(shape: unknown, layers: boolean): unknown {
       nodes.push({ ...n, group: layerOf(n.group) });
     } else nodes.push(n);
   }
-  for (const g of groups) if (g.parent && !asCard.has(g.id)) boxCard(g); // 빈 상자도 기술 이름이다
+  for (const g of groups) if (parentOf.get(g.id) && !asCard.has(g.id)) boxCard(g); // 빈 상자도 기술 이름이다 (바깥 상자 안의 층은 아니다)
 
   const layerOfEnd = (id: unknown): unknown => {
     if (parentOf.has(id)) return layerOf(id); // 그룹(층 안 상자였던 카드 포함)은 그 층
@@ -113,7 +116,8 @@ function collapseLayers(shape: unknown, layers: boolean): unknown {
     const others = new Set(lines.filter((l) => l[0] === n.id || l[1] === n.id).map((l) => (l[0] === n.id ? l[1] : l[0])));
     const [only] = others;
     const host = others.size === 1 ? nodes.find((x) => x.id === only && x.group !== undefined) : undefined;
-    if (!host) continue;
+    // 버전이 붙은 기술(예: SQLite 3.53)은 서비스가 아니라 제 카드다 — 괄호로 접지 않는다
+    if (!host || (frame && /\d/.test(String(n.title ?? '')))) continue;
     const title = String(host.title ?? '');
     const service = String(n.title ?? '').trim();
     const inParens = /\(([^)]*)\)\s*$/.exec(title)?.[1]?.split(',').map((x) => x.trim().toLowerCase()) ?? [];
@@ -160,7 +164,7 @@ function collapseLayers(shape: unknown, layers: boolean): unknown {
     const meta = { ...(label ? { label } : {}), ...(m.both ? { bidirectional: true } : {}) };
     return Object.keys(meta).length > 0 ? [m.from, m.to, meta] : [m.from, m.to];
   });
-  return { ...spec, nodes, groups: top, edges };
+  return { ...spec, nodes, groups: frame ? [frame, ...top] : top, edges };
 }
 
 type Named = { id?: unknown; title?: unknown; group?: unknown; parent?: unknown };
@@ -312,7 +316,7 @@ function componentsNotBoxes(shape: unknown): unknown {
 
 /** parse가 거절하는 길이(SHAPE). 조금 긴 라벨·그룹 이름 하나로 시각화 전체가 실패하지 않도록 미리 줄인다. */
 const MAX_EDGE_LABEL = 24;
-const MAX_GROUP_TITLE = 30;
+const MAX_GROUP_TITLE = 40;
 /** architecture 카드 이름 (그룹 이름처럼 조금 긴 이름 하나로 그림 전체가 거절되지 않게) */
 const MAX_NODE_TITLE = 40;
 

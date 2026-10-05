@@ -227,6 +227,61 @@ describe('layoutArchitectureBase — stacked layers', () => {
     expect(base.width).toBe(Math.max(...base.groups.map((g) => g.x + g.width), ...base.edges.map((e) => e.label!.x + e.label!.width)) + t.spacing.margin);
   });
 
+  it('draws an outer box around the layers it holds and puts the cards outside it on a row below, each reached by a straight arrow', async () => {
+    // README: Electron이 Renderer·Main을 감싸고, Main에서 SQLite·OpenAI SDK로 나간다
+    const framed = parseInfographicSpec({
+      version: 1,
+      type: 'architecture',
+      title: 'Blink',
+      groups: [
+        { id: 'app', title: 'Electron 44.4 — Desktop Application' },
+        { id: 'ui', title: 'Renderer Process', parent: 'app' },
+        { id: 'core', title: 'Main Process', parent: 'app' },
+      ],
+      nodes: [
+        { id: 'react', title: 'React 19.3', group: 'ui' },
+        { id: 'tiptap', title: 'Tiptap 3.31', group: 'ui' },
+        { id: 'node', title: 'Node.js 24', group: 'core' },
+        { id: 'sqlite', title: 'SQLite 3.53' },
+        { id: 'sdk', title: 'OpenAI SDK 7' },
+      ],
+      edges: [
+        ['ui', 'core', { label: 'IPC / Preload Bridge' }],
+        ['core', 'sqlite'],
+        ['core', 'sdk'],
+      ],
+    });
+    const base = await layoutArchitectureBase(framed);
+    const box = (id: string) => base.groups.find((g) => g.id === id)!;
+    const node = (id: string) => base.nodes.find((n) => n.id === id)!;
+    const [app, ui, core] = [box('app'), box('ui'), box('core')];
+    // 바깥 상자는 두 층을 감싸고, 층은 그 안쪽 상자로 그린다
+    expect(app.depth).toBe(0);
+    expect([ui.depth, core.depth]).toEqual([1, 1]);
+    for (const layer of [ui, core]) {
+      expect(layer.x).toBeGreaterThan(app.x);
+      expect(layer.x + layer.width).toBeLessThan(app.x + app.width);
+    }
+    expect(ui.y).toBeGreaterThan(app.y);
+    expect(core.y).toBeGreaterThan(ui.y + ui.height);
+    expect(core.y + core.height).toBeLessThan(app.y + app.height);
+    // 상자 밖 카드는 바깥 상자 아래 한 줄, 가운데
+    const [sqlite, sdk] = [node('sqlite'), node('sdk')];
+    expect(sqlite.y).toBeGreaterThan(app.y + app.height);
+    expect(sdk.y).toBe(sqlite.y);
+    expect((sqlite.x + sdk.x + sdk.width) / 2).toBeCloseTo(app.x + app.width / 2);
+    // Main에서 각 카드로 곧은 세로 화살표: 층 아래에서 카드 위까지
+    for (const target of [sqlite, sdk]) {
+      const edge = base.edges.find((e) => e.from === 'core' && e.to === target.id)!;
+      expect(edge.end).toEqual({ x: target.x + target.width / 2, y: target.y });
+      expect(edge.path).toMatch(new RegExp(`^M ${target.x + target.width / 2} ${core.y + core.height} `));
+    }
+    // 층 사이 선은 라벨을 단 세로 화살표
+    const bridge = base.edges.find((e) => e.from === 'ui')!;
+    expect(bridge.label?.text).toBe('IPC / Preload Bridge');
+    expect(bridge.end.y).toBe(core.y);
+  });
+
   it('makes every layer as wide as the diagram, also when the title is wider than the cards, leaving no empty side', async () => {
     const twoPerLayer = parseInfographicSpec({
       version: 1,

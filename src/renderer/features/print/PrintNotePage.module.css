@@ -112,15 +112,20 @@
 }
 
 /*
- * 인포그래픽은 단(또는 종이) 폭을 꽉 채운다 — 원래 크기로 두면 감싼 상자만 넓어 좌우가 빈다.
- * 스크린샷(img)은 위의 규칙대로 1:1 폭을 넘지 않는다. 카드 안 로고(안쪽 svg)는 role이 없어 해당하지 않는다.
+ * 인포그래픽은 1:1 종이에서의 단 폭까지 키우고(원래 크기면 좌우가 빈다), 감싼 상자는 그림에 딱 맞게 줄여 가운데에 둔다.
+ * 단 폭보다 더 키우지는 않는다 — 한 장에 맞추려고 넓게 다시 배치할 때 그림까지 커지면 높이가 줄지 않아 글이 좁아진다.
+ * 카드 안 로고(안쪽 svg)는 role이 없어 해당하지 않는다.
  */
 .sheet :global(figure svg[role='img']) {
-  width: 100%;
+  width: var(--print-media-width, 100%);
   max-width: 100%;
   height: auto;
 }
 
 .sheet :global(figure.glass) {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
   padding: 4px;
 }

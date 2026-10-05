@@ -187,12 +187,10 @@ function judgeDemoDiagram(spec: InfographicSpec): Record<string, boolean> {
 
 /** 데모 S11 메모 — README Tools & Architecture를 그대로 옮긴 거친 메모 (scripts/demo/record-demo.mjs와 같다) */
 const README_ARCHITECTURE_MEMO =
-  'ok architecture for the poster. ' +
-  "the renderer process is react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
-  'so it goes through preload / ipc to the main process. the main process is electron 44.4 for the desktop application ' +
-  'and node.js 24 for the application logic and file i/o. ' +
-  'main talks to the connected resources: sqlite 3.53 for the search and link index ' +
-  'and openai sdk 7 for llm api communication.';
+  'ok architecture for the poster. electron 44.4 is the desktop application and it wraps two processes. ' +
+  "the renderer process has react 19.3 for the user interface and tiptap 3.31 as the rich text editor. it can't touch files itself, " +
+  'so it talks to the main process over the ipc / preload bridge. the main process runs node.js 24 for the application logic and file i/o. ' +
+  'from main we use sqlite 3.53 for the search and link index and openai sdk 7 for llm api communication.';
 
 describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
   const llm = () => new OpenAIProvider({ apiKey: apiKey!, model });
@@ -325,7 +323,7 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
     expect(await fiveRuns('LAYERS DIRECT', LAYER_MEMO, judgeLayerDiagram, { direct: true })).toEqual([[], [], [], [], []]);
   }, TIMEOUT * 10);
 
-  it('draws the README architecture memo as three named layers with the role of each technology, five runs in a row', async () => {
+  it('draws the README architecture memo as Electron holding two process layers, with sqlite and the sdk outside, five runs in a row', async () => {
     // 데모 S11: 포스터 README의 Tools & Architecture를 메모로 적은 글 — 바로 시각화한다
     const memo = README_ARCHITECTURE_MEMO;
     const specs = await Promise.all(
@@ -337,9 +335,18 @@ describe.skipIf(!apiKey)(`OpenAIProvider — live API (${model})`, () => {
       const withRole = spec.nodes.filter((n) => (n.description ?? '').trim().length > 0);
       const checks = {
         'architecture': spec.type === 'architecture',
-        'three layers named renderer / main / connected resources':
-          groups.length === 3 && /renderer/.test(titles[0] ?? '') && /main/.test(titles[1] ?? '') && /resource/.test(titles[2] ?? ''),
-        'preload / ipc labels the first line': spec.edges.some(([, , o]) => /preload|ipc/i.test(o?.label ?? '')),
+        'electron holds renderer and main': (() => {
+          const frame = groups.find((g) => /electron/i.test(g.title));
+          const inside = groups.filter((g) => frame && g.parent === frame.id).map((g) => g.title.toLowerCase());
+          return !!frame && inside.length === 2 && inside.some((t) => /renderer/.test(t)) && inside.some((t) => /main/.test(t));
+        })(),
+        'sqlite and the sdk sit outside, reached from main': ['sqlite', 'sdk'].every((name) => {
+          const n = spec.nodes.find((x) => x.title.toLowerCase().includes(name));
+          const main = groups.find((g) => /main/i.test(g.title));
+          return !!n && !n.group && !!main && spec.edges.some(([from, to]) => from === main.id && to === n.id);
+        }),
+        'ipc labels the line between the processes': spec.edges.some(([, , o]) => /preload|ipc/i.test(o?.label ?? '')),
+        'drawn as a layer stack': isLayerStack(spec),
         'react and tiptap carry their roles': ['react', 'tiptap'].every((t) => withRole.some((n) => n.title.toLowerCase().includes(t))),
         'most technologies carry a role': withRole.length >= Math.ceil(spec.nodes.length * 0.7),
       };

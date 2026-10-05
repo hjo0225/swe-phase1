@@ -1,5 +1,5 @@
 import type { ELK, ElkExtendedEdge, ElkNode, ElkPoint } from 'elkjs/lib/elk-api';
-import { isLayerStack, type InfographicGroup, type InfographicSpec } from '../../../../shared/visualization/infographic-spec';
+import { isLayerStack, layerStackParts, type InfographicGroup, type InfographicSpec } from '../../../../shared/visualization/infographic-spec';
 import { infographicTheme } from '../theme/infographic-theme';
 import { widthOf, wrapText, type EdgeLabel, type InfographicLayout, type LayoutEdge, type LayoutGroup, type LayoutNode } from './layout';
 import { techLogoFor } from './tech-logos';
@@ -282,72 +282,107 @@ const labelSize = (text: string) => ({ width: widthOf(text) * a.label.size + a.l
 const groupTitleWidth = (title: string) => widthOf(title) * a.group.label.size + 28;
 
 /** 층 순서: 선이 가는 순서(위상 정렬), 동률이면 글 순서. 선이 돌고 돌면 남은 것 중 글 순서가 앞선 층부터 */
-function layerOrder(spec: InfographicSpec): InfographicGroup[] {
-  const groups = spec.groups ?? [];
-  const incoming = new Map(groups.map((g) => [g.id, 0]));
-  for (const [, to] of spec.edges) incoming.set(to, (incoming.get(to) ?? 0) + 1);
+function layerOrder(spec: InfographicSpec, layers: readonly InfographicGroup[]): InfographicGroup[] {
+  const ids = new Set(layers.map((g) => g.id));
+  const lines = spec.edges.filter(([from, to]) => ids.has(from) && ids.has(to));
+  const incoming = new Map(layers.map((g) => [g.id, 0]));
+  for (const [, to] of lines) incoming.set(to, incoming.get(to)! + 1);
   const placed = new Set<string>();
   const order: InfographicGroup[] = [];
-  while (order.length < groups.length) {
-    const next = groups.find((g) => !placed.has(g.id) && incoming.get(g.id) === 0) ?? groups.find((g) => !placed.has(g.id))!;
+  while (order.length < layers.length) {
+    const next = layers.find((g) => !placed.has(g.id) && incoming.get(g.id) === 0) ?? layers.find((g) => !placed.has(g.id))!;
     placed.add(next.id);
     order.push(next);
-    for (const [from, to] of spec.edges) if (from === next.id && !placed.has(to)) incoming.set(to, incoming.get(to)! - 1);
+    for (const [from, to] of lines) if (from === next.id && !placed.has(to)) incoming.set(to, incoming.get(to)! - 1);
   }
   return order;
 }
 
 /**
- * 층 쌓기 배치 (ELK를 쓰지 않는다): 층(맨 바깥 그룹)을 선 순서대로 위→아래로 쌓아 가운데 맞추고,
+ * 층 쌓기 배치 (ELK를 쓰지 않는다): 층을 선 순서대로 위→아래로 쌓아 가운데 맞추고,
  * 층 안 카드는 글 순서대로 한 줄(perRow개를 넘으면 다음 줄, 줄마다 가운데)에 그 줄에서 가장 높은 카드 높이로 둔다.
- * 이웃한 층 사이 선은 곧은 세로 화살표(라벨은 그 옆), 층을 건너뛰는 선은 상자들 오른쪽 바깥으로 비켜 간다.
+ * 층들을 감싼 바깥 상자(예: Electron)가 있으면 그 층들을 먼저 쌓고 테두리를 두르며, 상자 밖 카드(예: SQLite)는 맨 아래 한 줄에 둔다.
+ * 이웃한 층 사이 선은 곧은 세로 화살표(라벨은 그 옆), 층에서 상자 밖 카드로 가는 선은 그 카드 위로 곧게,
+ * 층을 건너뛰는 선은 상자들 오른쪽 바깥으로 비켜 간다.
  */
 export function stackLayers(spec: InfographicSpec): ArchitectureBase {
   const s = a.stack;
-  const order = layerOrder(spec);
+  const { frame, layers, outside } = layerStackParts(spec)!;
+  const inFrame = (g: InfographicGroup) => frame !== null && g.parent === frame.id;
+  // 바깥 상자 안의 층을 먼저(그 안에서 선 순서), 그다음 상자 밖 층
+  const sorted = layerOrder(spec, layers);
+  const order = [...sorted.filter(inFrame), ...sorted.filter((g) => !inFrame(g))];
   const rowsOf = order.map((g) => {
     const cards = spec.nodes.filter((n) => n.group === g.id);
     return Array.from({ length: Math.ceil(cards.length / s.perRow) }, (_, i) => cards.slice(i * s.perRow, (i + 1) * s.perRow));
   });
   const rowWidth = (count: number) => count * a.card.width + (count - 1) * s.cardGap;
-  // 모든 층은 같은 폭 — 가장 넓은 층과 그림 제목 중 넓은 쪽. 제목이 넓어도 층이 한쪽으로 쏠려 옆이 비지 않는다
+  const inset = frame ? a.group.padding : 0; // 바깥 상자 안쪽 여백
+  // 모든 층은 같은 폭 — 가장 넓은 층·상자 밖 카드 줄·그림 제목·바깥 상자 이름 중 넓은 쪽. 어느 쪽도 한쪽으로 쏠려 옆이 비지 않는다
   const layerWidth = Math.max(
-    widthOf(spec.title) * t.title.size,
+    widthOf(spec.title) * t.title.size - inset * 2,
+    frame ? groupTitleWidth(frame.title) - inset * 2 : 0,
+    outside.length > 0 ? rowWidth(Math.min(outside.length, s.perRow)) : 0,
     ...order.map((g, i) => Math.max(groupTitleWidth(g.title), ...rowsOf[i]!.map((row) => rowWidth(row.length) + a.group.padding * 2))),
   );
-  const widths = order.map(() => layerWidth);
-  const centre = t.spacing.margin + layerWidth / 2;
+  const centre = t.spacing.margin + inset + layerWidth / 2;
 
   const nodes: LayoutNode[] = [];
-  const boxes = new Map<string, LayoutGroup>();
-  let top = t.spacing.header;
-  order.forEach((g, i) => {
-    let y = top + a.group.header;
-    for (const row of rowsOf[i]!) {
-      // 층 구조 카드는 역할(description)을 이름 아래에 쓴다 — 기술마다 무엇을 맡는지 (README "React 19.3 — User Interface")
-      const sizes = row.map((n) => cardSize(n.title, n.description));
-      const height = Math.max(...sizes.map((size) => size.height));
-      const left = centre - rowWidth(row.length) / 2;
-      row.forEach((n, j) => {
-        nodes.push({
-          id: n.id,
-          x: left + j * (a.card.width + s.cardGap),
-          y,
-          width: a.card.width,
-          height,
-          titleLines: sizes[j]!.titleLines,
-          descriptionLines: sizes[j]!.roleLines,
-          emphasis: false,
-          icon: n.icon ?? 'generic',
-          ...logoOf(n.title),
-        });
+  const cardRow = (row: readonly InfographicSpec['nodes'][number][], y: number) => {
+    // 층 구조 카드는 역할(description)을 이름 아래에 쓴다 — 기술마다 무엇을 맡는지 (README "React 19.3 — User Interface")
+    const sizes = row.map((n) => cardSize(n.title, n.description));
+    const height = Math.max(...sizes.map((size) => size.height));
+    const left = centre - rowWidth(row.length) / 2;
+    row.forEach((n, j) => {
+      nodes.push({
+        id: n.id,
+        x: left + j * (a.card.width + s.cardGap),
+        y,
+        width: a.card.width,
+        height,
+        titleLines: sizes[j]!.titleLines,
+        descriptionLines: sizes[j]!.roleLines,
+        emphasis: false,
+        icon: n.icon ?? 'generic',
+        ...logoOf(n.title),
       });
-      y += height + s.cardGap;
-    }
+    });
+    return height;
+  };
+
+  const boxes = new Map<string, LayoutGroup>();
+  let top: number = t.spacing.header;
+  let frameTop = 0;
+  if (frame) {
+    frameTop = top;
+    top += a.group.header;
+  }
+  order.forEach((g, i) => {
+    // 바깥 상자의 마지막 층 다음: 상자를 닫고 층 사이만큼 띄운다
+    if (frame && i > 0 && inFrame(order[i - 1]!) && !inFrame(g)) top = closeFrame(top - a.spacing.betweenLayers);
+    let y = top + a.group.header;
+    for (const row of rowsOf[i]!) y += cardRow(row, y) + s.cardGap;
     const height = y - s.cardGap + a.group.padding - top;
-    boxes.set(g.id, { id: g.id, title: g.title, x: centre - widths[i]! / 2, y: top, width: widths[i]!, height, depth: 0 });
+    boxes.set(g.id, { id: g.id, title: g.title, x: centre - layerWidth / 2, y: top, width: layerWidth, height, depth: inFrame(g) ? 1 : 0 });
     top += height + a.spacing.betweenLayers;
   });
+  if (frame && inFrame(order[order.length - 1]!)) top = closeFrame(top - a.spacing.betweenLayers);
+  function closeFrame(lastBottom: number): number {
+    const bottom = lastBottom + a.group.padding;
+    boxes.set(frame!.id, {
+      id: frame!.id,
+      title: frame!.title,
+      x: centre - layerWidth / 2 - inset,
+      y: frameTop,
+      width: layerWidth + inset * 2,
+      height: bottom - frameTop,
+      depth: 0,
+    });
+    return bottom + a.spacing.betweenLayers;
+  }
+  // 상자 밖 카드: 맨 아래 줄(들), 가운데
+  for (let i = 0; i < outside.length; i += s.perRow) top += cardRow(outside.slice(i, i + s.perRow), top) + s.cardGap;
+
   // 카드는 Spec 순서로 돌려준다 (그리는 순서·끌기 대상이 다른 배치와 같게)
   const nodeOrder = new Map(spec.nodes.map((n, i) => [n.id, i]));
   nodes.sort((p, q) => nodeOrder.get(p.id)! - nodeOrder.get(q.id)!);
@@ -355,16 +390,33 @@ export function stackLayers(spec: InfographicSpec): ArchitectureBase {
   const level = new Map(order.map((g, i) => [g.id, i]));
   const pairKey = (from: string, to: string) => [level.get(from)!, level.get(to)!].sort((p, q) => p - q).join('-');
   const pairs = new Map<string, number>();
-  for (const [from, to] of spec.edges) pairs.set(pairKey(from, to), (pairs.get(pairKey(from, to)) ?? 0) + 1);
+  for (const [from, to] of spec.edges) if (level.has(from) && level.has(to)) pairs.set(pairKey(from, to), (pairs.get(pairKey(from, to)) ?? 0) + 1);
   const drawn = new Map<string, number>();
   let detours = 0;
+  const cardOf = (id: string) => nodes.find((n) => n.id === id);
   const edges: LayoutEdge[] = spec.edges.map(([from, to, meta]) => {
-    const source = boxes.get(from)!;
-    const target = boxes.get(to)!;
     const size = meta?.label ? labelSize(meta.label) : undefined;
     let points: { x: number; y: number }[];
     let label: EdgeLabel | undefined;
-    if (Math.abs(level.get(from)! - level.get(to)!) === 1) {
+    const card = cardOf(to) ?? cardOf(from);
+    if (card) {
+      // 층 ↔ 상자 밖 카드: 층 아래에서 카드 위로 곧게 (카드 가운데 아래로)
+      const layer = boxes.get(level.has(from) ? from : to)!;
+      const x = card.x + card.width / 2;
+      const [y1, y2] = [layer.y + layer.height, card.y];
+      points = level.has(from)
+        ? [
+            { x, y: y1 },
+            { x, y: y2 },
+          ]
+        : [
+            { x, y: y2 },
+            { x, y: y1 },
+          ];
+      if (size && meta?.label) label = { text: meta.label, ...size, x: x + s.labelGap, y: (y1 + y2) / 2 - size.height / 2 };
+    } else if (Math.abs(level.get(from)! - level.get(to)!) === 1) {
+      const source = boxes.get(from)!;
+      const target = boxes.get(to)!;
       // 이웃한 층: 곧은 세로 화살표. 같은 두 층 사이 선이 여럿이면 가운데를 두고 나란히
       const key = pairKey(from, to);
       const count = pairs.get(key)!;
@@ -389,9 +441,14 @@ export function stackLayers(spec: InfographicSpec): ArchitectureBase {
         label = { text: meta.label, ...size, x: leftSide ? x - s.labelGap - size.width : x + s.labelGap, y: (y1 + y2) / 2 - size.height / 2 };
       }
     } else {
-      // 층을 건너뛰는 선: 사이 층들의 오른쪽 바깥으로 비켜 간다
+      const source = boxes.get(from)!;
+      const target = boxes.get(to)!;
+      // 층을 건너뛰는 선: 사이 층들(과 바깥 상자)의 오른쪽 바깥으로 비켜 간다
       const [lo, hi] = [level.get(from)!, level.get(to)!].sort((p, q) => p - q) as [number, number];
-      const right = Math.max(...order.slice(lo, hi + 1).map((g) => boxes.get(g.id)!.x + boxes.get(g.id)!.width));
+      const right = Math.max(
+        ...order.slice(lo, hi + 1).map((g) => boxes.get(g.id)!.x + boxes.get(g.id)!.width),
+        ...(frame ? [boxes.get(frame.id)!.x + boxes.get(frame.id)!.width] : []),
+      );
       detours += 1;
       const x = right + detours * s.detour;
       const [y1, y2] = [source.y + source.height / 2, target.y + target.height / 2];

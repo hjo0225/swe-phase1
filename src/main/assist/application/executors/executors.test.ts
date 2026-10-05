@@ -178,7 +178,7 @@ describe('VisualizeExecutor', () => {
       version: 1,
       type: 'architecture',
       title: 'Web service',
-      groups: [{ id: 'vpc', title: '  Production Virtual Private Cloud A  ', parent: '' }],
+      groups: [{ id: 'vpc', title: '  Production Virtual Private Cloud A in Seoul  ', parent: '' }],
       nodes: [
         { id: 'u', title: 'Users', description: '', group: '', icon: 'user' },
         { id: 'lb', title: 'Load Balancer', description: '', group: 'vpc', icon: 'load-balancer' },
@@ -187,8 +187,8 @@ describe('VisualizeExecutor', () => {
     });
     const result = await new VisualizeExecutor().execute(InputSnapshot.of('x'), fakeProvider({ generateStructured }), signal);
     const spec = (result as { spec: { groups: { title: string }[]; edges: [string, string, { label: string; bidirectional?: true }][] } }).spec;
-    expect(spec.groups[0]!.title).toBe('Production Virtual Private Cl…');
-    expect(spec.groups[0]!.title).toHaveLength(30);
+    expect(spec.groups[0]!.title).toBe('Production Virtual Private Cloud A in S…');
+    expect(spec.groups[0]!.title).toHaveLength(40);
     expect(spec.edges[0]).toEqual(['u', 'lb', { label: 'HTTPS requests over por…', bidirectional: true }]);
     expect(spec.edges[0]![2].label).toHaveLength(24);
   });
@@ -346,6 +346,34 @@ describe('VisualizeExecutor', () => {
       // 같은 라벨이면 남기고, 서로 다른 라벨이 한 선으로 모이면 뺀다
       expect(spec.edges).toEqual([['g1', 'g2', { label: 'preload / IPC' }], ['g2', 'g3']]);
       expect(spec.nodes.map((n) => n.id)).toEqual(['1', '2', '3', '4', '5', '6', '7']);
+    });
+
+    it('keeps an outer box that holds the layers, and versioned technologies outside it as cards reached from a layer', async () => {
+      // README: Electron이 Renderer·Main을 감싸고, Main에서 SQLite·OpenAI SDK로 나간다
+      const spec = await run(
+        true,
+        [layer('g0', 'Electron 44.4'), layer('g1', 'Renderer Process', 'g0'), layer('g2', 'Main Process', 'g0')],
+        [
+          card('1', 'React 19.3', 'g1'),
+          card('2', 'Tiptap 3.31', 'g1'),
+          card('3', 'Node.js 24', 'g2'),
+          card('4', 'IPC / Preload Bridge', ''),
+          card('5', 'SQLite 3.53', ''),
+          card('6', 'OpenAI SDK 7', ''),
+        ],
+        [line('1', '4'), line('4', '3'), line('3', '5', 'search and link index'), line('g2', '6')],
+      );
+      expect(spec.groups).toEqual([
+        { id: 'g0', title: 'Electron 44.4' },
+        { id: 'g1', title: 'Renderer Process', parent: 'g0' },
+        { id: 'g2', title: 'Main Process', parent: 'g0' },
+      ]);
+      expect(spec.nodes.map((n) => n.title)).toEqual(['React 19.3', 'Tiptap 3.31', 'Node.js 24', 'SQLite 3.53', 'OpenAI SDK 7']);
+      expect(spec.edges).toEqual([
+        ['g1', 'g2', { label: 'IPC / Preload Bridge' }],
+        ['g2', '5', { label: 'search and link index' }],
+        ['g2', '6'],
+      ]);
     });
 
     it('turns a card standing between two layers into the label of the line between them', async () => {

@@ -120,7 +120,7 @@ const ShapeSchema = z.object({
     .array(
       z.object({
         id: z.string().trim().min(1).max(40),
-        title: z.string().trim().min(1).max(30),
+        title: z.string().trim().min(1).max(40),
         parent: z.string().trim().max(40).optional(),
       }),
     )
@@ -258,10 +258,39 @@ function holdsOf(groups: readonly InfographicGroup[], nodes: readonly Infographi
  * 이런 그림은 ELK 대신 층을 위→아래로 쌓아 그린다 (renderer의 stack 배치).
  */
 export function isLayerStack(spec: InfographicSpec): boolean {
+  return layerStackParts(spec) !== null;
+}
+
+/**
+ * 층 구조의 부분: 층(카드를 품은 그룹), 층들을 감싼 바깥 상자(있으면 하나, 예: Electron), 상자 밖 카드(예: SQLite).
+ * 층 구조가 아니면 null. 조건:
+ * - 그룹은 맨 바깥 층들이거나, 바깥 상자 하나와 그 안의 층들이다 (더 깊은 중첩·바깥 상자 둘·카드를 직접 품은 바깥 상자는 아니다)
+ * - 층이 둘 이상이고, 카드는 층 안 또는 상자 밖(그룹 없음)에 있다
+ * - 선은 층끼리, 또는 층과 상자 밖 카드 사이에만 있다. 상자 밖 카드는 모두 층에서 오는 선이 있다
+ */
+export function layerStackParts(
+  spec: InfographicSpec,
+): { frame: InfographicGroup | null; layers: InfographicGroup[]; outside: InfographicNode[] } | null {
   const groups = spec.groups ?? [];
-  if (spec.type !== 'architecture' || groups.length < 2 || groups.some((g) => g.parent)) return false;
-  const groupIds = new Set(groups.map((g) => g.id));
-  return spec.nodes.every((n) => n.group) && spec.edges.every(([from, to]) => groupIds.has(from) && groupIds.has(to));
+  if (spec.type !== 'architecture' || groups.length < 2) return null;
+  const hasChildren = (g: InfographicGroup) => groups.some((c) => c.parent === g.id);
+  const frames = groups.filter((g) => !g.parent && hasChildren(g));
+  if (frames.length > 1) return null;
+  const frame = frames[0] ?? null;
+  const layers = groups.filter((g) => g !== frame);
+  if (layers.length < 2 || layers.some((g) => hasChildren(g) || (g.parent && g.parent !== frame?.id))) return null;
+  if (frame && spec.nodes.some((n) => n.group === frame.id)) return null;
+  const layerIds = new Set(layers.map((g) => g.id));
+  const outside = spec.nodes.filter((n) => !n.group);
+  if (spec.nodes.some((n) => n.group && !layerIds.has(n.group))) return null;
+  const outsideIds = new Set(outside.map((n) => n.id));
+  const fits = spec.edges.every(
+    ([from, to]) => (layerIds.has(from) && (layerIds.has(to) || outsideIds.has(to))) || (outsideIds.has(from) && layerIds.has(to)),
+  );
+  if (!fits) return null;
+  const reached = new Set(spec.edges.flatMap(([from, to]) => [from, to]));
+  if (outside.some((n) => !reached.has(n.id))) return null;
+  return { frame, layers, outside };
 }
 
 /** 떠 있는 카드: 자기 선이 없고, 자기를 품은 어느 그룹에도 선이 닿지 않는다 (선이 닿는 층 안의 카드는 정상) */
@@ -420,7 +449,7 @@ export function infographicJsonSchema({ layers = false }: { layers?: boolean } =
           required: ['id', 'title', 'parent'],
           properties: {
             id: { type: 'string' },
-            title: { type: 'string', description: '30 characters or fewer' },
+            title: { type: 'string', description: '40 characters or fewer' },
             parent: { type: 'string', description: 'id of the enclosing group, or an empty string' },
           },
         },

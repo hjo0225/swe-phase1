@@ -1,64 +1,133 @@
-# Blink
+<div align="center">
 
-**Heo Jeong-O · 박석준 | Department of Information Systems**
+<img src="src/renderer/assets/blink-wordmark.svg" alt="Blink" width="260" />
 
-### Description (One Sentence)
+**AI Note Organizer — a desktop note app where AI works right where you write**
 
-An AI-powered desktop note-taking app that helps users refine their writing, visualize ideas, and reuse existing notes without interrupting their workflow.
+Jeong-O Heo · Seokjun Park | Department of Information Systems
+
+![Electron](https://img.shields.io/badge/Electron-44.4-47848F?logo=electron&logoColor=white)
+![React](https://img.shields.io/badge/React-19.3-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-3.53-003B57?logo=sqlite&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-11-0078D4)
+
+</div>
+
+---
+
+### Description
+
+Blink eliminates the hassle of switching between AI tools, copying and pasting text, and searching through old notes by bringing everything into one seamless writing experience.
+
+<img src="docs/images/readme/01-main-screen.png" alt="Blink main screen with the poster note open" />
+
+---
 
 ### 1. Key Features
 
-**01. Basic Note Management (CRUD)**
+#### 01. Basic Note Management (CRUD)
 
 - Create, read, update, and delete Markdown notes.
 - Manage notes and folders in a simple desktop editor.
 
-[스크린샷: Blink 메인 화면 및 노트 에디터]
-
-**02. AI Writing Assistance**
+#### 02. AI Writing Assistance
 
 - **Organize:** Restructure rough notes into clear, organized writing.
 - **Expand:** Enrich selected text with web-grounded explanations and sources.
 
-[스크린샷: AI 편집 전후 비교]
+<img src="docs/features/images/02-writing.png" alt="Select text to Expand, Organize or Visualize" width="620" />
 
-**03. AI Visualization**
+#### 03. AI Visualization
 
 - Transform selected text into diagrams and infographics.
 - Edit layouts and export visualizations as PNG.
 
-[스크린샷: Visualize 실행 결과]
+<img src="docs/images/readme/03-visualize.png" alt="An architecture diagram drawn from a memo inside a note" />
 
-**04. Note Search & Reuse**
+#### 04. Note Search & Reuse
 
 - Search notes by title and content.
 - Open, link, or import existing notes into the current document.
 - Maintain bidirectional links between related notes.
 
-[스크린샷: 검색 및 Link/Import 인터페이스]
+<img src="docs/features/images/04-search.png" alt="Search with Open, Link, Import and Preview" width="620" />
 
-**05. AI Folder Organization**
+#### 05. AI Folder Organization
 
 - Automatically classify notes into relevant folders using AI.
 - Preview and confirm the suggested folder structure.
 
-[스크린샷: AI 폴더 정리 결과]
+<img src="docs/features/images/05-organize.png" alt="Suggested folders before moving" width="420" />
+
+---
 
 ### 2. Tools & Architecture
 
-[아키텍처 다이어그램 삽입]
+<table>
+<tr>
+<td width="46%" valign="top">
+<img src="docs/images/readme/architecture.png" alt="Blink architecture: Electron holds the renderer and main processes; main reaches SQLite and the OpenAI SDK" />
+</td>
+<td valign="top">
 
-**Development Tools**
+```text
+Electron 44.4 — Desktop Application
+├── Renderer Process
+│   ├── React 19.3  — User Interface
+│   └── Tiptap 3.31 — Rich Text Editor
+│
+│      ↓  IPC / Preload Bridge
+│
+└── Main Process
+    └── Node.js 24  — Application Logic & File I/O
+
+Main Process
+├── SQLite 3.53   — Search & Link Index
+└── OpenAI SDK 7  — LLM API Communication
+```
+
+The renderer never touches files itself: every request crosses the preload bridge to the main process, which owns the Markdown files, the search index and the AI calls.
+
+</td>
+</tr>
+</table>
+
+---
+
+### 3. GenAI Development Tool
 
 - Claude Code (Claude Opus 5.5)
-- TypeScript 6.0
-- Electron 44.4 / React 19.3 / Tiptap 3.31
-- SQLite 3.53 / Drizzle ORM 0.45
-- Node.js 24 / pnpm 11
-- electron-vite / Vitest / Playwright / electron-builder
-- OpenAI SDK (OpenAI & Kimi)
 
-### 3. Platform
+### 4. Platform
 
 - Desktop Application (Electron)
-- [실제 테스트한 운영체제 및 버전 기재]
+- Windows 11
+
+---
+
+<details>
+<summary><b>Run it locally</b></summary>
+
+Requires Node.js 24 and pnpm 11.
+
+```bash
+pnpm install
+pnpm dev        # start the app with hot reload
+pnpm test       # unit tests (Vitest)
+pnpm typecheck
+pnpm dist       # build the Windows installer
+```
+
+AI features need your own OpenAI or Kimi API key — open **Settings** in the app, pick a provider and a model, and paste the key.
+
+</details>
+
+<details>
+<summary><b>Documentation</b></summary>
+
+- [Overview](docs/00-overview.md) · [System context](docs/01-system-context.md) · [Architecture](docs/02-architecture.md)
+- [Domain map](docs/03-domain-map.md) · [API conventions](docs/04-api-conventions.md) · [Cross-cutting concerns](docs/05-cross-cutting.md)
+- [Feature notes](docs/features/) used in the demo poster
+
+</details>

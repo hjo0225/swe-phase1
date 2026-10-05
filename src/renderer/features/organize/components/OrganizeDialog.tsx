@@ -38,7 +38,7 @@ export function OrganizeDialog({ folder, onClose }: { folder: string; onClose():
 
   return (
     <Dialog
-      title={`Organize — ${folder || 'Top of vault'}`}
+      title={folder ? `Organize ${folder}` : 'Organize vault'}
       onClose={onClose}
       actions={
         <>

@@ -33,7 +33,7 @@ describe('organize flow', () => {
     render(<App />);
 
     await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Organize — Top of vault' });
+    const dialog = await screen.findByRole('dialog', { name: 'Organize vault' });
     // 폴더 경로가 이름으로 보이고, "new folder"는 이름이 아니라 따로 붙은 꼬리표다
     const folderRow = (await within(dialog).findByText('공부 / Spring')).closest('li')!;
     expect(within(folderRow).getByText('new folder')).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe('organize flow', () => {
     render(<App />);
 
     await user.click(await screen.findByRole('button', { name: 'Organize vault' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Organize — Top of vault' });
+    const dialog = await screen.findByRole('dialog', { name: 'Organize vault' });
     await user.click(await within(dialog).findByRole('button', { name: 'Move' }));
 
     expect(await within(dialog).findByText("1 note couldn't be moved: 잠긴 노트")).toBeInTheDocument();

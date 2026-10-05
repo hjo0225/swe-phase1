@@ -12,7 +12,11 @@
 }
 
 .panel {
+  display: flex;
+  flex-direction: column;
   width: min(420px, calc(100vw - 32px));
+  /* 내용이 길어도 버튼이 화면 밖으로 밀려나지 않게 — 본문만 스크롤한다 */
+  max-height: calc(80vh - 24px);
   padding: 24px;
   animation: rise var(--dur-ui) var(--ease-standard);
 }
@@ -25,12 +29,16 @@
 }
 
 .body {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
   font-size: 14px;
   line-height: 1.6;
   color: var(--ink-700);
 }
 
 .actions {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
